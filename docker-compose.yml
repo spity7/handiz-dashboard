@@ -5,14 +5,14 @@ services:
     build:
       context: ./client
     ports:
-      - "3005:80"
+      - "3016:80"
     restart: always
 
   server:
     build:
       context: ./server
     ports:
-      - "5005:5005"
+      - "5016:5016"
     env_file:
       - ./server/.env
     restart: always
