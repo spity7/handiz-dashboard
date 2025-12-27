@@ -5,5 +5,5 @@ export const developedBy = 'Appsido'
 export const contactUs = 'techzaastudio@gmail.com'
 export const buyLink = ''
 export const basePath = ''
-export const DEFAULT_PAGE_TITLE = 'Vertex | Responsive Admin Dashboard'
+export const DEFAULT_PAGE_TITLE = 'Handiz | Responsive Admin Dashboard'
 export const colorVariants = ['primary', 'secondary', 'success', 'danger', 'warning', 'info', 'dark', 'purple', 'pink', 'orange', 'light', 'link']

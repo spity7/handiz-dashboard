@@ -26,10 +26,10 @@ app.use(
     origin: [
       "http://localhost:5173",
       "http://localhost:3000",
-      "http://localhost:5005",
-      "https://vertex-engineering.co",
-      "https://dashboard.vertex-engineering.co",
-      "https://api.vertex-engineering.co",
+      "http://localhost:5016",
+      "https://handiz.org",
+      "https://dashboard.handiz.org",
+      "https://api.handiz.org",
     ],
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: [
