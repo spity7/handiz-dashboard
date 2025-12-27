@@ -21,6 +21,12 @@ export const MENU_ITEMS = [
         url: '/ecommerce/projects',
         parentKey: 'ecommerce',
       },
+      {
+        key: 'ecommerce-student-projects',
+        label: 'Student Projects',
+        url: '/ecommerce/student-projects',
+        parentKey: 'ecommerce',
+      },
 
       // {
       //   key: 'ecommerce-products',

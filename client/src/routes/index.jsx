@@ -13,6 +13,9 @@ const EcommerceServiceUpdate = lazy(() => import('@/app/(admin)/ecommerce/servic
 const EcommerceProjects = lazy(() => import('@/app/(admin)/ecommerce/projects/page'))
 const EcommerceProjectCreate = lazy(() => import('@/app/(admin)/ecommerce/projects/create/page'))
 const EcommerceProjectUpdate = lazy(() => import('@/app/(admin)/ecommerce/projects/edit/[id]/page'))
+const EcommerceStudentProjects = lazy(() => import('@/app/(admin)/ecommerce/student-projects/page'))
+const EcommerceStudentProjectCreate = lazy(() => import('@/app/(admin)/ecommerce/student-projects/create/page'))
+const EcommerceStudentProjectUpdate = lazy(() => import('@/app/(admin)/ecommerce/student-projects/edit/[id]/page'))
 
 const EcommerceProducts = lazy(() => import('@/app/(admin)/ecommerce/products/page'))
 const EcommerceProductDetails = lazy(() => import('@/app/(admin)/ecommerce/products/[productId]/page'))
@@ -192,6 +195,21 @@ const appsRoutes = [
     name: 'Project Update',
     path: '/ecommerce/projects/edit/:id',
     element: <EcommerceProjectUpdate />,
+  },
+  {
+    name: 'Student Projects',
+    path: '/ecommerce/student-projects',
+    element: <EcommerceStudentProjects />,
+  },
+  {
+    name: 'Create Student Project',
+    path: '/ecommerce/student-projects/create',
+    element: <EcommerceStudentProjectCreate />,
+  },
+  {
+    name: 'Student Project Update',
+    path: '/ecommerce/student-projects/edit/:id',
+    element: <EcommerceStudentProjectUpdate />,
   },
 
   {
