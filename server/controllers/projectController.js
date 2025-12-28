@@ -15,9 +15,11 @@ exports.createProject = async (req, res) => {
       year,
       location,
       university,
+      contentBlocks,
     } = req.body;
     const thumbnailFile = req.files?.thumbnail?.[0];
     const galleryFiles = req.files?.gallery || [];
+    const blockImageFiles = req.files?.blockImages || [];
 
     if (
       !title ||
@@ -73,6 +75,45 @@ exports.createProject = async (req, res) => {
       }
     }
 
+    // Process Content Blocks
+    let parsedContentBlocks = [];
+    if (contentBlocks) {
+      try {
+        parsedContentBlocks = JSON.parse(contentBlocks);
+      } catch (err) {
+        console.error("Error parsing contentBlocks:", err);
+      }
+    }
+
+    // Upload block images and map to contentBlocks
+    if (parsedContentBlocks.length > 0 && blockImageFiles.length > 0) {
+      // We assume the frontend sends images in the same order as the 'image' blocks appear
+      // OR we can rely on a fileIndex property in the block.
+      // Let's implement the fileIndex strategy for robustness if possible, or a queue.
+
+      // Strategy: Create a queue of files. Iterate blocks. If block.type === 'image' && !block.content (or special flag), pop file.
+      let imageFileIndex = 0;
+
+      // First, upload all block images in parallel to get their URLs
+      const uploadedBlockImages = await Promise.all(
+        blockImageFiles.map(async (file) => {
+          const fileName = `projects/blocks/${Date.now()}_${file.originalname}`;
+          return await uploadImage(file.buffer, fileName, file.mimetype);
+        })
+      );
+
+      parsedContentBlocks = parsedContentBlocks.map((block) => {
+        if (
+          block.type === "image" &&
+          block.fileIndex !== undefined &&
+          uploadedBlockImages[block.fileIndex]
+        ) {
+          return { ...block, content: uploadedBlockImages[block.fileIndex] };
+        }
+        return block;
+      });
+    }
+
     const parsedConcept = Array.isArray(concept) ? concept : [concept];
     const parsedType = Array.isArray(type) ? type : [type];
     const parsedCategory = Array.isArray(category) ? category : [category];
@@ -97,6 +138,7 @@ exports.createProject = async (req, res) => {
       year: parsedYear,
       location: parsedLocation,
       university: parsedUniversity,
+      contentBlocks: parsedContentBlocks,
     });
 
     res.status(201).json({
@@ -277,6 +319,24 @@ exports.deleteProject = async (req, res) => {
             await deleteImage(imageUrl);
           } catch (err) {
             console.warn("⚠️ Failed to delete gallery image:", err.message);
+          }
+        })
+      );
+    }
+
+    // Delete images from Content Blocks
+    if (Array.isArray(project.contentBlocks)) {
+      await Promise.all(
+        project.contentBlocks.map(async (block) => {
+          if (block.type === "image" && block.content) {
+            try {
+              await deleteImage(block.content);
+            } catch (err) {
+              console.warn(
+                "⚠️ Failed to delete content block image:",
+                err.message
+              );
+            }
           }
         })
       );

@@ -23,6 +23,7 @@ router.post(
   upload.fields([
     { name: "thumbnail", maxCount: 1 },
     { name: "gallery", maxCount: 30 },
+    { name: "blockImages", maxCount: 50 },
   ]),
   createProject
 );
@@ -33,6 +34,7 @@ router.put(
   upload.fields([
     { name: "thumbnail", maxCount: 1 },
     { name: "gallery", maxCount: 30 },
+    { name: "blockImages", maxCount: 50 },
   ]),
   updateProject
 );

@@ -76,6 +76,20 @@ const projectSchema = new mongoose.Schema(
         message: "At least one university is required",
       },
     },
+    contentBlocks: [
+      {
+        _id: false,
+        type: {
+          type: String,
+          enum: ["title", "description", "image", "quote"],
+          required: true,
+        },
+        content: {
+          type: String,
+          default: "",
+        },
+      },
+    ],
   },
   {
     timestamps: true, // adds createdAt & updatedAt
