@@ -69,12 +69,12 @@ exports.createProject = async (req, res) => {
 
     const parsedConcept = Array.isArray(concept) ? concept : [concept];
     const parsedType = Array.isArray(type) ? type : [type];
+    const parsedCategory = Array.isArray(category) ? category : [category];
 
     // Save project to DB
     const newProject = await Project.create({
       name,
       title,
-      category,
       description,
       location,
       order,
@@ -82,6 +82,7 @@ exports.createProject = async (req, res) => {
       gallery: galleryUrls,
       concept: parsedConcept,
       type: parsedType,
+      category: parsedCategory,
     });
 
     res.status(201).json({
@@ -133,9 +134,9 @@ exports.updateProject = async (req, res) => {
     const thumbnailFile = req.files?.thumbnail?.[0];
     const galleryFiles = req.files?.gallery || [];
 
-    if (!concept || !type) {
+    if (!concept || !type || !category) {
       return res.status(400).json({
-        message: "Concept and Type are required",
+        message: "Concept, Type, and Category are required",
       });
     }
 
@@ -147,16 +148,17 @@ exports.updateProject = async (req, res) => {
 
     const parsedConcept = Array.isArray(concept) ? concept : [concept];
     const parsedType = Array.isArray(type) ? type : [type];
+    const parsedCategory = Array.isArray(category) ? category : [category];
 
     const updateData = {
       name,
       title,
-      category,
       description,
       location,
       order,
       concept: parsedConcept,
       type: parsedType,
+      category: parsedCategory,
     };
 
     // ✅ Handle new thumbnail upload

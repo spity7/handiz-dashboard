@@ -6,7 +6,6 @@ import ReactQuill from 'react-quill'
 import * as yup from 'yup'
 import SelectFormInput from '@/components/form/SelectFormInput'
 import TextFormInput from '@/components/form/TextFormInput'
-import { getAllProjectCategories } from '@/helpers/data'
 import { renameKeys } from '@/utils/rename-object-keys'
 import 'react-quill/dist/quill.snow.css'
 import { useGlobalContext } from '@/context/useGlobalContext'
@@ -16,12 +15,12 @@ import ComponentContainerCard from '@/components/ComponentContainerCard'
 const generalFormSchema = yup.object({
   name: yup.string().required('Project name is required'),
   title: yup.string().required('Project title is required'),
-  category: yup.string().required('Project Category is required'),
   descQuill: yup.string().required('Project description is required'),
   location: yup.string().required('Project location is required'),
   order: yup.number().typeError('Order must be a number').required('Order is required'),
   concept: yup.array().of(yup.string()).min(1, 'Select at least one concept').required(),
   type: yup.array().of(yup.string()).min(1, 'Select at least one type').required(),
+  category: yup.array().of(yup.string()).min(1, 'Select at least one category').required(),
 })
 
 const normalizeQuillValue = (value) => {
@@ -34,23 +33,7 @@ const GeneralDetailsForm = () => {
   const [loading, setLoading] = useState(false)
   const [thumbnailFile, setThumbnailFile] = useState(null)
   const [galleryFiles, setGalleryFiles] = useState([])
-  const [projectCategories, setProjectCategories] = useState([])
   const [resetDropzones, setResetDropzones] = useState(false)
-
-  useEffect(() => {
-    const fetchCategories = async () => {
-      const data = await getAllProjectCategories()
-      if (!data) return
-      const categoryOptions = data.map((category) =>
-        renameKeys(category, {
-          id: 'value',
-          name: 'label',
-        }),
-      )
-      setProjectCategories(categoryOptions)
-    }
-    fetchCategories()
-  }, [])
 
   const {
     control,
@@ -62,12 +45,12 @@ const GeneralDetailsForm = () => {
     defaultValues: {
       name: '',
       title: '',
-      category: '',
       descQuill: '',
       location: '',
       order: 999,
       concept: [],
       type: [],
+      category: [],
     },
   })
 
@@ -83,11 +66,6 @@ const GeneralDetailsForm = () => {
       formData.append('name', data.name)
       formData.append('title', data.title)
 
-      // ✅ Convert value to label before sending
-      const selectedCategory = projectCategories.find((cat) => cat.value === data.category)
-      const categoryName = selectedCategory ? selectedCategory.label : data.category
-      formData.append('category', categoryName)
-
       formData.append('description', data.descQuill)
       formData.append('location', data.location)
       formData.append('thumbnail', thumbnailFile)
@@ -98,6 +76,7 @@ const GeneralDetailsForm = () => {
 
       data.concept.forEach((value) => formData.append('concept', value))
       data.type.forEach((value) => formData.append('type', value))
+      data.category.forEach((value) => formData.append('category', value))
 
       await createProject(formData)
 
@@ -107,10 +86,12 @@ const GeneralDetailsForm = () => {
       reset({
         name: '',
         title: '',
-        category: '',
         descQuill: '',
         location: '',
         order: 999,
+        concept: [],
+        type: [],
+        category: [],
       })
 
       setThumbnailFile(null)
@@ -143,17 +124,6 @@ const GeneralDetailsForm = () => {
             // error={errors.name?.message}
           />
         </Col>
-        <Col lg={6}>
-          {projectCategories.length > 0 && (
-            <div className="mb-3">
-              <label htmlFor="projectSummary" className="form-label">
-                Category
-              </label>
-              <SelectFormInput control={control} name="category" options={projectCategories} />
-              {errors.category && <p className="text-danger mt-1">{errors.category.message}</p>}
-            </div>
-          )}
-        </Col>
       </Row>
 
       <Row>
@@ -174,7 +144,7 @@ const GeneralDetailsForm = () => {
       </Row>
 
       <Row>
-        <Col lg={4}>
+        <Col lg={3}>
           <ComponentContainerCard title="Concept">
             <Controller
               name="concept"
@@ -190,7 +160,7 @@ const GeneralDetailsForm = () => {
             {errors.concept && <p className="text-danger">{errors.concept.message}</p>}
           </ComponentContainerCard>
         </Col>
-        <Col lg={4}>
+        <Col lg={3}>
           <ComponentContainerCard title="Type">
             <Controller
               name="type"
@@ -204,6 +174,22 @@ const GeneralDetailsForm = () => {
               )}
             />
             {errors.type && <p className="text-danger">{errors.type.message}</p>}
+          </ComponentContainerCard>
+        </Col>
+        <Col lg={3}>
+          <ComponentContainerCard title="Category">
+            <Controller
+              name="category"
+              control={control}
+              render={({ field }) => (
+                <>
+                  {['Graduated Project', 'UnderGraduated Project', 'Arab Project', 'Competitions Project'].map((item) => (
+                    <FormCheck key={item} label={item} checked={field.value.includes(item)} onChange={() => toggleCheckboxValue(item, field)} />
+                  ))}
+                </>
+              )}
+            />
+            {errors.category && <p className="text-danger">{errors.category.message}</p>}
           </ComponentContainerCard>
         </Col>
       </Row>

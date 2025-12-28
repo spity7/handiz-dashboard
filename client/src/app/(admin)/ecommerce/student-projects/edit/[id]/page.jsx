@@ -9,7 +9,6 @@ import DropzoneFormInput from '@/components/form/DropzoneFormInput'
 import SelectFormInput from '@/components/form/SelectFormInput'
 import { renameKeys } from '@/utils/rename-object-keys'
 import 'react-quill/dist/quill.snow.css'
-import { getAllProjectCategories } from '@/helpers/data'
 
 const EditProject = () => {
   const { id } = useParams()
@@ -20,33 +19,16 @@ const EditProject = () => {
   const [name, setName] = useState('')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [category, setCategory] = useState('')
   const [location, setLocation] = useState('')
   const [order, setOrder] = useState(999)
   const [concept, setConcept] = useState([])
+  const [category, setCategory] = useState([])
   const [type, setType] = useState([])
   const [thumbnail, setThumbnail] = useState(null)
   const [preview, setPreview] = useState(null)
   const [galleryFiles, setGalleryFiles] = useState([])
   const [existingGallery, setExistingGallery] = useState([])
-  const [projectCategories, setProjectCategories] = useState([])
   const [loading, setLoading] = useState(false)
-
-  // ✅ Fetch categories
-  useEffect(() => {
-    const fetchCategories = async () => {
-      const data = await getAllProjectCategories()
-      if (!data) return
-      const options = data.map((category) =>
-        renameKeys(category, {
-          id: 'value',
-          name: 'label',
-        }),
-      )
-      setProjectCategories(options)
-    }
-    fetchCategories()
-  }, [])
 
   useEffect(() => {
     const fetchProject = async () => {
@@ -57,14 +39,11 @@ const EditProject = () => {
         setTitle(data.title)
         setDescription(data.description)
 
-        // ✅ Find matching option by label (since API gives category name)
-        const matchedCategory = projectCategories.find((cat) => cat.label === data.category)
-        setCategory(matchedCategory ? matchedCategory.value : '')
-
         setLocation(data.location)
         setOrder(data.order ?? 999)
         setConcept(data.concept || [])
         setType(data.type || [])
+        setCategory(data.category || [])
 
         setPreview(data.thumbnailUrl)
         setExistingGallery(data.gallery || [])
@@ -72,9 +51,8 @@ const EditProject = () => {
         alert('Failed to load project')
       }
     }
-    // ✅ wait until categories are loaded
-    if (projectCategories.length > 0) fetchProject()
-  }, [id, getProjectById, projectCategories])
+    fetchProject()
+  }, [id, getProjectById])
 
   const handleFileChange = (e) => {
     const file = e.target.files[0]
@@ -92,8 +70,8 @@ const EditProject = () => {
     e.preventDefault()
     try {
       setLoading(true)
-      if (concept.length === 0 || type.length === 0) {
-        alert('Please select at least one Concept and Type')
+      if (concept.length === 0 || type.length === 0 || category.length === 0) {
+        alert('Please select at least one Concept, Type, and Category')
         setLoading(false)
         return
       }
@@ -103,11 +81,6 @@ const EditProject = () => {
       formData.append('title', title)
       formData.append('description', description)
 
-      // ✅ Convert selected category value -> label (to match backend)
-      const selectedCategory = projectCategories.find((cat) => cat.value === category)
-      const categoryName = selectedCategory ? selectedCategory.label : category
-      formData.append('category', categoryName)
-
       formData.append('location', location)
       formData.append('order', order)
 
@@ -116,6 +89,7 @@ const EditProject = () => {
 
       concept.forEach((c) => formData.append('concept', c))
       type.forEach((t) => formData.append('type', t))
+      category.forEach((c) => formData.append('category', c))
 
       await updateProject(id, formData)
       alert('Project updated successfully!')
@@ -182,7 +156,7 @@ const EditProject = () => {
                 </div>
 
                 <Row className="mb-3">
-                  <Col lg={6}>
+                  <Col lg={3}>
                     <label className="form-label fw-bold">Concept *</label>
                     {['Sustainability', 'Function', 'Formalism'].map((item) => (
                       <div key={item}>
@@ -192,7 +166,7 @@ const EditProject = () => {
                     {concept.length === 0 && <p className="text-danger">Select at least one concept</p>}
                   </Col>
 
-                  <Col lg={6}>
+                  <Col lg={3}>
                     <label className="form-label fw-bold">Type *</label>
                     {['Educational', 'Touristic', 'Residential'].map((item) => (
                       <div key={item}>
@@ -201,17 +175,18 @@ const EditProject = () => {
                     ))}
                     {type.length === 0 && <p className="text-danger">Select at least one type</p>}
                   </Col>
-                </Row>
 
-                {/* ✅ Replace input with dropdown */}
-                <div className="mb-3">
-                  <label className="form-label">Category</label>
-                  {projectCategories.length > 0 ? (
-                    <SelectFormInput name="category" options={projectCategories} value={category} onChange={(val) => setCategory(val)} />
-                  ) : (
-                    <p>Loading categories...</p>
-                  )}
-                </div>
+                  <Col lg={3}>
+                    <label className="form-label fw-bold">Category *</label>
+                    {['Graduated Project', 'UnderGraduated Project', 'Arab Project', 'Competitions Project'].map((item) => (
+                      <div key={item}>
+                        <input type="checkbox" checked={category.includes(item)} onChange={() => toggleCheckbox(item, category, setCategory)} />{' '}
+                        {item}
+                      </div>
+                    ))}
+                    {category.length === 0 && <p className="text-danger">Select at least one category</p>}
+                  </Col>
+                </Row>
 
                 <div className="mb-3">
                   <label className="form-label">Location</label>

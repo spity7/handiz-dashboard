@@ -12,10 +12,6 @@ const projectSchema = new mongoose.Schema(
       required: [true, "Project title is required"],
       trim: true,
     },
-    category: {
-      type: String,
-      required: [true, "Category is required"],
-    },
     description: {
       type: String,
       required: [true, "Project description is required"],
@@ -49,6 +45,13 @@ const projectSchema = new mongoose.Schema(
       validate: {
         validator: (v) => v.length > 0,
         message: "At least one type is required",
+      },
+    },
+    category: {
+      type: [String],
+      validate: {
+        validator: (v) => v.length > 0,
+        message: "At least one category is required",
       },
     },
   },
