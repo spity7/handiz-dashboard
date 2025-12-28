@@ -33,6 +33,22 @@ const EditProject = () => {
   const [galleryFiles, setGalleryFiles] = useState([])
   const [existingGallery, setExistingGallery] = useState([])
   const [loading, setLoading] = useState(false)
+  const [dynamicBlocks, setDynamicBlocks] = useState([])
+
+  const addBlock = (type) => {
+    setDynamicBlocks((prev) => [
+      ...prev,
+      { id: Date.now() + Math.random().toString(36), type, content: '' }, // content will be text or File
+    ])
+  }
+
+  const updateBlock = (id, value) => {
+    setDynamicBlocks((prev) => prev.map((b) => (b.id === id ? { ...b, content: value } : b)))
+  }
+
+  const removeBlock = (id) => {
+    setDynamicBlocks((prev) => prev.filter((b) => b.id !== id))
+  }
 
   useEffect(() => {
     const fetchProject = async () => {
@@ -54,6 +70,16 @@ const EditProject = () => {
 
         setPreview(data.thumbnailUrl)
         setExistingGallery(data.gallery || [])
+
+        if (data.contentBlocks) {
+          // We need to ensure each block has a unique ID for React keys
+          setDynamicBlocks(
+            data.contentBlocks.map((block) => ({
+              ...block,
+              id: Date.now() + Math.random().toString(36),
+            })),
+          )
+        }
       } catch (error) {
         alert('Failed to load project')
       }
@@ -107,6 +133,35 @@ const EditProject = () => {
       year.forEach((c) => formData.append('year', c))
       location.forEach((c) => formData.append('location', c))
       university.forEach((c) => formData.append('university', c))
+
+      // ✅ Process dynamic blocks
+      const blocksPayload = []
+      let imageIndex = 0
+
+      dynamicBlocks.forEach((block) => {
+        if (block.type === 'image') {
+          // If content is a File object, it's a NEW image
+          if (block.content instanceof File) {
+            formData.append('blockImages', block.content)
+            blocksPayload.push({
+              type: 'image',
+              fileIndex: imageIndex++,
+            })
+          } else {
+            // It's an existing image URL or empty
+            blocksPayload.push({
+              type: 'image',
+              content: block.content,
+            })
+          }
+        } else {
+          blocksPayload.push({
+            type: block.type,
+            content: block.content,
+          })
+        }
+      })
+      formData.append('contentBlocks', JSON.stringify(blocksPayload))
 
       await updateProject(id, formData)
       alert('Project updated successfully!')
@@ -315,6 +370,95 @@ const EditProject = () => {
                     </div>
                   </div>
                 )}
+
+                {/* Dynamic Content Blocks Section */}
+                <hr className="my-4" />
+                <h4 className="mb-3">Dynamic Content Blocks</h4>
+
+                {dynamicBlocks.map((block, index) => (
+                  <div key={block.id} className="mb-3 p-3 border rounded position-relative">
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      type="button"
+                      className="position-absolute top-0 end-0 m-2"
+                      onClick={() => removeBlock(block.id)}>
+                      Remove
+                    </Button>
+                    <div className="mb-2 text-capitalize fw-bold">{block.type}</div>
+
+                    {block.type === 'title' && (
+                      <input
+                        type="text"
+                        className="form-control"
+                        placeholder="Enter title"
+                        value={block.content}
+                        onChange={(e) => updateBlock(block.id, e.target.value)}
+                      />
+                    )}
+
+                    {block.type === 'description' && (
+                      <textarea
+                        className="form-control"
+                        rows={3}
+                        placeholder="Enter description"
+                        value={block.content}
+                        onChange={(e) => updateBlock(block.id, e.target.value)}
+                      />
+                    )}
+
+                    {block.type === 'quote' && (
+                      <textarea
+                        className="form-control fst-italic"
+                        rows={2}
+                        placeholder="Enter quote"
+                        value={block.content}
+                        onChange={(e) => updateBlock(block.id, e.target.value)}
+                      />
+                    )}
+
+                    {block.type === 'image' && (
+                      <div>
+                        <input
+                          type="file"
+                          className="form-control"
+                          accept="image/*"
+                          onChange={(e) => {
+                            if (e.target.files?.[0]) {
+                              updateBlock(block.id, e.target.files[0])
+                            }
+                          }}
+                        />
+                        {/* Show preview for existing image URL */}
+                        {block.content && typeof block.content === 'string' && (
+                          <div className="mt-2">
+                            <img src={block.content} alt="Block content" style={{ width: 100, height: 100, objectFit: 'contain' }} />
+                          </div>
+                        )}
+                        {/* Show name for new file */}
+                        {block.content && block.content instanceof File && <div className="mt-2 text-muted">Selected: {block.content.name}</div>}
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                <div className="mb-4">
+                  <label className="form-label d-block">Add New Block</label>
+                  <div className="d-flex gap-2">
+                    <Button variant="outline-primary" type="button" onClick={() => addBlock('title')}>
+                      + Title
+                    </Button>
+                    <Button variant="outline-primary" type="button" onClick={() => addBlock('description')}>
+                      + Description
+                    </Button>
+                    <Button variant="outline-primary" type="button" onClick={() => addBlock('image')}>
+                      + Image
+                    </Button>
+                    <Button variant="outline-primary" type="button" onClick={() => addBlock('quote')}>
+                      + Quote
+                    </Button>
+                  </div>
+                </div>
 
                 <Button type="submit" disabled={loading}>
                   {loading ? 'Updating...' : 'Update Project'}

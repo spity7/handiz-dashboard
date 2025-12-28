@@ -392,7 +392,7 @@ const GeneralDetailsForm = () => {
 
       {dynamicBlocks.map((block, index) => (
         <div key={block.id} className="mb-3 p-3 border rounded position-relative">
-          <Button variant="danger" size="sm" className="position-absolute top-0 end-0 m-2" onClick={() => removeBlock(block.id)}>
+          <Button variant="danger" size="sm" type="button" className="position-absolute top-0 end-0 m-2" onClick={() => removeBlock(block.id)}>
             Remove
           </Button>
           <div className="mb-2 text-capitalize fw-bold">{block.type}</div>
@@ -448,16 +448,16 @@ const GeneralDetailsForm = () => {
       <div className="mb-4">
         <label className="form-label d-block">Add New Block</label>
         <div className="d-flex gap-2">
-          <Button variant="outline-primary" onClick={() => addBlock('title')}>
+          <Button variant="outline-primary" type="button" onClick={() => addBlock('title')}>
             + Title
           </Button>
-          <Button variant="outline-primary" onClick={() => addBlock('description')}>
+          <Button variant="outline-primary" type="button" onClick={() => addBlock('description')}>
             + Description
           </Button>
-          <Button variant="outline-primary" onClick={() => addBlock('image')}>
+          <Button variant="outline-primary" type="button" onClick={() => addBlock('image')}>
             + Image
           </Button>
-          <Button variant="outline-primary" onClick={() => addBlock('quote')}>
+          <Button variant="outline-primary" type="button" onClick={() => addBlock('quote')}>
             + Quote
           </Button>
         </div>

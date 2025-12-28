@@ -189,9 +189,11 @@ exports.updateProject = async (req, res) => {
       type,
       year,
       university,
+      contentBlocks,
     } = req.body;
     const thumbnailFile = req.files?.thumbnail?.[0];
     const galleryFiles = req.files?.gallery || [];
+    const blockImageFiles = req.files?.blockImages || [];
 
     if (!concept || !type || !category || !location || !year || !university) {
       return res.status(400).json({
@@ -228,6 +230,48 @@ exports.updateProject = async (req, res) => {
       location: parsedLocation,
       university: parsedUniversity,
     };
+
+    // Process Content Blocks
+    let parsedContentBlocks = [];
+    if (contentBlocks) {
+      try {
+        parsedContentBlocks = JSON.parse(contentBlocks);
+      } catch (err) {
+        console.error("Error parsing contentBlocks:", err);
+      }
+    }
+
+    // Upload block images and map to contentBlocks
+    if (parsedContentBlocks.length > 0) {
+      // Upload NEW block images
+      if (blockImageFiles.length > 0) {
+        const uploadedBlockImages = await Promise.all(
+          blockImageFiles.map(async (file) => {
+            const fileName = `projects/blocks/${Date.now()}_${
+              file.originalname
+            }`;
+            return await uploadImage(file.buffer, fileName, file.mimetype);
+          })
+        );
+
+        let imageIndex = 0;
+        parsedContentBlocks = parsedContentBlocks.map((block) => {
+          // If block has a fileIndex, it means it's a NEW file upload
+          if (block.type === "image" && block.fileIndex !== undefined) {
+            const url = uploadedBlockImages[block.fileIndex]; // Use fileIndex from frontend
+            // Cleanup: remove temporary fileIndex
+            const { fileIndex, ...rest } = block;
+            return { ...rest, content: url };
+          }
+          return block;
+        });
+      }
+
+      updateData.contentBlocks = parsedContentBlocks;
+    } else if (contentBlocks) {
+      // If contentBlocks is sent but empty (user deleted all blocks), update to empty array
+      updateData.contentBlocks = [];
+    }
 
     // ✅ Handle new thumbnail upload
     if (thumbnailFile) {
