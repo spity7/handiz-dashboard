@@ -31,16 +31,16 @@ const ProjectsListTable = ({ projects }) => {
 
   const columns = [
     {
-      header: 'Project Name',
+      header: 'Project Title',
       cell: ({
         row: {
-          original: { _id, thumbnailUrl, name, category },
+          original: { _id, thumbnailUrl, title, type },
         },
       }) => (
         <div className="d-flex align-items-center">
           <div className="flex-shrink-0 me-3">
             {thumbnailUrl ? (
-              <img src={thumbnailUrl} alt={name} className="img-fluid avatar-sm" style={{ width: 50, height: 50, objectFit: 'contain' }} />
+              <img src={thumbnailUrl} alt={title} className="img-fluid avatar-sm" style={{ width: 50, height: 50, objectFit: 'contain' }} />
             ) : (
               <div className="bg-light d-flex align-items-center justify-content-center rounded" style={{ width: 50, height: 50 }}>
                 <IconifyIcon icon="bx:image" className="text-muted fs-4" />
@@ -48,16 +48,24 @@ const ProjectsListTable = ({ projects }) => {
             )}
           </div>
           <div className="flex-grow-1">
-            <h5 className="mt-0 mb-1">{name}</h5>
+            <h5 className="mt-0 mb-1">{title}</h5>
             <span
               className="fs-13 text-muted"
               dangerouslySetInnerHTML={{
-                __html: category,
+                __html: type,
               }}
             />
           </div>
         </div>
       ),
+    },
+    {
+      header: 'Order',
+      cell: ({
+        row: {
+          original: { order },
+        },
+      }) => order,
     },
     {
       header: 'Action',

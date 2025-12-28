@@ -16,8 +16,9 @@ const EditProject = () => {
   const { getProjectById, updateProject, deleteProjectGalleryImage } = useGlobalContext()
 
   const [project, setProject] = useState(null)
-  const [name, setName] = useState('')
   const [title, setTitle] = useState('')
+  const [student, setStudent] = useState('')
+  const [area, setArea] = useState('')
   const [description, setDescription] = useState('')
   const [order, setOrder] = useState(999)
   const [concept, setConcept] = useState([])
@@ -38,8 +39,9 @@ const EditProject = () => {
       try {
         const data = await getProjectById(id)
         setProject(data)
-        setName(data.name)
         setTitle(data.title)
+        setStudent(data.student)
+        setArea(data.area)
         setDescription(data.description)
 
         setOrder(data.order ?? 999)
@@ -89,8 +91,9 @@ const EditProject = () => {
       }
 
       const formData = new FormData()
-      formData.append('name', name)
       formData.append('title', title)
+      formData.append('student', student)
+      formData.append('area', area)
       formData.append('description', description)
 
       formData.append('order', order)
@@ -147,27 +150,39 @@ const EditProject = () => {
           <Card>
             <CardBody>
               <form onSubmit={handleSubmit}>
-                <div className="mb-3">
-                  <label className="form-label">Project Name</label>
-                  <input type="text" className="form-control" value={name} onChange={(e) => setName(e.target.value)} required />
-                </div>
-
-                <div className="mb-3">
-                  <label className="form-label">Project Title</label>
-                  <input type="text" className="form-control" value={title} onChange={(e) => setTitle(e.target.value)} required />
-                </div>
-
-                <div className="mb-3">
-                  <label className="form-label">Order</label>
-                  <input
-                    type="number"
-                    className="form-control"
-                    value={order}
-                    onChange={(e) => setOrder(Number(e.target.value))}
-                    placeholder="Enter Order"
-                    required
-                  />
-                </div>
+                <Row>
+                  <Col lg={3}>
+                    <div className="mb-3">
+                      <label className="form-label">Project Title</label>
+                      <input type="text" className="form-control" value={title} onChange={(e) => setTitle(e.target.value)} required />
+                    </div>
+                  </Col>
+                  <Col lg={3}>
+                    <div className="mb-3">
+                      <label className="form-label">Student</label>
+                      <input type="text" className="form-control" value={student} onChange={(e) => setStudent(e.target.value)} required />
+                    </div>
+                  </Col>
+                  <Col lg={3}>
+                    <div className="mb-3">
+                      <label className="form-label">Area</label>
+                      <input type="text" className="form-control" value={area} onChange={(e) => setArea(e.target.value)} required />
+                    </div>
+                  </Col>
+                  <Col lg={3}>
+                    <div className="mb-3">
+                      <label className="form-label">Order</label>
+                      <input
+                        type="number"
+                        className="form-control"
+                        value={order}
+                        onChange={(e) => setOrder(Number(e.target.value))}
+                        placeholder="Enter Order"
+                        required
+                      />
+                    </div>
+                  </Col>
+                </Row>
 
                 <Row className="mb-3">
                   <Col lg={3}>
@@ -234,23 +249,29 @@ const EditProject = () => {
                     ))}
                     {university.length === 0 && <p className="text-danger">Select at least one university</p>}
                   </Col>
+
+                  <Col lg={6}>
+                    <div className="mb-3">
+                      <label className="form-label">Project Thumbnail</label>
+                      <input type="file" className="form-control" onChange={handleFileChange} />
+                      {preview && (
+                        <div className="mt-3">
+                          <p className="fw-bold mb-1">Preview:</p>
+                          <img src={preview} alt="Project Thumbnail" style={{ width: 80, height: 80, objectFit: 'contain' }} />
+                        </div>
+                      )}
+                    </div>
+                  </Col>
                 </Row>
 
-                <div className="mb-3">
-                  <label className="form-label">Description</label>
-                  <ReactQuill theme="snow" value={description} onChange={setDescription} />
-                </div>
-
-                <div className="mb-3">
-                  <label className="form-label">Project Thumbnail</label>
-                  <input type="file" className="form-control" onChange={handleFileChange} />
-                  {preview && (
-                    <div className="mt-3">
-                      <p className="fw-bold mb-1">Preview:</p>
-                      <img src={preview} alt="Project Thumbnail" style={{ width: 80, height: 80, objectFit: 'contain' }} />
+                <Row>
+                  <Col lg={6}>
+                    <div className="mb-3">
+                      <label className="form-label">Description</label>
+                      <ReactQuill theme="snow" value={description} onChange={setDescription} />
                     </div>
-                  )}
-                </div>
+                  </Col>
+                </Row>
 
                 <DropzoneFormInput
                   label="Update Project Gallery"

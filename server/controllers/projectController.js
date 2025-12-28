@@ -4,8 +4,9 @@ const { uploadImage, deleteImage } = require("../utils/gcs");
 exports.createProject = async (req, res) => {
   try {
     const {
-      name,
       title,
+      student,
+      area,
       category,
       description,
       order,
@@ -19,8 +20,9 @@ exports.createProject = async (req, res) => {
     const galleryFiles = req.files?.gallery || [];
 
     if (
-      !name ||
       !title ||
+      !student ||
+      !area ||
       !category ||
       !description ||
       !location ||
@@ -31,7 +33,7 @@ exports.createProject = async (req, res) => {
     ) {
       return res.status(400).json({
         message:
-          "Name, title, category, description, concept, Type, location, year, and university are required",
+          "Title, Student, Area, category, description, concept, Type, location, year, and university are required",
       });
     }
 
@@ -82,8 +84,9 @@ exports.createProject = async (req, res) => {
 
     // Save project to DB
     const newProject = await Project.create({
-      name,
       title,
+      student,
+      area,
       description,
       order,
       thumbnailUrl,
@@ -133,8 +136,9 @@ exports.getProjectById = async (req, res) => {
 exports.updateProject = async (req, res) => {
   try {
     const {
-      name,
       title,
+      student,
+      area,
       category,
       description,
       location,
@@ -170,8 +174,9 @@ exports.updateProject = async (req, res) => {
       : [university];
 
     const updateData = {
-      name,
       title,
+      student,
+      area,
       description,
       order,
       concept: parsedConcept,

@@ -13,8 +13,9 @@ import DropzoneFormInput from '@/components/form/DropzoneFormInput'
 import ComponentContainerCard from '@/components/ComponentContainerCard'
 
 const generalFormSchema = yup.object({
-  name: yup.string().required('Project name is required'),
   title: yup.string().required('Project title is required'),
+  student: yup.string().required('Student is required'),
+  area: yup.string().required('Area is required'),
   descQuill: yup.string().required('Project description is required'),
   order: yup.number().typeError('Order must be a number').required('Order is required'),
   concept: yup.array().of(yup.string()).min(1, 'Select at least one concept').required(),
@@ -45,8 +46,9 @@ const GeneralDetailsForm = () => {
   } = useForm({
     resolver: yupResolver(generalFormSchema),
     defaultValues: {
-      name: '',
       title: '',
+      student: '',
+      area: '',
       descQuill: '',
       order: 999,
       concept: [],
@@ -67,8 +69,9 @@ const GeneralDetailsForm = () => {
       }
 
       const formData = new FormData()
-      formData.append('name', data.name)
       formData.append('title', data.title)
+      formData.append('student', data.student)
+      formData.append('area', data.area)
 
       formData.append('description', data.descQuill)
       formData.append('thumbnail', thumbnailFile)
@@ -90,8 +93,9 @@ const GeneralDetailsForm = () => {
 
       // ✅ Clear all form fields properly
       reset({
-        name: '',
         title: '',
+        student: '',
+        area: '',
         descQuill: '',
         order: 999,
         concept: [],
@@ -121,21 +125,7 @@ const GeneralDetailsForm = () => {
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
       <Row>
-        <Col lg={6}>
-          <TextFormInput
-            control={control}
-            label="Project Name"
-            placeholder="Enter project name"
-            containerClassName="mb-3"
-            id="project-name"
-            name="name"
-            // error={errors.name?.message}
-          />
-        </Col>
-      </Row>
-
-      <Row>
-        <Col lg={6}>
+        <Col lg={3}>
           <TextFormInput
             control={control}
             label="Project Title"
@@ -146,7 +136,29 @@ const GeneralDetailsForm = () => {
             // error={errors.title?.message}
           />
         </Col>
-        <Col lg={6}>
+        <Col lg={3}>
+          <TextFormInput
+            control={control}
+            label="Student"
+            placeholder="Enter Student"
+            containerClassTitle="mb-3"
+            id="project-student"
+            name="student"
+            // error={errors.student?.message}
+          />
+        </Col>
+        <Col lg={3}>
+          <TextFormInput
+            control={control}
+            label="Area"
+            placeholder="Enter Area"
+            containerClassTitle="mb-3"
+            id="project-area"
+            name="area"
+            // error={errors.area?.message}
+          />
+        </Col>
+        <Col lg={3}>
           <TextFormInput control={control} label="Order" placeholder="Enter display order" containerClassName="mb-3" name="order" type="number" />
         </Col>
       </Row>
@@ -251,10 +263,39 @@ const GeneralDetailsForm = () => {
             {errors.university && <p className="text-danger">{errors.university.message}</p>}
           </ComponentContainerCard>
         </Col>
+
+        <Col lg={6}>
+          <DropzoneFormInput
+            label="Project Thumbnail"
+            labelClassName="fs-14 mb-1"
+            iconProps={{
+              icon: 'bx:cloud-upload',
+              height: 36,
+              width: 36,
+            }}
+            text="Upload Thumbnail image"
+            showPreview
+            resetTrigger={resetDropzones}
+            onFileUpload={(files) => {
+              if (files.length > 1) {
+                alert('Only one thumbnail is allowed')
+                // 🧹 Immediately reset the Dropzone
+                setThumbnailFile(null)
+                setResetDropzones(true)
+                setTimeout(() => setResetDropzones(false), 0)
+                return
+              }
+
+              // ✅ valid single file
+              setThumbnailFile(files[0])
+            }}
+          />
+          {errors.thumbnail && <p className="text-danger mt-1">{errors.thumbnail.message}</p>}
+        </Col>
       </Row>
 
       <Row>
-        <Col lg={12}>
+        <Col lg={6}>
           <div className="mb-5 mt-3">
             <label className="form-label">Project Description</label>
             <Controller
@@ -285,37 +326,6 @@ const GeneralDetailsForm = () => {
             />
             {errors.descQuill && <p className="text-danger mt-1">{errors.descQuill.message}</p>}
           </div>
-        </Col>
-      </Row>
-
-      <Row>
-        <Col lg={6}>
-          <DropzoneFormInput
-            label="Project Thumbnail"
-            labelClassName="fs-14 mb-1 mt-5"
-            iconProps={{
-              icon: 'bx:cloud-upload',
-              height: 36,
-              width: 36,
-            }}
-            text="Upload Thumbnail image"
-            showPreview
-            resetTrigger={resetDropzones}
-            onFileUpload={(files) => {
-              if (files.length > 1) {
-                alert('Only one thumbnail is allowed')
-                // 🧹 Immediately reset the Dropzone
-                setThumbnailFile(null)
-                setResetDropzones(true)
-                setTimeout(() => setResetDropzones(false), 0)
-                return
-              }
-
-              // ✅ valid single file
-              setThumbnailFile(files[0])
-            }}
-          />
-          {errors.thumbnail && <p className="text-danger mt-1">{errors.thumbnail.message}</p>}
         </Col>
       </Row>
 
