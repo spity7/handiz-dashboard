@@ -23,6 +23,8 @@ const EditProject = () => {
   const [category, setCategory] = useState('')
   const [location, setLocation] = useState('')
   const [order, setOrder] = useState(999)
+  const [concept, setConcept] = useState([])
+  const [type, setType] = useState([])
   const [thumbnail, setThumbnail] = useState(null)
   const [preview, setPreview] = useState(null)
   const [galleryFiles, setGalleryFiles] = useState([])
@@ -61,6 +63,9 @@ const EditProject = () => {
 
         setLocation(data.location)
         setOrder(data.order ?? 999)
+        setConcept(data.concept || [])
+        setType(data.type || [])
+
         setPreview(data.thumbnailUrl)
         setExistingGallery(data.gallery || [])
       } catch (error) {
@@ -87,6 +92,12 @@ const EditProject = () => {
     e.preventDefault()
     try {
       setLoading(true)
+      if (concept.length === 0 || type.length === 0) {
+        alert('Please select at least one Concept and Type')
+        setLoading(false)
+        return
+      }
+
       const formData = new FormData()
       formData.append('name', name)
       formData.append('title', title)
@@ -102,6 +113,9 @@ const EditProject = () => {
 
       if (thumbnail) formData.append('thumbnail', thumbnail)
       galleryFiles.forEach((file) => formData.append('gallery', file))
+
+      concept.forEach((c) => formData.append('concept', c))
+      type.forEach((t) => formData.append('type', t))
 
       await updateProject(id, formData)
       alert('Project updated successfully!')
@@ -123,6 +137,10 @@ const EditProject = () => {
     } catch (error) {
       alert(error?.response?.data?.message || 'Failed to delete image')
     }
+  }
+
+  const toggleCheckbox = (value, state, setState) => {
+    setState((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]))
   }
 
   if (!project)
@@ -162,6 +180,28 @@ const EditProject = () => {
                     required
                   />
                 </div>
+
+                <Row className="mb-3">
+                  <Col lg={6}>
+                    <label className="form-label fw-bold">Concept *</label>
+                    {['Sustainability', 'Function', 'Formalism'].map((item) => (
+                      <div key={item}>
+                        <input type="checkbox" checked={concept.includes(item)} onChange={() => toggleCheckbox(item, concept, setConcept)} /> {item}
+                      </div>
+                    ))}
+                    {concept.length === 0 && <p className="text-danger">Select at least one concept</p>}
+                  </Col>
+
+                  <Col lg={6}>
+                    <label className="form-label fw-bold">Type *</label>
+                    {['Educational', 'Touristic', 'Residential'].map((item) => (
+                      <div key={item}>
+                        <input type="checkbox" checked={type.includes(item)} onChange={() => toggleCheckbox(item, type, setType)} /> {item}
+                      </div>
+                    ))}
+                    {type.length === 0 && <p className="text-danger">Select at least one type</p>}
+                  </Col>
+                </Row>
 
                 {/* ✅ Replace input with dropdown */}
                 <div className="mb-3">

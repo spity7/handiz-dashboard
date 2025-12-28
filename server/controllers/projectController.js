@@ -120,9 +120,24 @@ exports.getProjectById = async (req, res) => {
 
 exports.updateProject = async (req, res) => {
   try {
-    const { name, title, category, description, location, order } = req.body;
+    const {
+      name,
+      title,
+      category,
+      description,
+      location,
+      order,
+      concept,
+      type,
+    } = req.body;
     const thumbnailFile = req.files?.thumbnail?.[0];
     const galleryFiles = req.files?.gallery || [];
+
+    if (!concept || !type) {
+      return res.status(400).json({
+        message: "Concept and Type are required",
+      });
+    }
 
     // ✅ Find existing project first
     const existingProject = await Project.findById(req.params.id);
@@ -130,7 +145,19 @@ exports.updateProject = async (req, res) => {
       return res.status(404).json({ message: "Project not found" });
     }
 
-    const updateData = { name, title, category, description, location, order };
+    const parsedConcept = Array.isArray(concept) ? concept : [concept];
+    const parsedType = Array.isArray(type) ? type : [type];
+
+    const updateData = {
+      name,
+      title,
+      category,
+      description,
+      location,
+      order,
+      concept: parsedConcept,
+      type: parsedType,
+    };
 
     // ✅ Handle new thumbnail upload
     if (thumbnailFile) {
