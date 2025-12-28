@@ -8,10 +8,12 @@ exports.createProject = async (req, res) => {
       title,
       category,
       description,
-      location,
       order,
       concept,
       type,
+      year,
+      location,
+      university,
     } = req.body;
     const thumbnailFile = req.files?.thumbnail?.[0];
     const galleryFiles = req.files?.gallery || [];
@@ -23,11 +25,13 @@ exports.createProject = async (req, res) => {
       !description ||
       !location ||
       !concept ||
-      !type
+      !type ||
+      !year ||
+      !university
     ) {
       return res.status(400).json({
         message:
-          "Name, title, category, description, concept, Type, and location are required",
+          "Name, title, category, description, concept, Type, location, year, and university are required",
       });
     }
 
@@ -70,19 +74,26 @@ exports.createProject = async (req, res) => {
     const parsedConcept = Array.isArray(concept) ? concept : [concept];
     const parsedType = Array.isArray(type) ? type : [type];
     const parsedCategory = Array.isArray(category) ? category : [category];
+    const parsedYear = Array.isArray(year) ? year : [year];
+    const parsedLocation = Array.isArray(location) ? location : [location];
+    const parsedUniversity = Array.isArray(university)
+      ? university
+      : [university];
 
     // Save project to DB
     const newProject = await Project.create({
       name,
       title,
       description,
-      location,
       order,
       thumbnailUrl,
       gallery: galleryUrls,
       concept: parsedConcept,
       type: parsedType,
       category: parsedCategory,
+      year: parsedYear,
+      location: parsedLocation,
+      university: parsedUniversity,
     });
 
     res.status(201).json({
@@ -130,13 +141,16 @@ exports.updateProject = async (req, res) => {
       order,
       concept,
       type,
+      year,
+      university,
     } = req.body;
     const thumbnailFile = req.files?.thumbnail?.[0];
     const galleryFiles = req.files?.gallery || [];
 
-    if (!concept || !type || !category) {
+    if (!concept || !type || !category || !location || !year || !university) {
       return res.status(400).json({
-        message: "Concept, Type, and Category are required",
+        message:
+          "Concept, Type, Category, Year, location, and university are required",
       });
     }
 
@@ -149,16 +163,23 @@ exports.updateProject = async (req, res) => {
     const parsedConcept = Array.isArray(concept) ? concept : [concept];
     const parsedType = Array.isArray(type) ? type : [type];
     const parsedCategory = Array.isArray(category) ? category : [category];
+    const parsedYear = Array.isArray(year) ? year : [year];
+    const parsedLocation = Array.isArray(location) ? location : [location];
+    const parsedUniversity = Array.isArray(university)
+      ? university
+      : [university];
 
     const updateData = {
       name,
       title,
       description,
-      location,
       order,
       concept: parsedConcept,
       type: parsedType,
       category: parsedCategory,
+      year: parsedYear,
+      location: parsedLocation,
+      university: parsedUniversity,
     };
 
     // ✅ Handle new thumbnail upload

@@ -20,10 +20,6 @@ const projectSchema = new mongoose.Schema(
       type: Number,
       default: 999,
     },
-    location: {
-      type: String,
-      required: [true, "Project location is required"],
-    },
     thumbnailUrl: {
       type: String,
       required: [true, "Thumbnail image URL is required"],
@@ -52,6 +48,27 @@ const projectSchema = new mongoose.Schema(
       validate: {
         validator: (v) => v.length > 0,
         message: "At least one category is required",
+      },
+    },
+    year: {
+      type: [String],
+      validate: {
+        validator: (v) => v.length > 0,
+        message: "At least one year is required",
+      },
+    },
+    location: {
+      type: [String],
+      validate: {
+        validator: (v) => v.length > 0,
+        message: "At least one location is required",
+      },
+    },
+    university: {
+      type: [String],
+      validate: {
+        validator: (v) => v.length > 0,
+        message: "At least one university is required",
       },
     },
   },

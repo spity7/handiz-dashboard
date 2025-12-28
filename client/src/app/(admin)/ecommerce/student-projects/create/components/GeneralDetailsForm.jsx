@@ -16,11 +16,13 @@ const generalFormSchema = yup.object({
   name: yup.string().required('Project name is required'),
   title: yup.string().required('Project title is required'),
   descQuill: yup.string().required('Project description is required'),
-  location: yup.string().required('Project location is required'),
   order: yup.number().typeError('Order must be a number').required('Order is required'),
   concept: yup.array().of(yup.string()).min(1, 'Select at least one concept').required(),
   type: yup.array().of(yup.string()).min(1, 'Select at least one type').required(),
   category: yup.array().of(yup.string()).min(1, 'Select at least one category').required(),
+  year: yup.array().of(yup.string()).min(1, 'Select at least one year').required(),
+  location: yup.array().of(yup.string()).min(1, 'Select at least one location').required(),
+  university: yup.array().of(yup.string()).min(1, 'Select at least one university').required(),
 })
 
 const normalizeQuillValue = (value) => {
@@ -46,11 +48,13 @@ const GeneralDetailsForm = () => {
       name: '',
       title: '',
       descQuill: '',
-      location: '',
       order: 999,
       concept: [],
       type: [],
       category: [],
+      year: [],
+      location: [],
+      university: [],
     },
   })
 
@@ -67,7 +71,6 @@ const GeneralDetailsForm = () => {
       formData.append('title', data.title)
 
       formData.append('description', data.descQuill)
-      formData.append('location', data.location)
       formData.append('thumbnail', thumbnailFile)
       formData.append('order', data.order)
 
@@ -77,6 +80,9 @@ const GeneralDetailsForm = () => {
       data.concept.forEach((value) => formData.append('concept', value))
       data.type.forEach((value) => formData.append('type', value))
       data.category.forEach((value) => formData.append('category', value))
+      data.year.forEach((value) => formData.append('year', value))
+      data.location.forEach((value) => formData.append('location', value))
+      data.university.forEach((value) => formData.append('university', value))
 
       await createProject(formData)
 
@@ -87,11 +93,13 @@ const GeneralDetailsForm = () => {
         name: '',
         title: '',
         descQuill: '',
-        location: '',
         order: 999,
         concept: [],
         type: [],
         category: [],
+        year: [],
+        location: [],
+        university: [],
       })
 
       setThumbnailFile(null)
@@ -192,6 +200,57 @@ const GeneralDetailsForm = () => {
             {errors.category && <p className="text-danger">{errors.category.message}</p>}
           </ComponentContainerCard>
         </Col>
+        <Col lg={3}>
+          <ComponentContainerCard title="Year">
+            <Controller
+              name="year"
+              control={control}
+              render={({ field }) => (
+                <>
+                  {['2025-2026', '2024-2025', '2023-2024', '2022-2023'].map((item) => (
+                    <FormCheck key={item} label={item} checked={field.value.includes(item)} onChange={() => toggleCheckboxValue(item, field)} />
+                  ))}
+                </>
+              )}
+            />
+            {errors.year && <p className="text-danger">{errors.year.message}</p>}
+          </ComponentContainerCard>
+        </Col>
+      </Row>
+
+      <Row>
+        <Col lg={3}>
+          <ComponentContainerCard title="Location">
+            <Controller
+              name="location"
+              control={control}
+              render={({ field }) => (
+                <>
+                  {['Lebanon', 'Jordan', 'Iraq'].map((item) => (
+                    <FormCheck key={item} label={item} checked={field.value.includes(item)} onChange={() => toggleCheckboxValue(item, field)} />
+                  ))}
+                </>
+              )}
+            />
+            {errors.location && <p className="text-danger">{errors.location.message}</p>}
+          </ComponentContainerCard>
+        </Col>
+        <Col lg={3}>
+          <ComponentContainerCard title="University">
+            <Controller
+              name="university"
+              control={control}
+              render={({ field }) => (
+                <>
+                  {['Lebaneese uni', 'USJ', 'AUB', 'Alba', 'LAU'].map((item) => (
+                    <FormCheck key={item} label={item} checked={field.value.includes(item)} onChange={() => toggleCheckboxValue(item, field)} />
+                  ))}
+                </>
+              )}
+            />
+            {errors.university && <p className="text-danger">{errors.university.message}</p>}
+          </ComponentContainerCard>
+        </Col>
       </Row>
 
       <Row>
@@ -257,10 +316,6 @@ const GeneralDetailsForm = () => {
             }}
           />
           {errors.thumbnail && <p className="text-danger mt-1">{errors.thumbnail.message}</p>}
-        </Col>
-        <Col lg={6}>
-          <TextFormInput control={control} name="location" label="Location" containerClassName="mb-4 mt-5" placeholder="Enter Location" />
-          {/* {errors.location && <p className="text-danger mt-1">{errors.location.message}</p>} */}
         </Col>
       </Row>
 

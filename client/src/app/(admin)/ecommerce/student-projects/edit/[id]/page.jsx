@@ -19,11 +19,14 @@ const EditProject = () => {
   const [name, setName] = useState('')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [location, setLocation] = useState('')
   const [order, setOrder] = useState(999)
   const [concept, setConcept] = useState([])
   const [category, setCategory] = useState([])
   const [type, setType] = useState([])
+  const [year, setYear] = useState([])
+  const [location, setLocation] = useState([])
+  const [university, setUniversity] = useState([])
+
   const [thumbnail, setThumbnail] = useState(null)
   const [preview, setPreview] = useState(null)
   const [galleryFiles, setGalleryFiles] = useState([])
@@ -39,11 +42,13 @@ const EditProject = () => {
         setTitle(data.title)
         setDescription(data.description)
 
-        setLocation(data.location)
         setOrder(data.order ?? 999)
         setConcept(data.concept || [])
         setType(data.type || [])
         setCategory(data.category || [])
+        setYear(data.year || [])
+        setLocation(data.location || [])
+        setUniversity(data.university || [])
 
         setPreview(data.thumbnailUrl)
         setExistingGallery(data.gallery || [])
@@ -70,8 +75,15 @@ const EditProject = () => {
     e.preventDefault()
     try {
       setLoading(true)
-      if (concept.length === 0 || type.length === 0 || category.length === 0) {
-        alert('Please select at least one Concept, Type, and Category')
+      if (
+        concept.length === 0 ||
+        type.length === 0 ||
+        category.length === 0 ||
+        year.length === 0 ||
+        location.length === 0 ||
+        university.length === 0
+      ) {
+        alert('Please select at least one Concept, Type, Category, Year, Location, and University')
         setLoading(false)
         return
       }
@@ -81,7 +93,6 @@ const EditProject = () => {
       formData.append('title', title)
       formData.append('description', description)
 
-      formData.append('location', location)
       formData.append('order', order)
 
       if (thumbnail) formData.append('thumbnail', thumbnail)
@@ -90,6 +101,9 @@ const EditProject = () => {
       concept.forEach((c) => formData.append('concept', c))
       type.forEach((t) => formData.append('type', t))
       category.forEach((c) => formData.append('category', c))
+      year.forEach((c) => formData.append('year', c))
+      location.forEach((c) => formData.append('location', c))
+      university.forEach((c) => formData.append('university', c))
 
       await updateProject(id, formData)
       alert('Project updated successfully!')
@@ -186,12 +200,41 @@ const EditProject = () => {
                     ))}
                     {category.length === 0 && <p className="text-danger">Select at least one category</p>}
                   </Col>
+
+                  <Col lg={3}>
+                    <label className="form-label fw-bold">Year *</label>
+                    {['2025-2026', '2024-2025', '2023-2024', '2022-2023'].map((item) => (
+                      <div key={item}>
+                        <input type="checkbox" checked={year.includes(item)} onChange={() => toggleCheckbox(item, year, setYear)} /> {item}
+                      </div>
+                    ))}
+                    {year.length === 0 && <p className="text-danger">Select at least one year</p>}
+                  </Col>
                 </Row>
 
-                <div className="mb-3">
-                  <label className="form-label">Location</label>
-                  <input type="text" className="form-control" value={location} onChange={(e) => setLocation(e.target.value)} required />
-                </div>
+                <Row>
+                  <Col lg={3}>
+                    <label className="form-label fw-bold">Location *</label>
+                    {['Lebanon', 'Jordan', 'Iraq'].map((item) => (
+                      <div key={item}>
+                        <input type="checkbox" checked={location.includes(item)} onChange={() => toggleCheckbox(item, location, setLocation)} />{' '}
+                        {item}
+                      </div>
+                    ))}
+                    {location.length === 0 && <p className="text-danger">Select at least one location</p>}
+                  </Col>
+
+                  <Col lg={3}>
+                    <label className="form-label fw-bold">University *</label>
+                    {['Lebaneese uni', 'USJ', 'AUB', 'Alba', 'LAU'].map((item) => (
+                      <div key={item}>
+                        <input type="checkbox" checked={university.includes(item)} onChange={() => toggleCheckbox(item, university, setUniversity)} />{' '}
+                        {item}
+                      </div>
+                    ))}
+                    {university.length === 0 && <p className="text-danger">Select at least one university</p>}
+                  </Col>
+                </Row>
 
                 <div className="mb-3">
                   <label className="form-label">Description</label>
