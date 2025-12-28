@@ -1,5 +1,5 @@
 import { yupResolver } from '@hookform/resolvers/yup'
-import { Col, Row, Button } from 'react-bootstrap'
+import { Col, Row, Button, FormCheck } from 'react-bootstrap'
 import { useEffect, useState } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import ReactQuill from 'react-quill'
@@ -11,6 +11,7 @@ import { renameKeys } from '@/utils/rename-object-keys'
 import 'react-quill/dist/quill.snow.css'
 import { useGlobalContext } from '@/context/useGlobalContext'
 import DropzoneFormInput from '@/components/form/DropzoneFormInput'
+import ComponentContainerCard from '@/components/ComponentContainerCard'
 
 const generalFormSchema = yup.object({
   name: yup.string().required('Project name is required'),
@@ -19,6 +20,8 @@ const generalFormSchema = yup.object({
   descQuill: yup.string().required('Project description is required'),
   location: yup.string().required('Project location is required'),
   order: yup.number().typeError('Order must be a number').required('Order is required'),
+  concept: yup.array().of(yup.string()).min(1, 'Select at least one concept').required(),
+  type: yup.array().of(yup.string()).min(1, 'Select at least one type').required(),
 })
 
 const normalizeQuillValue = (value) => {
@@ -63,6 +66,8 @@ const GeneralDetailsForm = () => {
       descQuill: '',
       location: '',
       order: 999,
+      concept: [],
+      type: [],
     },
   })
 
@@ -91,7 +96,8 @@ const GeneralDetailsForm = () => {
       // ✅ multiple gallery files (optional)
       galleryFiles.forEach((file) => formData.append('gallery', file))
 
-      console.log([...formData.entries()])
+      data.concept.forEach((value) => formData.append('concept', value))
+      data.type.forEach((value) => formData.append('type', value))
 
       await createProject(formData)
 
@@ -116,6 +122,11 @@ const GeneralDetailsForm = () => {
     } finally {
       setLoading(false)
     }
+  }
+
+  const toggleCheckboxValue = (value, field) => {
+    const exists = field.value.includes(value)
+    return exists ? field.onChange(field.value.filter((v) => v !== value)) : field.onChange([...field.value, value])
   }
 
   return (
@@ -159,6 +170,41 @@ const GeneralDetailsForm = () => {
         </Col>
         <Col lg={6}>
           <TextFormInput control={control} label="Order" placeholder="Enter display order" containerClassName="mb-3" name="order" type="number" />
+        </Col>
+      </Row>
+
+      <Row>
+        <Col lg={4}>
+          <ComponentContainerCard title="Concept">
+            <Controller
+              name="concept"
+              control={control}
+              render={({ field }) => (
+                <>
+                  {['Sustainability', 'Function', 'Formalism'].map((item) => (
+                    <FormCheck key={item} label={item} checked={field.value.includes(item)} onChange={() => toggleCheckboxValue(item, field)} />
+                  ))}
+                </>
+              )}
+            />
+            {errors.concept && <p className="text-danger">{errors.concept.message}</p>}
+          </ComponentContainerCard>
+        </Col>
+        <Col lg={4}>
+          <ComponentContainerCard title="Type">
+            <Controller
+              name="type"
+              control={control}
+              render={({ field }) => (
+                <>
+                  {['Educational', 'Touristic', 'Residential'].map((item) => (
+                    <FormCheck key={item} label={item} checked={field.value.includes(item)} onChange={() => toggleCheckboxValue(item, field)} />
+                  ))}
+                </>
+              )}
+            />
+            {errors.type && <p className="text-danger">{errors.type.message}</p>}
+          </ComponentContainerCard>
         </Col>
       </Row>
 

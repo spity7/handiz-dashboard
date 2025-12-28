@@ -1,13 +1,9 @@
-import clsx from 'clsx';
-import { Card, CardBody, CardTitle } from 'react-bootstrap';
-const ComponentContainerCard = ({
-  title,
-  id,
-  description,
-  children,
-  titleClass
-}) => {
-  return <Card>
+import clsx from 'clsx'
+import { Card, CardBody, CardTitle } from 'react-bootstrap'
+
+const ComponentContainerCard = ({ title, id, description, children, titleClass }) => {
+  return (
+    <Card>
       <CardBody>
         <CardTitle as={'h5'} className={clsx('anchor mb-1', titleClass)} id={id}>
           {title}
@@ -18,6 +14,7 @@ const ComponentContainerCard = ({
         {!!description && <p className="text-muted">{description}</p>}
         <>{children}</>
       </CardBody>
-    </Card>;
-};
-export default ComponentContainerCard;
+    </Card>
+  )
+}
+export default ComponentContainerCard

@@ -37,6 +37,20 @@ const projectSchema = new mongoose.Schema(
         type: String, // each string is a URL
       },
     ],
+    concept: {
+      type: [String],
+      validate: {
+        validator: (v) => v.length > 0,
+        message: "At least one concept is required",
+      },
+    },
+    type: {
+      type: [String],
+      validate: {
+        validator: (v) => v.length > 0,
+        message: "At least one type is required",
+      },
+    },
   },
   {
     timestamps: true, // adds createdAt & updatedAt

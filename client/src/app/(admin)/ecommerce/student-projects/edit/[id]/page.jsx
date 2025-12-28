@@ -105,7 +105,7 @@ const EditProject = () => {
 
       await updateProject(id, formData)
       alert('Project updated successfully!')
-      navigate('/ecommerce/projects')
+      navigate('/ecommerce/student-projects')
     } catch (error) {
       alert(error?.response?.data?.message || 'Update failed')
     } finally {
@@ -135,7 +135,7 @@ const EditProject = () => {
   return (
     <>
       <PageMetaData title="Edit Project" />
-      <PageBreadcrumb title="Edit Project" subName="Vertex" />
+      <PageBreadcrumb title="Edit Project" subName="Handiz" />
       <Row>
         <Col>
           <Card>

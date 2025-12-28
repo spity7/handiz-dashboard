@@ -3,14 +3,31 @@ const { uploadImage, deleteImage } = require("../utils/gcs");
 
 exports.createProject = async (req, res) => {
   try {
-    const { name, title, category, description, location, order } = req.body;
+    const {
+      name,
+      title,
+      category,
+      description,
+      location,
+      order,
+      concept,
+      type,
+    } = req.body;
     const thumbnailFile = req.files?.thumbnail?.[0];
     const galleryFiles = req.files?.gallery || [];
 
-    if (!name || !title || !category || !description || !location) {
+    if (
+      !name ||
+      !title ||
+      !category ||
+      !description ||
+      !location ||
+      !concept ||
+      !type
+    ) {
       return res.status(400).json({
         message:
-          "Name, title, category, description, and location are required",
+          "Name, title, category, description, concept, Type, and location are required",
       });
     }
 
@@ -50,6 +67,9 @@ exports.createProject = async (req, res) => {
       }
     }
 
+    const parsedConcept = Array.isArray(concept) ? concept : [concept];
+    const parsedType = Array.isArray(type) ? type : [type];
+
     // Save project to DB
     const newProject = await Project.create({
       name,
@@ -60,6 +80,8 @@ exports.createProject = async (req, res) => {
       order,
       thumbnailUrl,
       gallery: galleryUrls,
+      concept: parsedConcept,
+      type: parsedType,
     });
 
     res.status(201).json({

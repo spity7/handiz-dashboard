@@ -67,7 +67,7 @@ const ProjectsListTable = ({ projects }) => {
         },
       }) => (
         <div className="d-flex gap-2">
-          <Link to={`/ecommerce/projects/edit/${_id}`} className="btn btn-sm btn-soft-secondary" title="Edit Project">
+          <Link to={`/ecommerce/student-projects/edit/${_id}`} className="btn btn-sm btn-soft-secondary" title="Edit Project">
             <IconifyIcon icon="bx:edit" className="fs-18" />
           </Link>
           <button type="button" className="btn btn-sm btn-soft-danger" title="Delete Project" onClick={() => handleDelete(_id)}>
