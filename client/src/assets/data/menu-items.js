@@ -9,18 +9,18 @@ export const MENU_ITEMS = [
     icon: 'iconamoon:shopping-bag-duotone',
     label: 'Dashboard',
     children: [
-      {
-        key: 'ecommerce-services',
-        label: 'Services',
-        url: '/ecommerce/services',
-        parentKey: 'ecommerce',
-      },
-      {
-        key: 'ecommerce-projects',
-        label: 'Projects',
-        url: '/ecommerce/projects',
-        parentKey: 'ecommerce',
-      },
+      // {
+      //   key: 'ecommerce-services',
+      //   label: 'Services',
+      //   url: '/ecommerce/services',
+      //   parentKey: 'ecommerce',
+      // },
+      // {
+      //   key: 'ecommerce-projects',
+      //   label: 'Projects',
+      //   url: '/ecommerce/projects',
+      //   parentKey: 'ecommerce',
+      // },
       {
         key: 'ecommerce-student-projects',
         label: 'Student Projects',
