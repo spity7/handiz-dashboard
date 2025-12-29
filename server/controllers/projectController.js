@@ -273,6 +273,39 @@ exports.updateProject = async (req, res) => {
       updateData.contentBlocks = [];
     }
 
+    // ✅ Clean up old content block images
+    // 1. Get all image URLs from the existing project (DB state)
+    const oldBlockImages = existingProject.contentBlocks
+      .filter((b) => b.type === "image" && b.content)
+      .map((b) => b.content);
+
+    // 2. Get all image URLs from the NEW payload (after new uploads are processed)
+    //    We check updateData.contentBlocks if set, otherwise it defaults to [] if we reached here with contentBlocks valid
+    const newBlockImages = (updateData.contentBlocks || [])
+      .filter((b) => b.type === "image" && b.content)
+      .map((b) => b.content);
+
+    // 3. Find images that are in old BUT NOT in new
+    const imagesToDelete = oldBlockImages.filter(
+      (url) => !newBlockImages.includes(url)
+    );
+
+    // 4. Delete them from GCS
+    if (imagesToDelete.length > 0) {
+      await Promise.all(
+        imagesToDelete.map(async (url) => {
+          try {
+            await deleteImage(url);
+          } catch (err) {
+            console.warn(
+              "⚠️ Failed to delete removed block image:",
+              err.message
+            );
+          }
+        })
+      );
+    }
+
     // ✅ Handle new thumbnail upload
     if (thumbnailFile) {
       // Delete old thumbnail if exists
