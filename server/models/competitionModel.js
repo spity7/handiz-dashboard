@@ -34,11 +34,9 @@ const competitionSchema = new mongoose.Schema(
       required: [true, "Thumbnail image URL is required"],
     },
     side: {
-      type: [String],
-      validate: {
-        validator: (v) => v.length > 0,
-        message: "Side is required",
-      },
+      type: String,
+      required: [true, "Side is required"],
+      trim: true,
     },
   },
   {
