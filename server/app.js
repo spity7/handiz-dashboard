@@ -10,6 +10,7 @@ const csp = require("./middlewares/csp");
 const userRoutes = require("./routes/userRoutes");
 const serviceRoutes = require("./routes/serviceRoutes");
 const projectRoutes = require("./routes/projectRoutes");
+const competitionRoutes = require("./routes/competitionRoutes");
 const logger = require("./config/logger");
 require("./cron/cron");
 
@@ -55,6 +56,7 @@ app.use(securityHeaders);
 app.use("/api/v1", userRoutes);
 app.use("/api/v1", serviceRoutes);
 app.use("/api/v1", projectRoutes);
+app.use("/api/v1", competitionRoutes);
 // app.use("/api/v1", propertyRoutes);
 
 // errorhandling for Middleware

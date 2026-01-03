@@ -27,6 +27,12 @@ export const MENU_ITEMS = [
         url: '/ecommerce/student-projects',
         parentKey: 'ecommerce',
       },
+      {
+        key: 'ecommerce-competitions',
+        label: 'Competitions',
+        url: '/ecommerce/competitions',
+        parentKey: 'ecommerce',
+      },
 
       // {
       //   key: 'ecommerce-products',

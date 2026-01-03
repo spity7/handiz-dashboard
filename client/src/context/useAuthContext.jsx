@@ -5,8 +5,8 @@ import userAtom from '@/atoms/userAtom'
 import useShowModal from '@/hooks/useShowModal'
 
 axios.defaults.withCredentials = true
-const BASE_URL = 'https://api.handiz.org/api/v1/'
-// const BASE_URL = 'http://localhost:5016/api/v1/'
+// const BASE_URL = 'https://api.handiz.org/api/v1/'
+const BASE_URL = 'http://localhost:5016/api/v1/'
 
 const AuthContext = createContext(undefined)
 

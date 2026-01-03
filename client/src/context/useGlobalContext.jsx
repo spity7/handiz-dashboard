@@ -2,8 +2,8 @@ import { createContext, useContext, useMemo } from 'react'
 import axios from 'axios'
 
 axios.defaults.withCredentials = true
-const BASE_URL = 'https://api.handiz.org/api/v1/'
-// const BASE_URL = 'http://localhost:5016/api/v1/'
+// const BASE_URL = 'https://api.handiz.org/api/v1/'
+const BASE_URL = 'http://localhost:5016/api/v1/'
 
 const GlobalContext = createContext()
 
@@ -91,6 +91,42 @@ export const GlobalProvider = ({ children }) => {
     return response.data
   }
 
+  const createCompetition = async (data) => {
+    const response = await axiosInstance.post('/competitions', data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return response.data
+  }
+
+  const getAllCompetitions = async () => {
+    const response = await axiosInstance.get('/competitions')
+    return response.data.competitions
+  }
+
+  const getCompetitionById = async (id) => {
+    const response = await axiosInstance.get(`/competitions/${id}`)
+    return response.data.competition
+  }
+
+  const updateCompetition = async (id, data) => {
+    const response = await axiosInstance.put(`/competitions/${id}`, data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return response.data.competition
+  }
+
+  const deleteCompetition = async (id) => {
+    const response = await axiosInstance.delete(`/competitions/${id}`)
+    return response.data
+  }
+
+  const deleteCompetitionGalleryImage = async (id, imageUrl) => {
+    const response = await axiosInstance.delete(`/competitions/${id}/gallery`, {
+      data: { imageUrl },
+    })
+    return response.data
+  }
+
   return (
     <GlobalContext.Provider
       value={{
@@ -105,6 +141,12 @@ export const GlobalProvider = ({ children }) => {
         updateProject,
         deleteProject,
         deleteProjectGalleryImage,
+        createCompetition,
+        getAllCompetitions,
+        getCompetitionById,
+        updateCompetition,
+        deleteCompetition,
+        deleteCompetitionGalleryImage,
       }}>
       {children}
     </GlobalContext.Provider>
