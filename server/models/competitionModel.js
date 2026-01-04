@@ -17,6 +17,11 @@ const competitionSchema = new mongoose.Schema(
       required: [true, "Prize is required"],
       trim: true,
     },
+    deadline: {
+      type: String,
+      required: [true, "Deadline is required"],
+      trim: true,
+    },
     description: {
       type: String,
       required: [true, "Description is required"],

@@ -16,6 +16,7 @@ const generalFormSchema = yup.object({
   title: yup.string().required('Competition title is required'),
   link: yup.string().required('Link is required'),
   prize: yup.string().required('Prize is required'),
+  deadline: yup.string().required('Deadline is required'),
   category: yup.string().required('Category is required'),
   side: yup.string().required('Side is required'),
   descQuill: yup.string().required('Competition description is required'),
@@ -44,6 +45,7 @@ const GeneralDetailsForm = () => {
       title: '',
       link: '',
       prize: '',
+      deadline: '',
       category: '',
       side: '',
       descQuill: '',
@@ -62,6 +64,7 @@ const GeneralDetailsForm = () => {
       const formData = new FormData()
       formData.append('title', data.title)
       formData.append('prize', data.prize)
+      formData.append('deadline', data.deadline)
       formData.append('category', data.category)
       formData.append('side', data.side)
       formData.append('link', data.link)
@@ -78,6 +81,7 @@ const GeneralDetailsForm = () => {
       reset({
         title: '',
         prize: '',
+        deadline: '',
         category: '',
         side: '',
         link: '',
@@ -134,7 +138,9 @@ const GeneralDetailsForm = () => {
         <Col lg={3}>
           <TextFormInput control={control} label="Order" placeholder="Enter display order" containerClassName="mb-3" name="order" type="number" />
         </Col>
+      </Row>
 
+      <Row>
         <Col lg={3}>
           <TextFormInput
             control={control}
@@ -156,6 +162,18 @@ const GeneralDetailsForm = () => {
             id="competition-side"
             name="side"
             // error={errors.side?.message}
+          />
+        </Col>
+
+        <Col lg={3}>
+          <TextFormInput
+            control={control}
+            label="Deadline"
+            placeholder="Enter Deadline"
+            containerClassTitle="mb-3"
+            id="competition-deadline"
+            name="deadline"
+            // error={errors.deadline?.message}
           />
         </Col>
       </Row>

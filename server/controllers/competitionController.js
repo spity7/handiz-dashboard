@@ -3,14 +3,23 @@ const { uploadImage, deleteImage } = require("../utils/gcs");
 
 exports.createCompetition = async (req, res) => {
   try {
-    const { title, prize, link, category, description, order, side } = req.body;
+    const { title, prize, deadline, link, category, description, order, side } =
+      req.body;
     const thumbnailFile = req.files?.thumbnail?.[0];
     const galleryFiles = req.files?.gallery || [];
 
-    if (!title || !prize || !link || !category || !description || !side) {
+    if (
+      !title ||
+      !prize ||
+      !deadline ||
+      !link ||
+      !category ||
+      !description ||
+      !side
+    ) {
       return res.status(400).json({
         message:
-          "Title, Prize, Link, category, description, and side are required",
+          "Title, Prize, Deadline, Link, category, description, and side are required",
       });
     }
 
@@ -54,6 +63,7 @@ exports.createCompetition = async (req, res) => {
     const newCompetition = await Competition.create({
       title,
       prize,
+      deadline,
       link,
       description,
       order,
@@ -103,7 +113,8 @@ exports.getCompetitionById = async (req, res) => {
 
 exports.updateCompetition = async (req, res) => {
   try {
-    const { title, prize, link, category, description, order, side } = req.body;
+    const { title, prize, deadline, link, category, description, order, side } =
+      req.body;
     const thumbnailFile = req.files?.thumbnail?.[0];
     const galleryFiles = req.files?.gallery || [];
 
@@ -116,6 +127,7 @@ exports.updateCompetition = async (req, res) => {
     const updateData = {
       title,
       prize,
+      deadline,
       link,
       description,
       order,

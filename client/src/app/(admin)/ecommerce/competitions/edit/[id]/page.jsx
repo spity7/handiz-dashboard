@@ -18,6 +18,7 @@ const EditCompetition = () => {
   const [competition, setCompetition] = useState(null)
   const [title, setTitle] = useState('')
   const [prize, setPrize] = useState('')
+  const [deadline, setDeadline] = useState('')
   const [side, setSide] = useState('')
   const [category, setCategory] = useState('')
   const [link, setLink] = useState('')
@@ -35,6 +36,7 @@ const EditCompetition = () => {
         setCompetition(data)
         setTitle(data.title)
         setPrize(data.prize)
+        setDeadline(data.deadline)
         setSide(data.side)
         setCategory(data.category)
         setLink(data.link)
@@ -69,6 +71,7 @@ const EditCompetition = () => {
       const formData = new FormData()
       formData.append('title', title)
       formData.append('prize', prize)
+      formData.append('deadline', deadline)
       formData.append('side', side)
       formData.append('category', category)
       formData.append('link', link)
@@ -164,6 +167,12 @@ const EditCompetition = () => {
                     <div className="mb-3">
                       <label className="form-label">Side</label>
                       <input type="text" className="form-control" value={side} onChange={(e) => setSide(e.target.value)} required />
+                    </div>
+                  </Col>
+                  <Col lg={3}>
+                    <div className="mb-3">
+                      <label className="form-label">Deadline</label>
+                      <input type="text" className="form-control" value={deadline} onChange={(e) => setDeadline(e.target.value)} required />
                     </div>
                   </Col>
                 </Row>
