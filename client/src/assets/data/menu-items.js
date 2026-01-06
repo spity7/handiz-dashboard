@@ -33,6 +33,12 @@ export const MENU_ITEMS = [
         url: '/ecommerce/competitions',
         parentKey: 'ecommerce',
       },
+      {
+        key: 'ecommerce-aiTools',
+        label: 'AiTools',
+        url: '/ecommerce/aiTools',
+        parentKey: 'ecommerce',
+      },
 
       // {
       //   key: 'ecommerce-products',

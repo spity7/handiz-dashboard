@@ -127,6 +127,42 @@ export const GlobalProvider = ({ children }) => {
     return response.data
   }
 
+  const createAiTool = async (data) => {
+    const response = await axiosInstance.post('/aiTools', data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return response.data
+  }
+
+  const getAllAiTools = async () => {
+    const response = await axiosInstance.get('/aiTools')
+    return response.data.aiTools
+  }
+
+  const getAiToolById = async (id) => {
+    const response = await axiosInstance.get(`/aiTools/${id}`)
+    return response.data.aiTool
+  }
+
+  const updateAiTool = async (id, data) => {
+    const response = await axiosInstance.put(`/aiTools/${id}`, data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return response.data.aiTool
+  }
+
+  const deleteAiTool = async (id) => {
+    const response = await axiosInstance.delete(`/aiTools/${id}`)
+    return response.data
+  }
+
+  const deleteAiToolGalleryImage = async (id, imageUrl) => {
+    const response = await axiosInstance.delete(`/aiTools/${id}/gallery`, {
+      data: { imageUrl },
+    })
+    return response.data
+  }
+
   return (
     <GlobalContext.Provider
       value={{
@@ -147,6 +183,12 @@ export const GlobalProvider = ({ children }) => {
         updateCompetition,
         deleteCompetition,
         deleteCompetitionGalleryImage,
+        createAiTool,
+        getAllAiTools,
+        getAiToolById,
+        updateAiTool,
+        deleteAiTool,
+        deleteAiToolGalleryImage,
       }}>
       {children}
     </GlobalContext.Provider>

@@ -11,6 +11,7 @@ const userRoutes = require("./routes/userRoutes");
 const serviceRoutes = require("./routes/serviceRoutes");
 const projectRoutes = require("./routes/projectRoutes");
 const competitionRoutes = require("./routes/competitionRoutes");
+const aiToolsRoutes = require("./routes/aiToolsRoutes");
 const logger = require("./config/logger");
 require("./cron/cron");
 
@@ -57,6 +58,7 @@ app.use("/api/v1", userRoutes);
 app.use("/api/v1", serviceRoutes);
 app.use("/api/v1", projectRoutes);
 app.use("/api/v1", competitionRoutes);
+app.use("/api/v1", aiToolsRoutes);
 // app.use("/api/v1", propertyRoutes);
 
 // errorhandling for Middleware

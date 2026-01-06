@@ -21,6 +21,10 @@ const EcommerceCompetitions = lazy(() => import('@/app/(admin)/ecommerce/competi
 const EcommerceCompetitionCreate = lazy(() => import('@/app/(admin)/ecommerce/competitions/create/page'))
 const EcommerceCompetitionUpdate = lazy(() => import('@/app/(admin)/ecommerce/competitions/edit/[id]/page'))
 
+const EcommerceAiTools = lazy(() => import('@/app/(admin)/ecommerce/aiTools/page'))
+const EcommerceAiToolCreate = lazy(() => import('@/app/(admin)/ecommerce/aiTools/create/page'))
+const EcommerceAiToolUpdate = lazy(() => import('@/app/(admin)/ecommerce/aiTools/edit/[id]/page'))
+
 const EcommerceProducts = lazy(() => import('@/app/(admin)/ecommerce/products/page'))
 const EcommerceProductDetails = lazy(() => import('@/app/(admin)/ecommerce/products/[productId]/page'))
 const EcommerceProductCreate = lazy(() => import('@/app/(admin)/ecommerce/products/create/page'))
@@ -230,6 +234,22 @@ const appsRoutes = [
     name: 'Competition Update',
     path: '/ecommerce/competitions/edit/:id',
     element: <EcommerceCompetitionUpdate />,
+  },
+
+  {
+    name: 'AiTools',
+    path: '/ecommerce/aiTools',
+    element: <EcommerceAiTools />,
+  },
+  {
+    name: 'Create AiTool',
+    path: '/ecommerce/aiTools/create',
+    element: <EcommerceAiToolCreate />,
+  },
+  {
+    name: 'AiTool Update',
+    path: '/ecommerce/aiTools/edit/:id',
+    element: <EcommerceAiToolUpdate />,
   },
 
   {
