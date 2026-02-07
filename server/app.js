@@ -12,6 +12,7 @@ const serviceRoutes = require("./routes/serviceRoutes");
 const projectRoutes = require("./routes/projectRoutes");
 const competitionRoutes = require("./routes/competitionRoutes");
 const aiToolsRoutes = require("./routes/aiToolsRoutes");
+const officeRoutes = require("./routes/officeRoutes");
 const logger = require("./config/logger");
 require("./cron/cron");
 
@@ -44,7 +45,7 @@ app.use(
     preflightContinue: false,
     optionsSuccessStatus: 204,
     maxAge: 86400, // Cache for Preflight-requests for 24 hours (86400 sec)
-  })
+  }),
 );
 app.use(cookieParser());
 app.use(rateLimiter);
@@ -59,6 +60,7 @@ app.use("/api/v1", serviceRoutes);
 app.use("/api/v1", projectRoutes);
 app.use("/api/v1", competitionRoutes);
 app.use("/api/v1", aiToolsRoutes);
+app.use("/api/v1", officeRoutes);
 // app.use("/api/v1", propertyRoutes);
 
 // errorhandling for Middleware

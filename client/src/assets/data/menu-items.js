@@ -39,6 +39,12 @@ export const MENU_ITEMS = [
         url: '/ecommerce/aiTools',
         parentKey: 'ecommerce',
       },
+      {
+        key: 'ecommerce-offices',
+        label: 'Offices',
+        url: '/ecommerce/offices',
+        parentKey: 'ecommerce',
+      },
 
       // {
       //   key: 'ecommerce-products',

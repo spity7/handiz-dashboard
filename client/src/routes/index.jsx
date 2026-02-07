@@ -25,6 +25,10 @@ const EcommerceAiTools = lazy(() => import('@/app/(admin)/ecommerce/aiTools/page
 const EcommerceAiToolCreate = lazy(() => import('@/app/(admin)/ecommerce/aiTools/create/page'))
 const EcommerceAiToolUpdate = lazy(() => import('@/app/(admin)/ecommerce/aiTools/edit/[id]/page'))
 
+const EcommerceOffices = lazy(() => import('@/app/(admin)/ecommerce/offices/page'))
+const EcommerceOfficeCreate = lazy(() => import('@/app/(admin)/ecommerce/offices/create/page'))
+const EcommerceOfficeUpdate = lazy(() => import('@/app/(admin)/ecommerce/offices/edit/[id]/page'))
+
 const EcommerceProducts = lazy(() => import('@/app/(admin)/ecommerce/products/page'))
 const EcommerceProductDetails = lazy(() => import('@/app/(admin)/ecommerce/products/[productId]/page'))
 const EcommerceProductCreate = lazy(() => import('@/app/(admin)/ecommerce/products/create/page'))
@@ -250,6 +254,22 @@ const appsRoutes = [
     name: 'AiTool Update',
     path: '/ecommerce/aiTools/edit/:id',
     element: <EcommerceAiToolUpdate />,
+  },
+
+  {
+    name: 'Offices',
+    path: '/ecommerce/offices',
+    element: <EcommerceOffices />,
+  },
+  {
+    name: 'Create Office',
+    path: '/ecommerce/offices/create',
+    element: <EcommerceOfficeCreate />,
+  },
+  {
+    name: 'Office Update',
+    path: '/ecommerce/offices/edit/:id',
+    element: <EcommerceOfficeUpdate />,
   },
 
   {

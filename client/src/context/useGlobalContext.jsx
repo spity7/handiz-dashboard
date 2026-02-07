@@ -163,6 +163,42 @@ export const GlobalProvider = ({ children }) => {
     return response.data
   }
 
+  const createOffice = async (data) => {
+    const response = await axiosInstance.post('/offices', data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return response.data
+  }
+
+  const getAllOffices = async () => {
+    const response = await axiosInstance.get('/offices')
+    return response.data.offices
+  }
+
+  const getOfficeById = async (id) => {
+    const response = await axiosInstance.get(`/offices/${id}`)
+    return response.data.office
+  }
+
+  const updateOffice = async (id, data) => {
+    const response = await axiosInstance.put(`/offices/${id}`, data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return response.data.office
+  }
+
+  const deleteOffice = async (id) => {
+    const response = await axiosInstance.delete(`/offices/${id}`)
+    return response.data
+  }
+
+  const deleteOfficeGalleryImage = async (id, imageUrl) => {
+    const response = await axiosInstance.delete(`/offices/${id}/gallery`, {
+      data: { imageUrl },
+    })
+    return response.data
+  }
+
   return (
     <GlobalContext.Provider
       value={{
@@ -189,6 +225,12 @@ export const GlobalProvider = ({ children }) => {
         updateAiTool,
         deleteAiTool,
         deleteAiToolGalleryImage,
+        createOffice,
+        getAllOffices,
+        getOfficeById,
+        updateOffice,
+        deleteOffice,
+        deleteOfficeGalleryImage,
       }}>
       {children}
     </GlobalContext.Provider>
