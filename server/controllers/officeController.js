@@ -6,11 +6,13 @@ exports.createOffice = async (req, res) => {
     const {
       title,
       location,
+      locationMap,
       email,
       instagram,
       linkedin,
       teamNb,
       category,
+      status,
       order,
     } = req.body;
     const thumbnailFile = req.files?.thumbnail?.[0];
@@ -19,15 +21,17 @@ exports.createOffice = async (req, res) => {
     if (
       !title ||
       !location ||
+      !locationMap ||
       !email ||
       !instagram ||
       !linkedin ||
       !teamNb ||
-      !category
+      !category ||
+      !status
     ) {
       return res.status(400).json({
         message:
-          "Title, Location, Email, Instagram, Linkedin, teamNb, and category are required",
+          "Title, Location, LocationMap, Email, Instagram, Linkedin, teamNb, status, and category are required",
       });
     }
 
@@ -68,11 +72,13 @@ exports.createOffice = async (req, res) => {
     }
 
     const parsedCategory = Array.isArray(category) ? category : [category];
+    const parsedStatus = Array.isArray(status) ? status : [status];
 
     // Save office to DB
     const newOffice = await Office.create({
       title,
       location,
+      locationMap,
       email,
       instagram,
       linkedin,
@@ -81,6 +87,7 @@ exports.createOffice = async (req, res) => {
       thumbnailUrl,
       gallery: galleryUrls,
       category: parsedCategory,
+      status: parsedStatus,
     });
 
     res.status(201).json({
@@ -122,11 +129,13 @@ exports.updateOffice = async (req, res) => {
     const {
       title,
       location,
+      locationMap,
       email,
       instagram,
       linkedin,
       teamNb,
       category,
+      status,
       order,
     } = req.body;
     const thumbnailFile = req.files?.thumbnail?.[0];
@@ -138,6 +147,12 @@ exports.updateOffice = async (req, res) => {
       });
     }
 
+    if (!status) {
+      return res.status(400).json({
+        message: "Status is required",
+      });
+    }
+
     // ✅ Find existing office first
     const existingOffice = await Office.findById(req.params.id);
     if (!existingOffice) {
@@ -145,16 +160,19 @@ exports.updateOffice = async (req, res) => {
     }
 
     const parsedCategory = Array.isArray(category) ? category : [category];
+    const parsedStatus = Array.isArray(status) ? status : [status];
 
     const updateData = {
       title,
       location,
+      locationMap,
       email,
       instagram,
       linkedin,
       teamNb,
       order,
       category: parsedCategory,
+      status: parsedStatus,
     };
 
     // ✅ Handle new thumbnail upload

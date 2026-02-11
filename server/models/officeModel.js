@@ -12,6 +12,11 @@ const officeSchema = new mongoose.Schema(
       required: [true, "Office location is required"],
       trim: true,
     },
+    locationMap: {
+      type: String,
+      required: [true, "Office location map is required"],
+      trim: true,
+    },
     email: {
       type: String,
       required: [true, "Office email is required"],
@@ -44,6 +49,13 @@ const officeSchema = new mongoose.Schema(
       validate: {
         validator: (v) => v.length > 0,
         message: "At least one category is required",
+      },
+    },
+    status: {
+      type: [String],
+      validate: {
+        validator: (v) => v.length > 0,
+        message: "At least one status is required",
       },
     },
   },

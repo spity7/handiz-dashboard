@@ -15,12 +15,14 @@ import ComponentContainerCard from '@/components/ComponentContainerCard'
 const generalFormSchema = yup.object({
   title: yup.string().required('Office title is required'),
   location: yup.string().required('Location is required'),
+  locationMap: yup.string().required('Location Map is required'),
   email: yup.string().required('Email is required'),
   instagram: yup.string().required('Instagram is required'),
   linkedin: yup.string().required('Linkedin is required'),
   order: yup.number().typeError('Order must be a number').required('Order is required'),
   teamNb: yup.number().typeError('TeamNb must be a number').required('TeamNb is required'),
   category: yup.array().of(yup.string()).min(1, 'Select at least one category').required(),
+  status: yup.array().of(yup.string()).min(1, 'Select at least one status').required(),
 })
 
 const normalizeQuillValue = (value) => {
@@ -44,12 +46,14 @@ const GeneralDetailsForm = () => {
     defaultValues: {
       title: '',
       location: '',
+      locationMap: '',
       email: '',
       instagram: '',
       linkedin: '',
       order: 999,
       teamNb: 0,
       category: [],
+      status: [],
     },
   })
 
@@ -64,6 +68,7 @@ const GeneralDetailsForm = () => {
       const formData = new FormData()
       formData.append('title', data.title)
       formData.append('location', data.location)
+      formData.append('locationMap', data.locationMap)
       formData.append('email', data.email)
       formData.append('instagram', data.instagram)
       formData.append('linkedin', data.linkedin)
@@ -73,6 +78,7 @@ const GeneralDetailsForm = () => {
       formData.append('teamNb', data.teamNb)
 
       data.category.forEach((value) => formData.append('category', value))
+      data.status.forEach((value) => formData.append('status', value))
 
       await createOffice(formData)
 
@@ -82,12 +88,14 @@ const GeneralDetailsForm = () => {
       reset({
         title: '',
         location: '',
+        locationMap: '',
         email: '',
         instagram: '',
         linkedin: '',
         order: 999,
         teamNb: 0,
         category: [],
+        status: [],
       })
 
       setThumbnailFile(null)
@@ -130,17 +138,19 @@ const GeneralDetailsForm = () => {
             // error={errors.location?.message}
           />
         </Col>
+
         <Col lg={3}>
           <TextFormInput
             control={control}
-            label="Email"
-            placeholder="Enter Email"
+            label="Location Map"
+            placeholder="Enter Location Map"
             containerClassTitle="mb-3"
-            id="office-email"
-            name="email"
-            // error={errors.email?.message}
+            id="office-location-map"
+            name="locationMap"
+            // error={errors.locationMap?.message}
           />
         </Col>
+
         <Col lg={3}>
           <TextFormInput control={control} label="Order" placeholder="Enter display order" containerClassName="mb-3" name="order" type="number" />
         </Col>
@@ -169,22 +179,19 @@ const GeneralDetailsForm = () => {
             // error={errors.linkedin?.message}
           />
         </Col>
+
         <Col lg={3}>
-          <ComponentContainerCard title="Category">
-            <Controller
-              name="category"
-              control={control}
-              render={({ field }) => (
-                <>
-                  {['Architecture', 'Real Estate', 'Technologies', 'Health Lifestyle', 'AI', 'Documentaries'].map((item) => (
-                    <FormCheck key={item} label={item} checked={field.value.includes(item)} onChange={() => toggleCheckboxValue(item, field)} />
-                  ))}
-                </>
-              )}
-            />
-            {errors.category && <p className="text-danger">{errors.category.message}</p>}
-          </ComponentContainerCard>
+          <TextFormInput
+            control={control}
+            label="Email"
+            placeholder="Enter Email"
+            containerClassTitle="mb-3"
+            id="office-email"
+            name="email"
+            // error={errors.email?.message}
+          />
         </Col>
+
         <Col lg={3}>
           <TextFormInput control={control} label="TeamNb" placeholder="Enter display teamNb" containerClassName="mb-3" name="teamNb" type="number" />
         </Col>
@@ -218,6 +225,40 @@ const GeneralDetailsForm = () => {
             }}
           />
           {errors.thumbnail && <p className="text-danger mt-1">{errors.thumbnail.message}</p>}
+        </Col>
+
+        <Col lg={3}>
+          <ComponentContainerCard title="Category">
+            <Controller
+              name="category"
+              control={control}
+              render={({ field }) => (
+                <>
+                  {['Architecture', 'Real Estate', 'Technologies', 'Health Lifestyle', 'AI', 'Documentaries'].map((item) => (
+                    <FormCheck key={item} label={item} checked={field.value.includes(item)} onChange={() => toggleCheckboxValue(item, field)} />
+                  ))}
+                </>
+              )}
+            />
+            {errors.category && <p className="text-danger">{errors.category.message}</p>}
+          </ComponentContainerCard>
+        </Col>
+
+        <Col lg={3}>
+          <ComponentContainerCard title="Status">
+            <Controller
+              name="status"
+              control={control}
+              render={({ field }) => (
+                <>
+                  {['Hiring', 'Not Hiring'].map((item) => (
+                    <FormCheck key={item} label={item} checked={field.value.includes(item)} onChange={() => toggleCheckboxValue(item, field)} />
+                  ))}
+                </>
+              )}
+            />
+            {errors.status && <p className="text-danger">{errors.status.message}</p>}
+          </ComponentContainerCard>
         </Col>
       </Row>
 

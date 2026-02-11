@@ -18,12 +18,14 @@ const EditOffice = () => {
   const [office, setOffice] = useState(null)
   const [title, setTitle] = useState('')
   const [location, setLocation] = useState('')
+  const [locationMap, setLocationMap] = useState('')
   const [email, setEmail] = useState('')
   const [instagram, setInstagram] = useState('')
   const [linkedin, setLinkedin] = useState('')
   const [order, setOrder] = useState(999)
   const [teamNb, setTeamNb] = useState(0)
   const [category, setCategory] = useState([])
+  const [status, setStatus] = useState([])
 
   const [thumbnail, setThumbnail] = useState(null)
   const [preview, setPreview] = useState(null)
@@ -36,6 +38,7 @@ const EditOffice = () => {
         setOffice(data)
         setTitle(data.title)
         setLocation(data.location)
+        setLocationMap(data.locationMap)
         setEmail(data.email)
         setInstagram(data.instagram)
         setLinkedin(data.linkedin)
@@ -43,7 +46,7 @@ const EditOffice = () => {
         setOrder(data.order ?? 999)
         setTeamNb(data.teamNb ?? 0)
         setCategory(data.category || [])
-
+        setStatus(data.status || [])
         setPreview(data.thumbnailUrl)
       } catch (error) {
         alert('Failed to load office')
@@ -73,10 +76,16 @@ const EditOffice = () => {
         setLoading(false)
         return
       }
+      if (status.length === 0) {
+        alert('Please select at least one  Status')
+        setLoading(false)
+        return
+      }
 
       const formData = new FormData()
       formData.append('title', title)
       formData.append('location', location)
+      formData.append('locationMap', locationMap)
       formData.append('email', email)
       formData.append('instagram', instagram)
       formData.append('linkedin', linkedin)
@@ -87,6 +96,7 @@ const EditOffice = () => {
       if (thumbnail) formData.append('thumbnail', thumbnail)
 
       category.forEach((c) => formData.append('category', c))
+      status.forEach((s) => formData.append('status', s))
 
       await updateOffice(id, formData)
       alert('Office updated successfully!')
@@ -133,10 +143,11 @@ const EditOffice = () => {
                   </Col>
                   <Col lg={3}>
                     <div className="mb-3">
-                      <label className="form-label">Email</label>
-                      <input type="text" className="form-control" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                      <label className="form-label">Location Map</label>
+                      <input type="text" className="form-control" value={locationMap} onChange={(e) => setLocationMap(e.target.value)} required />
                     </div>
                   </Col>
+
                   <Col lg={3}>
                     <div className="mb-3">
                       <label className="form-label">Order</label>
@@ -165,16 +176,14 @@ const EditOffice = () => {
                       <input type="text" className="form-control" value={linkedin} onChange={(e) => setLinkedin(e.target.value)} required />
                     </div>
                   </Col>
+
                   <Col lg={3}>
-                    <label className="form-label fw-bold">Category *</label>
-                    {['Architecture', 'Real Estate', 'Technologies', 'Health Lifestyle', 'AI', 'Documentaries'].map((item) => (
-                      <div key={item}>
-                        <input type="checkbox" checked={category.includes(item)} onChange={() => toggleCheckbox(item, category, setCategory)} />{' '}
-                        {item}
-                      </div>
-                    ))}
-                    {category.length === 0 && <p className="text-danger">Select at least one category</p>}
+                    <div className="mb-3">
+                      <label className="form-label">Email</label>
+                      <input type="text" className="form-control" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                    </div>
                   </Col>
+
                   <Col lg={3}>
                     <div className="mb-3">
                       <label className="form-label">TeamNb</label>
@@ -202,6 +211,27 @@ const EditOffice = () => {
                         </div>
                       )}
                     </div>
+                  </Col>
+
+                  <Col lg={3}>
+                    <label className="form-label fw-bold">Category *</label>
+                    {['Architecture', 'Real Estate', 'Technologies', 'Health Lifestyle', 'AI', 'Documentaries'].map((item) => (
+                      <div key={item}>
+                        <input type="checkbox" checked={category.includes(item)} onChange={() => toggleCheckbox(item, category, setCategory)} />{' '}
+                        {item}
+                      </div>
+                    ))}
+                    {category.length === 0 && <p className="text-danger">Select at least one category</p>}
+                  </Col>
+
+                  <Col lg={3}>
+                    <label className="form-label fw-bold">Status *</label>
+                    {['Hiring', 'Not Hiring'].map((item) => (
+                      <div key={item}>
+                        <input type="checkbox" checked={status.includes(item)} onChange={() => toggleCheckbox(item, status, setStatus)} /> {item}
+                      </div>
+                    ))}
+                    {status.length === 0 && <p className="text-danger">Select at least one status</p>}
                   </Col>
                 </Row>
 
