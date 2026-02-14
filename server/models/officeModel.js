@@ -8,9 +8,11 @@ const officeSchema = new mongoose.Schema(
       trim: true,
     },
     location: {
-      type: String,
-      required: [true, "Office location is required"],
-      trim: true,
+      type: [String],
+      validate: {
+        validator: (v) => v.length > 0,
+        message: "At least one location is required",
+      },
     },
     locationMap: {
       type: String,

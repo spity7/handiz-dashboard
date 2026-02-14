@@ -14,7 +14,7 @@ import ComponentContainerCard from '@/components/ComponentContainerCard'
 
 const generalFormSchema = yup.object({
   title: yup.string().required('Office title is required'),
-  location: yup.string().required('Location is required'),
+  location: yup.array().of(yup.string()).min(1, 'Select at least one location').required(),
   locationMap: yup.string().required('Location Map is required'),
   email: yup.string().required('Email is required'),
   instagram: yup.string().required('Instagram is required'),
@@ -45,7 +45,7 @@ const GeneralDetailsForm = () => {
     resolver: yupResolver(generalFormSchema),
     defaultValues: {
       title: '',
-      location: '',
+      location: [],
       locationMap: '',
       email: '',
       instagram: '',
@@ -67,7 +67,6 @@ const GeneralDetailsForm = () => {
 
       const formData = new FormData()
       formData.append('title', data.title)
-      formData.append('location', data.location)
       formData.append('locationMap', data.locationMap)
       formData.append('email', data.email)
       formData.append('instagram', data.instagram)
@@ -78,6 +77,7 @@ const GeneralDetailsForm = () => {
       formData.append('teamNb', data.teamNb)
 
       data.category.forEach((value) => formData.append('category', value))
+      data.location.forEach((value) => formData.append('location', value))
       data.status.forEach((value) => formData.append('status', value))
 
       await createOffice(formData)
@@ -87,7 +87,7 @@ const GeneralDetailsForm = () => {
       // ✅ Clear all form fields properly
       reset({
         title: '',
-        location: '',
+        location: [],
         locationMap: '',
         email: '',
         instagram: '',
@@ -127,16 +127,22 @@ const GeneralDetailsForm = () => {
             // error={errors.title?.message}
           />
         </Col>
+
         <Col lg={3}>
-          <TextFormInput
-            control={control}
-            label="Location"
-            placeholder="Enter Location"
-            containerClassTitle="mb-3"
-            id="office-location"
-            name="location"
-            // error={errors.location?.message}
-          />
+          <ComponentContainerCard title="Location">
+            <Controller
+              name="location"
+              control={control}
+              render={({ field }) => (
+                <>
+                  {['LB - Beirut', 'LB - North', 'LB - South', 'LB - Mount Leb', 'LB - Bekaa'].map((item) => (
+                    <FormCheck key={item} label={item} checked={field.value.includes(item)} onChange={() => toggleCheckboxValue(item, field)} />
+                  ))}
+                </>
+              )}
+            />
+            {errors.location && <p className="text-danger">{errors.location.message}</p>}
+          </ComponentContainerCard>
         </Col>
 
         <Col lg={3}>
@@ -234,7 +240,7 @@ const GeneralDetailsForm = () => {
               control={control}
               render={({ field }) => (
                 <>
-                  {['Architecture', 'Real Estate', 'Technologies', 'Health Lifestyle', 'AI', 'Documentaries'].map((item) => (
+                  {['Architecture', 'Interior', 'Landscape', 'Urban Planning'].map((item) => (
                     <FormCheck key={item} label={item} checked={field.value.includes(item)} onChange={() => toggleCheckboxValue(item, field)} />
                   ))}
                 </>

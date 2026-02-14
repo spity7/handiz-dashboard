@@ -71,13 +71,13 @@ exports.createOffice = async (req, res) => {
       }
     }
 
+    const parsedLocation = Array.isArray(location) ? location : [location];
     const parsedCategory = Array.isArray(category) ? category : [category];
     const parsedStatus = Array.isArray(status) ? status : [status];
 
     // Save office to DB
     const newOffice = await Office.create({
       title,
-      location,
       locationMap,
       email,
       instagram,
@@ -88,6 +88,7 @@ exports.createOffice = async (req, res) => {
       gallery: galleryUrls,
       category: parsedCategory,
       status: parsedStatus,
+      location: parsedLocation,
     });
 
     res.status(201).json({
@@ -141,6 +142,12 @@ exports.updateOffice = async (req, res) => {
     const thumbnailFile = req.files?.thumbnail?.[0];
     const galleryFiles = req.files?.gallery || [];
 
+    if (!location) {
+      return res.status(400).json({
+        message: "Location is required",
+      });
+    }
+
     if (!category) {
       return res.status(400).json({
         message: "Category is required",
@@ -159,12 +166,13 @@ exports.updateOffice = async (req, res) => {
       return res.status(404).json({ message: "Office not found" });
     }
 
+    const parsedLocation = Array.isArray(location) ? location : [location];
     const parsedCategory = Array.isArray(category) ? category : [category];
     const parsedStatus = Array.isArray(status) ? status : [status];
 
     const updateData = {
       title,
-      location,
+      location: parsedLocation,
       locationMap,
       email,
       instagram,
