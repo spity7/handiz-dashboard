@@ -76,6 +76,21 @@ const projectSchema = new mongoose.Schema(
         message: "At least one university is required",
       },
     },
+    googleMapUrl: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    thesisUrl: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    fileUrl: {
+      type: String,
+      trim: true,
+      default: "",
+    },
     contentBlocks: [
       {
         _id: false,
@@ -93,7 +108,7 @@ const projectSchema = new mongoose.Schema(
   },
   {
     timestamps: true, // adds createdAt & updatedAt
-  }
+  },
 );
 
 module.exports = mongoose.model("Project", projectSchema);

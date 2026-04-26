@@ -25,8 +25,8 @@ const AiTools = () => {
 
   return (
     <>
-      <PageMetaData title="AiTools List" />
-      <PageBreadcrumb title="AiTools List" subName="Handiz" />
+      <PageMetaData title="AI Prompts" />
+      <PageBreadcrumb title="AI Prompts" subName="Handiz" />
       <Row>
         <Col>
           <Card>
@@ -38,16 +38,22 @@ const AiTools = () => {
                   </span>
                   <input type="search" className="form-control" id="search" placeholder="Search ..." />
                 </div> */}
-                <div>
+                <div className="d-flex flex-wrap gap-2">
+                  <Link to="/ecommerce/aiTools/categories" className="btn btn-soft-primary d-flex align-items-center">
+                    <IconifyIcon icon="bx:category" className="me-1" />
+                    Categories
+                  </Link>
                   <Link to="/ecommerce/aiTools/create" className="btn btn-primary d-flex align-items-center">
                     <IconifyIcon icon="bx:plus" className="me-1" />
-                    Create AiTool
+                    Create AI Prompt
                   </Link>
                 </div>
               </div>
             </CardBody>
 
-            <div>{aiToolsList.length > 0 ? <AiToolsListTable aiTools={aiToolsList} /> : <div className="text-center p-4">No AiTools Found</div>}</div>
+            <div>
+              {aiToolsList.length > 0 ? <AiToolsListTable aiTools={aiToolsList} /> : <div className="text-center p-4">No AI Prompts found</div>}
+            </div>
           </Card>
         </Col>
       </Row>

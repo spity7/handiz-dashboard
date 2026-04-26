@@ -22,6 +22,7 @@ const EcommerceCompetitionCreate = lazy(() => import('@/app/(admin)/ecommerce/co
 const EcommerceCompetitionUpdate = lazy(() => import('@/app/(admin)/ecommerce/competitions/edit/[id]/page'))
 
 const EcommerceAiTools = lazy(() => import('@/app/(admin)/ecommerce/aiTools/page'))
+const EcommerceAiToolCategories = lazy(() => import('@/app/(admin)/ecommerce/aiTools/categories/page'))
 const EcommerceAiToolCreate = lazy(() => import('@/app/(admin)/ecommerce/aiTools/create/page'))
 const EcommerceAiToolUpdate = lazy(() => import('@/app/(admin)/ecommerce/aiTools/edit/[id]/page'))
 
@@ -241,17 +242,22 @@ const appsRoutes = [
   },
 
   {
-    name: 'AiTools',
+    name: 'AI Prompts',
     path: '/ecommerce/aiTools',
     element: <EcommerceAiTools />,
   },
   {
-    name: 'Create AiTool',
+    name: 'AI Prompt categories',
+    path: '/ecommerce/aiTools/categories',
+    element: <EcommerceAiToolCategories />,
+  },
+  {
+    name: 'Create AI Prompt',
     path: '/ecommerce/aiTools/create',
     element: <EcommerceAiToolCreate />,
   },
   {
-    name: 'AiTool Update',
+    name: 'Edit AI Prompt',
     path: '/ecommerce/aiTools/edit/:id',
     element: <EcommerceAiToolUpdate />,
   },

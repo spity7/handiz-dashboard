@@ -8,13 +8,14 @@ const aiToolSchema = new mongoose.Schema(
       trim: true,
     },
     category: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "AiPromptCategory",
       required: [true, "Category is required"],
-      trim: true,
     },
-    link: {
+    description: {
       type: String,
-      required: [true, "Link is required"],
+      trim: true,
+      default: "",
     },
     order: {
       type: Number,
@@ -24,10 +25,14 @@ const aiToolSchema = new mongoose.Schema(
       type: String,
       required: [true, "Thumbnail image URL is required"],
     },
+    gallery: {
+      type: [String],
+      default: [],
+    },
   },
   {
     timestamps: true, // adds createdAt & updatedAt
-  }
+  },
 );
 
 module.exports = mongoose.model("AiTool", aiToolSchema);

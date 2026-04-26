@@ -1,4 +1,4 @@
-import { Button, Card, Col, FormLabel, FormText } from 'react-bootstrap'
+import { Button, Card, Col, FormLabel, FormText, Row } from 'react-bootstrap'
 import Dropzone from 'react-dropzone'
 import useFileUploader from '@/hooks/useFileUploader'
 import IconifyIcon from '../wrappers/IconifyIcon'
@@ -20,7 +20,7 @@ const DropzoneFormInput = ({ label, labelClassName, helpText, iconProps, showPre
 
       <Dropzone onDrop={(acceptedFiles) => handleAcceptedFiles(acceptedFiles, onFileUpload)} maxFiles={30}>
         {({ getRootProps, getInputProps }) => (
-          <div className="dropzone dropzone-custom">
+          <div className="dropzone dropzone-custom w-100">
             <div className="dz-message" {...getRootProps()}>
               <input {...getInputProps()} />
               <IconifyIcon icon={iconProps?.icon ?? 'bx:cloud-upload'} {...iconProps} />
@@ -28,34 +28,42 @@ const DropzoneFormInput = ({ label, labelClassName, helpText, iconProps, showPre
               {helpText && typeof helpText === 'string' ? <FormText>{helpText}</FormText> : helpText}
             </div>
             {showPreview && selectedFiles.length > 0 && (
-              <div className="dz-preview row g-4">
+              <Row className="dz-preview g-3 g-md-4 w-100 mx-0 mt-2">
                 {(selectedFiles || []).map((file) => (
-                  <Col xl={2} md={4} sm={6} key={file.path}>
-                    <Card className="p-2 mb-0 shadow-none border position-relative h-100">
+                  <Col xs={12} key={`${file.name}-${file.size}-${file.lastModified ?? ''}`}>
+                    <Card className="p-2 mb-0 shadow-none border position-relative w-100">
                       {file.preview ? (
-                        <img alt={file.path ?? ''} src={file.preview} height={90} width={140} className="rounded bg-light" />
+                        <img
+                          alt={file.name ?? ''}
+                          src={file.preview}
+                          className="rounded bg-light d-block w-100"
+                          style={{ maxWidth: '100%', height: 180, objectFit: 'cover' }}
+                        />
                       ) : (
                         <div
-                          className="rounded bg-light text-center flex-centered fs-1"
+                          className="rounded bg-light text-center flex-centered fs-1 w-100"
                           style={{
-                            height: 90,
-                            width: 140,
+                            height: 180,
+                            minHeight: 120,
                           }}>
-                          {file.path?.split('.')[file.path?.split('.').length - 1]?.toUpperCase()}
+                          {file.name?.split('.').pop()?.toUpperCase()}
                         </div>
                       )}
-                      <div className="mt-2">
-                        <p role="button" className="text-body-secondary fw-bold">
-                          {file.path ?? file.name}
+                      <div className="mt-2 w-100" style={{ minWidth: 0 }}>
+                        <p role="button" className="text-body-secondary fw-bold small mb-1 text-break" style={{ overflowWrap: 'anywhere' }}>
+                          {file.name ?? file.path}
                         </p>
-                        <p className="mb-0 small">{file.formattedSize}</p>
+                        <p className="mb-0 small text-break text-muted">{file.formattedSize}</p>
                       </div>
                       {removeFile && (
-                        <div className="position-absolute top-0 start-100 translate-middle">
+                        <div className="position-absolute top-0 end-0 p-1">
                           <Button
                             variant="danger"
                             className="rounded-circle icon-sm p-0 d-flex align-items-center justify-content-center"
-                            onClick={() => removeFile(file)}>
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              removeFile(file)
+                            }}>
                             <IconifyIcon icon="bx:x" />
                           </Button>
                         </div>
@@ -63,7 +71,7 @@ const DropzoneFormInput = ({ label, labelClassName, helpText, iconProps, showPre
                     </Card>
                   </Col>
                 ))}
-              </div>
+              </Row>
             )}
           </div>
         )}

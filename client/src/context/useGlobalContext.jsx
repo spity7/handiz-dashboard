@@ -128,9 +128,8 @@ export const GlobalProvider = ({ children }) => {
   }
 
   const createAiTool = async (data) => {
-    const response = await axiosInstance.post('/aiTools', data, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
+    // Let axios set multipart boundary; manual Content-Type breaks field/file parsing
+    const response = await axiosInstance.post('/aiTools', data)
     return response.data
   }
 
@@ -145,9 +144,7 @@ export const GlobalProvider = ({ children }) => {
   }
 
   const updateAiTool = async (id, data) => {
-    const response = await axiosInstance.put(`/aiTools/${id}`, data, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
+    const response = await axiosInstance.put(`/aiTools/${id}`, data)
     return response.data.aiTool
   }
 
@@ -160,6 +157,26 @@ export const GlobalProvider = ({ children }) => {
     const response = await axiosInstance.delete(`/aiTools/${id}/gallery`, {
       data: { imageUrl },
     })
+    return response.data
+  }
+
+  const getAiPromptCategories = async () => {
+    const response = await axiosInstance.get('/aiTools/categories')
+    return response.data.categories
+  }
+
+  const createAiPromptCategory = async (name) => {
+    const response = await axiosInstance.post('/aiTools/categories', { name })
+    return response.data.category
+  }
+
+  const updateAiPromptCategory = async (id, name) => {
+    const response = await axiosInstance.put(`/aiTools/categories/${id}`, { name })
+    return response.data.category
+  }
+
+  const deleteAiPromptCategory = async (id) => {
+    const response = await axiosInstance.delete(`/aiTools/categories/${id}`)
     return response.data
   }
 
@@ -225,6 +242,10 @@ export const GlobalProvider = ({ children }) => {
         updateAiTool,
         deleteAiTool,
         deleteAiToolGalleryImage,
+        getAiPromptCategories,
+        createAiPromptCategory,
+        updateAiPromptCategory,
+        deleteAiPromptCategory,
         createOffice,
         getAllOffices,
         getOfficeById,

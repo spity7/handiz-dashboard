@@ -35,8 +35,14 @@ export const MENU_ITEMS = [
       },
       {
         key: 'ecommerce-aiTools',
-        label: 'AiTools',
+        label: 'AI Prompts',
         url: '/ecommerce/aiTools',
+        parentKey: 'ecommerce',
+      },
+      {
+        key: 'ecommerce-aiTools-categories',
+        label: 'AI Prompt categories',
+        url: '/ecommerce/aiTools/categories',
         parentKey: 'ecommerce',
       },
       {

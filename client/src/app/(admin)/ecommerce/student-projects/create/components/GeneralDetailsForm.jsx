@@ -24,6 +24,42 @@ const generalFormSchema = yup.object({
   year: yup.array().of(yup.string()).min(1, 'Select at least one year').required(),
   location: yup.array().of(yup.string()).min(1, 'Select at least one location').required(),
   university: yup.array().of(yup.string()).min(1, 'Select at least one university').required(),
+  googleMapUrl: yup
+    .string()
+    .transform((v) => (v == null ? '' : String(v).trim()))
+    .test('url', 'Enter a valid http(s) URL', (val) => {
+      if (!val) return true
+      try {
+        const u = new URL(val)
+        return u.protocol === 'http:' || u.protocol === 'https:'
+      } catch {
+        return false
+      }
+    }),
+  thesisUrl: yup
+    .string()
+    .transform((v) => (v == null ? '' : String(v).trim()))
+    .test('url', 'Enter a valid http(s) URL', (val) => {
+      if (!val) return true
+      try {
+        const u = new URL(val)
+        return u.protocol === 'http:' || u.protocol === 'https:'
+      } catch {
+        return false
+      }
+    }),
+  fileUrl: yup
+    .string()
+    .transform((v) => (v == null ? '' : String(v).trim()))
+    .test('url', 'Enter a valid http(s) URL', (val) => {
+      if (!val) return true
+      try {
+        const u = new URL(val)
+        return u.protocol === 'http:' || u.protocol === 'https:'
+      } catch {
+        return false
+      }
+    }),
 })
 
 const normalizeQuillValue = (value) => {
@@ -54,6 +90,16 @@ const GeneralDetailsForm = () => {
     setDynamicBlocks((prev) => prev.filter((b) => b.id !== id))
   }
 
+  const moveBlock = (index, delta) => {
+    setDynamicBlocks((prev) => {
+      const j = index + delta
+      if (j < 0 || j >= prev.length) return prev
+      const next = [...prev]
+      ;[next[index], next[j]] = [next[j], next[index]]
+      return next
+    })
+  }
+
   const {
     control,
     handleSubmit,
@@ -73,6 +119,9 @@ const GeneralDetailsForm = () => {
       year: [],
       location: [],
       university: [],
+      googleMapUrl: '',
+      thesisUrl: '',
+      fileUrl: '',
     },
   })
 
@@ -102,6 +151,9 @@ const GeneralDetailsForm = () => {
       data.year.forEach((value) => formData.append('year', value))
       data.location.forEach((value) => formData.append('location', value))
       data.university.forEach((value) => formData.append('university', value))
+      formData.append('googleMapUrl', data.googleMapUrl || '')
+      formData.append('thesisUrl', data.thesisUrl || '')
+      formData.append('fileUrl', data.fileUrl || '')
 
       // ✅ Process dynamic blocks
       const blocksPayload = []
@@ -142,6 +194,9 @@ const GeneralDetailsForm = () => {
         year: [],
         location: [],
         university: [],
+        googleMapUrl: '',
+        thesisUrl: '',
+        fileUrl: '',
       })
 
       setThumbnailFile(null)
@@ -334,6 +389,45 @@ const GeneralDetailsForm = () => {
       </Row>
 
       <Row>
+        <Col lg={4}>
+          <TextFormInput
+            control={control}
+            label="Google Map (optional)"
+            placeholder="https://maps.google.com/..."
+            containerClassTitle="mb-3"
+            id="project-google-map"
+            name="googleMapUrl"
+            type="url"
+          />
+          {errors.googleMapUrl && <p className="text-danger small">{errors.googleMapUrl.message}</p>}
+        </Col>
+        <Col lg={4}>
+          <TextFormInput
+            control={control}
+            label="Thesis (optional)"
+            placeholder="https://..."
+            containerClassTitle="mb-3"
+            id="project-thesis"
+            name="thesisUrl"
+            type="url"
+          />
+          {errors.thesisUrl && <p className="text-danger small">{errors.thesisUrl.message}</p>}
+        </Col>
+        <Col lg={4}>
+          <TextFormInput
+            control={control}
+            label="File (optional)"
+            placeholder="https://..."
+            containerClassTitle="mb-3"
+            id="project-file-url"
+            name="fileUrl"
+            type="url"
+          />
+          {errors.fileUrl && <p className="text-danger small">{errors.fileUrl.message}</p>}
+        </Col>
+      </Row>
+
+      <Row>
         <Col lg={6}>
           <div className="mb-5 mt-3">
             <label className="form-label">Project Description</label>
@@ -391,11 +485,33 @@ const GeneralDetailsForm = () => {
       <h4 className="mb-3">Dynamic Content Blocks</h4>
 
       {dynamicBlocks.map((block, index) => (
-        <div key={block.id} className="mb-3 p-3 border rounded position-relative">
-          <Button variant="danger" size="sm" type="button" className="position-absolute top-0 end-0 m-2" onClick={() => removeBlock(block.id)}>
-            Remove
-          </Button>
-          <div className="mb-2 text-capitalize fw-bold">{block.type}</div>
+        <div key={block.id} className="mb-3 p-3 border rounded">
+          <div className="d-flex justify-content-between align-items-center gap-2 mb-3 flex-wrap">
+            <div className="d-flex gap-1 align-items-center flex-wrap">
+              <Button
+                variant="outline-secondary"
+                size="sm"
+                type="button"
+                disabled={index === 0}
+                onClick={() => moveBlock(index, -1)}
+                aria-label="Move block up">
+                ↑
+              </Button>
+              <Button
+                variant="outline-secondary"
+                size="sm"
+                type="button"
+                disabled={index === dynamicBlocks.length - 1}
+                onClick={() => moveBlock(index, 1)}
+                aria-label="Move block down">
+                ↓
+              </Button>
+              <span className="text-capitalize fw-bold ms-2">{block.type}</span>
+            </div>
+            <Button variant="danger" size="sm" type="button" onClick={() => removeBlock(block.id)}>
+              Remove
+            </Button>
+          </div>
 
           {block.type === 'title' && (
             <input

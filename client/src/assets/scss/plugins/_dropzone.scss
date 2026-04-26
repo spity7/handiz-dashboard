@@ -20,4 +20,16 @@
             display: none;
         }
     }
+
+    // react-dropzone previews: use full dropzone width (avoid nested Col % of a narrow parent)
+    &.dropzone-custom {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+
+        .dz-preview {
+            flex-shrink: 0;
+            max-width: 100%;
+        }
+    }
 }

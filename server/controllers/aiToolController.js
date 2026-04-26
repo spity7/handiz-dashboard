@@ -1,15 +1,34 @@
+const mongoose = require("mongoose");
 const AiTool = require("../models/aiToolModel");
+const AiPromptCategory = require("../models/aiPromptCategoryModel");
 const { uploadImage, deleteImage } = require("../utils/gcs");
+
+const POPULATE_CATEGORY = { path: "category", select: "name isFallback" };
+
+async function resolveCategoryId(raw) {
+  if (raw == null || raw === "") return null;
+  const s = String(raw).trim();
+  if (!mongoose.Types.ObjectId.isValid(s)) return null;
+  const exists = await AiPromptCategory.exists({ _id: s });
+  return exists ? s : null;
+}
 
 exports.createAiTool = async (req, res) => {
   try {
-    const { title, link, category, order } = req.body;
+    const { title, category, order, description } = req.body;
     const thumbnailFile = req.files?.thumbnail?.[0];
     const galleryFiles = req.files?.gallery || [];
 
-    if (!title || !link || !category) {
+    const categoryId = await resolveCategoryId(category);
+    if (!title || !categoryId) {
       return res.status(400).json({
-        message: "Title, Link, and category are required",
+        message: "Title and a valid category id are required",
+      });
+    }
+
+    if (!description || !String(description).trim()) {
+      return res.status(400).json({
+        message: "Description is required",
       });
     }
 
@@ -24,7 +43,7 @@ exports.createAiTool = async (req, res) => {
     const thumbnailUrl = await uploadImage(
       thumbnailFile.buffer,
       thumbnailFileName,
-      thumbnailFile.mimetype
+      thumbnailFile.mimetype,
     );
 
     // Upload gallery (optional)
@@ -38,7 +57,7 @@ exports.createAiTool = async (req, res) => {
               file.originalname
             }`;
             return await uploadImage(file.buffer, fileName, file.mimetype);
-          })
+          }),
         );
       } catch (err) {
         console.error("Error uploading one of the gallery images:", err);
@@ -52,12 +71,13 @@ exports.createAiTool = async (req, res) => {
     // Save aiTool to DB
     const newAiTool = await AiTool.create({
       title,
-      link,
       order,
       thumbnailUrl,
       gallery: galleryUrls,
-      category,
+      category: categoryId,
+      description: String(description).trim(),
     });
+    await newAiTool.populate(POPULATE_CATEGORY);
 
     res.status(201).json({
       message: "AiTool created successfully",
@@ -74,7 +94,7 @@ exports.createAiTool = async (req, res) => {
 
 exports.getAllAiTools = async (req, res) => {
   try {
-    const aiTools = await AiTool.find().sort({
+    const aiTools = await AiTool.find().populate(POPULATE_CATEGORY).sort({
       order: 1,
       createdAt: -1,
     });
@@ -87,7 +107,9 @@ exports.getAllAiTools = async (req, res) => {
 
 exports.getAiToolById = async (req, res) => {
   try {
-    const aiTool = await AiTool.findById(req.params.id);
+    const aiTool = await AiTool.findById(req.params.id).populate(
+      POPULATE_CATEGORY,
+    );
     if (!aiTool) return res.status(404).json({ message: "AiTool not found" });
     res.status(200).json({ aiTool });
   } catch (error) {
@@ -98,7 +120,7 @@ exports.getAiToolById = async (req, res) => {
 
 exports.updateAiTool = async (req, res) => {
   try {
-    const { title, link, category, order } = req.body;
+    const { title, category, order, description } = req.body;
     const thumbnailFile = req.files?.thumbnail?.[0];
     const galleryFiles = req.files?.gallery || [];
 
@@ -108,12 +130,35 @@ exports.updateAiTool = async (req, res) => {
       return res.status(404).json({ message: "AiTool not found" });
     }
 
+    let categoryId;
+    if (category !== undefined && category !== null) {
+      categoryId = await resolveCategoryId(category);
+      if (!categoryId) {
+        return res.status(400).json({
+          message: "Invalid or unknown category id",
+        });
+      }
+    }
+
+    if (description !== undefined && description !== null) {
+      if (!String(description).trim()) {
+        return res.status(400).json({
+          message: "Description cannot be empty",
+        });
+      }
+    }
+
     const updateData = {
       title,
-      link,
       order,
-      category,
     };
+    if (categoryId !== undefined) {
+      updateData.category = categoryId;
+    }
+
+    if (description !== undefined && description !== null) {
+      updateData.description = String(description).trim();
+    }
 
     // ✅ Handle new thumbnail upload
     if (thumbnailFile) {
@@ -133,7 +178,7 @@ exports.updateAiTool = async (req, res) => {
       const newThumbnailUrl = await uploadImage(
         thumbnailFile.buffer,
         newThumbnailName,
-        thumbnailFile.mimetype
+        thumbnailFile.mimetype,
       );
       updateData.thumbnailUrl = newThumbnailUrl;
     }
@@ -148,7 +193,7 @@ exports.updateAiTool = async (req, res) => {
               file.originalname
             }`;
             return await uploadImage(file.buffer, fileName, file.mimetype);
-          })
+          }),
         );
       } catch (err) {
         console.error("Error uploading gallery images:", err);
@@ -167,11 +212,13 @@ exports.updateAiTool = async (req, res) => {
       ];
     }
 
-    // ✅ Update aiTool
-    const updatedAiTool = await AiTool.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      { new: true }
+    // ✅ Update aiTool (strip legacy `link` field if present)
+    await AiTool.findByIdAndUpdate(req.params.id, {
+      $set: updateData,
+      $unset: { link: "" },
+    });
+    const updatedAiTool = await AiTool.findById(req.params.id).populate(
+      POPULATE_CATEGORY,
     );
 
     res.status(200).json({
@@ -206,7 +253,7 @@ exports.deleteAiTool = async (req, res) => {
           } catch (err) {
             console.warn("⚠️ Failed to delete gallery image:", err.message);
           }
-        })
+        }),
       );
     }
 

@@ -27,6 +27,9 @@ const EditProject = () => {
   const [year, setYear] = useState([])
   const [location, setLocation] = useState([])
   const [university, setUniversity] = useState([])
+  const [googleMapUrl, setGoogleMapUrl] = useState('')
+  const [thesisUrl, setThesisUrl] = useState('')
+  const [fileUrl, setFileUrl] = useState('')
 
   const [thumbnail, setThumbnail] = useState(null)
   const [preview, setPreview] = useState(null)
@@ -50,6 +53,16 @@ const EditProject = () => {
     setDynamicBlocks((prev) => prev.filter((b) => b.id !== id))
   }
 
+  const moveBlock = (index, delta) => {
+    setDynamicBlocks((prev) => {
+      const j = index + delta
+      if (j < 0 || j >= prev.length) return prev
+      const next = [...prev]
+      ;[next[index], next[j]] = [next[j], next[index]]
+      return next
+    })
+  }
+
   useEffect(() => {
     const fetchProject = async () => {
       try {
@@ -67,6 +80,9 @@ const EditProject = () => {
         setYear(data.year || [])
         setLocation(data.location || [])
         setUniversity(data.university || [])
+        setGoogleMapUrl(data.googleMapUrl || '')
+        setThesisUrl(data.thesisUrl || '')
+        setFileUrl(data.fileUrl || '')
 
         setPreview(data.thumbnailUrl)
         setExistingGallery(data.gallery || [])
@@ -116,6 +132,32 @@ const EditProject = () => {
         return
       }
 
+      const checkOptionalUrl = (val) => {
+        const t = (val || '').trim()
+        if (!t) return true
+        try {
+          const u = new URL(t)
+          return u.protocol === 'http:' || u.protocol === 'https:'
+        } catch {
+          return false
+        }
+      }
+      if (!checkOptionalUrl(googleMapUrl)) {
+        alert('Google Map must be a valid http(s) URL')
+        setLoading(false)
+        return
+      }
+      if (!checkOptionalUrl(thesisUrl)) {
+        alert('Thesis must be a valid http(s) URL')
+        setLoading(false)
+        return
+      }
+      if (!checkOptionalUrl(fileUrl)) {
+        alert('File must be a valid http(s) URL')
+        setLoading(false)
+        return
+      }
+
       const formData = new FormData()
       formData.append('title', title)
       formData.append('student', student)
@@ -133,6 +175,9 @@ const EditProject = () => {
       year.forEach((c) => formData.append('year', c))
       location.forEach((c) => formData.append('location', c))
       university.forEach((c) => formData.append('university', c))
+      formData.append('googleMapUrl', (googleMapUrl || '').trim())
+      formData.append('thesisUrl', (thesisUrl || '').trim())
+      formData.append('fileUrl', (fileUrl || '').trim())
 
       // ✅ Process dynamic blocks
       const blocksPayload = []
@@ -320,6 +365,45 @@ const EditProject = () => {
                 </Row>
 
                 <Row>
+                  <Col lg={4}>
+                    <div className="mb-3">
+                      <label className="form-label">Google Map (optional)</label>
+                      <input
+                        type="url"
+                        className="form-control"
+                        placeholder="https://maps.google.com/..."
+                        value={googleMapUrl}
+                        onChange={(e) => setGoogleMapUrl(e.target.value)}
+                      />
+                    </div>
+                  </Col>
+                  <Col lg={4}>
+                    <div className="mb-3">
+                      <label className="form-label">Thesis (optional)</label>
+                      <input
+                        type="url"
+                        className="form-control"
+                        placeholder="https://..."
+                        value={thesisUrl}
+                        onChange={(e) => setThesisUrl(e.target.value)}
+                      />
+                    </div>
+                  </Col>
+                  <Col lg={4}>
+                    <div className="mb-3">
+                      <label className="form-label">File (optional)</label>
+                      <input
+                        type="url"
+                        className="form-control"
+                        placeholder="https://..."
+                        value={fileUrl}
+                        onChange={(e) => setFileUrl(e.target.value)}
+                      />
+                    </div>
+                  </Col>
+                </Row>
+
+                <Row>
                   <Col lg={6}>
                     <div className="mb-3">
                       <label className="form-label">Description</label>
@@ -376,16 +460,33 @@ const EditProject = () => {
                 <h4 className="mb-3">Dynamic Content Blocks</h4>
 
                 {dynamicBlocks.map((block, index) => (
-                  <div key={block.id} className="mb-3 p-3 border rounded position-relative">
-                    <Button
-                      variant="danger"
-                      size="sm"
-                      type="button"
-                      className="position-absolute top-0 end-0 m-2"
-                      onClick={() => removeBlock(block.id)}>
-                      Remove
-                    </Button>
-                    <div className="mb-2 text-capitalize fw-bold">{block.type}</div>
+                  <div key={block.id} className="mb-3 p-3 border rounded">
+                    <div className="d-flex justify-content-between align-items-center gap-2 mb-3 flex-wrap">
+                      <div className="d-flex gap-1 align-items-center flex-wrap">
+                        <Button
+                          variant="outline-secondary"
+                          size="sm"
+                          type="button"
+                          disabled={index === 0}
+                          onClick={() => moveBlock(index, -1)}
+                          aria-label="Move block up">
+                          ↑
+                        </Button>
+                        <Button
+                          variant="outline-secondary"
+                          size="sm"
+                          type="button"
+                          disabled={index === dynamicBlocks.length - 1}
+                          onClick={() => moveBlock(index, 1)}
+                          aria-label="Move block down">
+                          ↓
+                        </Button>
+                        <span className="text-capitalize fw-bold ms-2">{block.type}</span>
+                      </div>
+                      <Button variant="danger" size="sm" type="button" onClick={() => removeBlock(block.id)}>
+                        Remove
+                      </Button>
+                    </div>
 
                     {block.type === 'title' && (
                       <input

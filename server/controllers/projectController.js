@@ -15,6 +15,9 @@ exports.createProject = async (req, res) => {
       year,
       location,
       university,
+      googleMapUrl,
+      thesisUrl,
+      fileUrl,
       contentBlocks,
     } = req.body;
     const thumbnailFile = req.files?.thumbnail?.[0];
@@ -50,7 +53,7 @@ exports.createProject = async (req, res) => {
     const thumbnailUrl = await uploadImage(
       thumbnailFile.buffer,
       thumbnailFileName,
-      thumbnailFile.mimetype
+      thumbnailFile.mimetype,
     );
 
     // Upload gallery (optional)
@@ -64,7 +67,7 @@ exports.createProject = async (req, res) => {
               file.originalname
             }`;
             return await uploadImage(file.buffer, fileName, file.mimetype);
-          })
+          }),
         );
       } catch (err) {
         console.error("Error uploading one of the gallery images:", err);
@@ -99,7 +102,7 @@ exports.createProject = async (req, res) => {
         blockImageFiles.map(async (file) => {
           const fileName = `projects/blocks/${Date.now()}_${file.originalname}`;
           return await uploadImage(file.buffer, fileName, file.mimetype);
-        })
+        }),
       );
 
       parsedContentBlocks = parsedContentBlocks.map((block) => {
@@ -123,6 +126,8 @@ exports.createProject = async (req, res) => {
       ? university
       : [university];
 
+    const trimUrl = (v) => (typeof v === "string" ? v.trim() : "") || "";
+
     // Save project to DB
     const newProject = await Project.create({
       title,
@@ -138,6 +143,9 @@ exports.createProject = async (req, res) => {
       year: parsedYear,
       location: parsedLocation,
       university: parsedUniversity,
+      googleMapUrl: trimUrl(googleMapUrl),
+      thesisUrl: trimUrl(thesisUrl),
+      fileUrl: trimUrl(fileUrl),
       contentBlocks: parsedContentBlocks,
     });
 
@@ -189,6 +197,9 @@ exports.updateProject = async (req, res) => {
       type,
       year,
       university,
+      googleMapUrl,
+      thesisUrl,
+      fileUrl,
       contentBlocks,
     } = req.body;
     const thumbnailFile = req.files?.thumbnail?.[0];
@@ -217,6 +228,8 @@ exports.updateProject = async (req, res) => {
       ? university
       : [university];
 
+    const trimUrl = (v) => (typeof v === "string" ? v.trim() : "") || "";
+
     const updateData = {
       title,
       student,
@@ -229,6 +242,9 @@ exports.updateProject = async (req, res) => {
       year: parsedYear,
       location: parsedLocation,
       university: parsedUniversity,
+      googleMapUrl: trimUrl(googleMapUrl),
+      thesisUrl: trimUrl(thesisUrl),
+      fileUrl: trimUrl(fileUrl),
     };
 
     // Process Content Blocks
@@ -251,7 +267,7 @@ exports.updateProject = async (req, res) => {
               file.originalname
             }`;
             return await uploadImage(file.buffer, fileName, file.mimetype);
-          })
+          }),
         );
 
         let imageIndex = 0;
@@ -287,7 +303,7 @@ exports.updateProject = async (req, res) => {
 
     // 3. Find images that are in old BUT NOT in new
     const imagesToDelete = oldBlockImages.filter(
-      (url) => !newBlockImages.includes(url)
+      (url) => !newBlockImages.includes(url),
     );
 
     // 4. Delete them from GCS
@@ -299,10 +315,10 @@ exports.updateProject = async (req, res) => {
           } catch (err) {
             console.warn(
               "⚠️ Failed to delete removed block image:",
-              err.message
+              err.message,
             );
           }
-        })
+        }),
       );
     }
 
@@ -324,7 +340,7 @@ exports.updateProject = async (req, res) => {
       const newThumbnailUrl = await uploadImage(
         thumbnailFile.buffer,
         newThumbnailName,
-        thumbnailFile.mimetype
+        thumbnailFile.mimetype,
       );
       updateData.thumbnailUrl = newThumbnailUrl;
     }
@@ -339,7 +355,7 @@ exports.updateProject = async (req, res) => {
               file.originalname
             }`;
             return await uploadImage(file.buffer, fileName, file.mimetype);
-          })
+          }),
         );
       } catch (err) {
         console.error("Error uploading gallery images:", err);
@@ -362,7 +378,7 @@ exports.updateProject = async (req, res) => {
     const updatedProject = await Project.findByIdAndUpdate(
       req.params.id,
       updateData,
-      { new: true }
+      { new: true },
     );
 
     res.status(200).json({
@@ -397,7 +413,7 @@ exports.deleteProject = async (req, res) => {
           } catch (err) {
             console.warn("⚠️ Failed to delete gallery image:", err.message);
           }
-        })
+        }),
       );
     }
 
@@ -411,11 +427,11 @@ exports.deleteProject = async (req, res) => {
             } catch (err) {
               console.warn(
                 "⚠️ Failed to delete content block image:",
-                err.message
+                err.message,
               );
             }
           }
-        })
+        }),
       );
     }
 

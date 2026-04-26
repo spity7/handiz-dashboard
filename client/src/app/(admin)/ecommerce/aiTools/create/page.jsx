@@ -6,8 +6,8 @@ import PageMetaData from '@/components/PageTitle'
 const CreateAiTool = () => {
   return (
     <>
-      <PageBreadcrumb title="Create AiTool" subName="Handiz" />
-      <PageMetaData title="Create AiTool" />
+      <PageBreadcrumb title="Create AI Prompt" subName="Handiz" />
+      <PageMetaData title="Create AI Prompt" />
 
       <Row>
         <Col>

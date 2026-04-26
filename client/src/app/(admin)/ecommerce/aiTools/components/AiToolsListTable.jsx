@@ -1,4 +1,3 @@
-import clsx from 'clsx'
 import { Link } from 'react-router-dom'
 import ReactTable from '@/components/Table'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
@@ -6,12 +5,12 @@ import { useGlobalContext } from '@/context/useGlobalContext'
 import Swal from 'sweetalert2'
 
 const AiToolsListTable = ({ aiTools }) => {
-  const { deleteAiTool } = useGlobalContext() // ✅ hook inside component
+  const { deleteAiTool } = useGlobalContext()
 
   const handleDelete = async (id) => {
     const result = await Swal.fire({
       title: 'Are you sure?',
-      text: 'This will permanently delete the aiTool!',
+      text: 'This will permanently delete this AI Prompt.',
       icon: 'warning',
       showCancelButton: true,
       confirmButtonText: 'Yes, delete it!',
@@ -20,8 +19,7 @@ const AiToolsListTable = ({ aiTools }) => {
     if (result.isConfirmed) {
       try {
         await deleteAiTool(id)
-        Swal.fire('Deleted!', 'AiTool has been deleted.', 'success')
-        // Optionally refresh table data from parent component
+        Swal.fire('Deleted!', 'AI Prompt has been deleted.', 'success')
         window.location.reload()
       } catch (error) {
         Swal.fire('Error', error?.response?.data?.message || 'Delete failed', 'error')
@@ -31,10 +29,10 @@ const AiToolsListTable = ({ aiTools }) => {
 
   const columns = [
     {
-      header: 'AiTool Title',
+      header: 'Title',
       cell: ({
         row: {
-          original: { _id, thumbnailUrl, title, type },
+          original: { thumbnailUrl, title },
         },
       }) => (
         <div className="d-flex align-items-center">
@@ -49,15 +47,20 @@ const AiToolsListTable = ({ aiTools }) => {
           </div>
           <div className="flex-grow-1">
             <h5 className="mt-0 mb-1">{title}</h5>
-            <span
-              className="fs-13 text-muted"
-              dangerouslySetInnerHTML={{
-                __html: type,
-              }}
-            />
           </div>
         </div>
       ),
+    },
+    {
+      header: 'Category',
+      cell: ({
+        row: {
+          original: { category },
+        },
+      }) => {
+        if (category && typeof category === 'object' && category.name) return category.name
+        return category ?? '—'
+      },
     },
     {
       header: 'Order',
@@ -75,10 +78,10 @@ const AiToolsListTable = ({ aiTools }) => {
         },
       }) => (
         <div className="d-flex gap-2">
-          <Link to={`/ecommerce/aiTools/edit/${_id}`} className="btn btn-sm btn-soft-secondary" title="Edit AiTool">
+          <Link to={`/ecommerce/aiTools/edit/${_id}`} className="btn btn-sm btn-soft-secondary" title="Edit">
             <IconifyIcon icon="bx:edit" className="fs-18" />
           </Link>
-          <button type="button" className="btn btn-sm btn-soft-danger" title="Delete AiTool" onClick={() => handleDelete(_id)}>
+          <button type="button" className="btn btn-sm btn-soft-danger" title="Delete" onClick={() => handleDelete(_id)}>
             <IconifyIcon icon="bx:trash" className="fs-18" />
           </button>
         </div>

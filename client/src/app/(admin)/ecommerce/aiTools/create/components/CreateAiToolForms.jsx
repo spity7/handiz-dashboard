@@ -10,7 +10,7 @@ import ProductSubmittedForm from './ProductSubmittedForm'
 const formSteps = [
   {
     index: 1,
-    name: 'AiTool Details',
+    name: 'AI Prompt details',
     icon: 'bxs:contact',
     tab: <GeneralDetailsForm />,
   },
