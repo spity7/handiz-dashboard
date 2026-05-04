@@ -2,8 +2,8 @@ import { createContext, useContext, useMemo } from 'react'
 import axios from 'axios'
 
 axios.defaults.withCredentials = true
-const BASE_URL = 'https://api.handiz.org/api/v1/'
-// const BASE_URL = 'http://localhost:5016/api/v1/'
+// const BASE_URL = 'https://api.handiz.org/api/v1/'
+const BASE_URL = 'http://localhost:5016/api/v1/'
 
 const GlobalContext = createContext()
 
@@ -180,6 +180,126 @@ export const GlobalProvider = ({ children }) => {
     return response.data
   }
 
+  const getStudentProjectConcepts = async () => {
+    const response = await axiosInstance.get('/projects/concepts')
+    return response.data.concepts
+  }
+
+  const createStudentProjectConcept = async (name) => {
+    const response = await axiosInstance.post('/projects/concepts', { name })
+    return response.data.concept
+  }
+
+  const updateStudentProjectConcept = async (id, name) => {
+    const response = await axiosInstance.put(`/projects/concepts/${id}`, { name })
+    return response.data.concept
+  }
+
+  const deleteStudentProjectConcept = async (id) => {
+    const response = await axiosInstance.delete(`/projects/concepts/${id}`)
+    return response.data
+  }
+
+  const getStudentProjectTypes = async () => {
+    const response = await axiosInstance.get('/projects/types')
+    return response.data.types
+  }
+
+  const createStudentProjectType = async (name) => {
+    const response = await axiosInstance.post('/projects/types', { name })
+    return response.data.type
+  }
+
+  const updateStudentProjectType = async (id, name) => {
+    const response = await axiosInstance.put(`/projects/types/${id}`, { name })
+    return response.data.type
+  }
+
+  const deleteStudentProjectType = async (id) => {
+    const response = await axiosInstance.delete(`/projects/types/${id}`)
+    return response.data
+  }
+
+  const getStudentProjectCategories = async () => {
+    const response = await axiosInstance.get('/projects/categories')
+    return response.data.categories
+  }
+
+  const createStudentProjectCategory = async (name) => {
+    const response = await axiosInstance.post('/projects/categories', { name })
+    return response.data.category
+  }
+
+  const updateStudentProjectCategory = async (id, name) => {
+    const response = await axiosInstance.put(`/projects/categories/${id}`, { name })
+    return response.data.category
+  }
+
+  const deleteStudentProjectCategory = async (id) => {
+    const response = await axiosInstance.delete(`/projects/categories/${id}`)
+    return response.data
+  }
+
+  const getStudentProjectYears = async () => {
+    const response = await axiosInstance.get('/projects/years')
+    return response.data.years
+  }
+
+  const createStudentProjectYear = async (name) => {
+    const response = await axiosInstance.post('/projects/years', { name })
+    return response.data.year
+  }
+
+  const updateStudentProjectYear = async (id, name) => {
+    const response = await axiosInstance.put(`/projects/years/${id}`, { name })
+    return response.data.year
+  }
+
+  const deleteStudentProjectYear = async (id) => {
+    const response = await axiosInstance.delete(`/projects/years/${id}`)
+    return response.data
+  }
+
+  const getStudentProjectLocations = async () => {
+    const response = await axiosInstance.get('/projects/locations')
+    return response.data.locations
+  }
+
+  const createStudentProjectLocation = async (name) => {
+    const response = await axiosInstance.post('/projects/locations', { name })
+    return response.data.location
+  }
+
+  const updateStudentProjectLocation = async (id, name) => {
+    const response = await axiosInstance.put(`/projects/locations/${id}`, { name })
+    return response.data.location
+  }
+
+  const deleteStudentProjectLocation = async (id) => {
+    const response = await axiosInstance.delete(`/projects/locations/${id}`)
+    return response.data
+  }
+
+  const getStudentProjectUniversities = async () => {
+    const response = await axiosInstance.get('/projects/universities')
+    return response.data.universities
+  }
+
+  const createStudentProjectUniversity = async (name) => {
+    const response = await axiosInstance.post('/projects/universities', { name })
+    return response.data.university
+  }
+
+  const updateStudentProjectUniversity = async (id, name) => {
+    const response = await axiosInstance.put(`/projects/universities/${id}`, { name })
+    return response.data.university
+  }
+
+  const deleteStudentProjectUniversity = async (id) => {
+    const response = await axiosInstance.delete(`/projects/universities/${id}`)
+    return response.data
+  }
+
   const createOffice = async (data) => {
     const response = await axiosInstance.post('/offices', data, {
       headers: { 'Content-Type': 'multipart/form-data' },
@@ -246,6 +366,30 @@ export const GlobalProvider = ({ children }) => {
         createAiPromptCategory,
         updateAiPromptCategory,
         deleteAiPromptCategory,
+        getStudentProjectConcepts,
+        createStudentProjectConcept,
+        updateStudentProjectConcept,
+        deleteStudentProjectConcept,
+        getStudentProjectTypes,
+        createStudentProjectType,
+        updateStudentProjectType,
+        deleteStudentProjectType,
+        getStudentProjectCategories,
+        createStudentProjectCategory,
+        updateStudentProjectCategory,
+        deleteStudentProjectCategory,
+        getStudentProjectYears,
+        createStudentProjectYear,
+        updateStudentProjectYear,
+        deleteStudentProjectYear,
+        getStudentProjectLocations,
+        createStudentProjectLocation,
+        updateStudentProjectLocation,
+        deleteStudentProjectLocation,
+        getStudentProjectUniversities,
+        createStudentProjectUniversity,
+        updateStudentProjectUniversity,
+        deleteStudentProjectUniversity,
         createOffice,
         getAllOffices,
         getOfficeById,

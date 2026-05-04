@@ -28,3 +28,54 @@
 .email-offcanvas {
   --#{$prefix}offcanvas-width: 780px;
 }
+
+// Border wrapper that includes title + manage icon + options
+.student-project-field-box {
+  border: 1px solid var(--#{$prefix}border-color);
+  border-radius: 0.5rem;
+  background-color: var(--#{$prefix}secondary-bg);
+  padding: 0.65rem 1rem;
+}
+
+// Show ~5 taxonomy checkbox rows, then vertical scroll (create uses .form-check; edit uses plain divs)
+.student-project-checkbox-scroll {
+  $student-taxon-row: 1.32rem;
+  max-height: calc(5 * #{$student-taxon-row});
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0.2rem 0.2rem 0.2rem 0.1rem;
+  scrollbar-gutter: stable;
+
+  > .form-check {
+    margin-bottom: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    min-height: $student-taxon-row;
+    display: flex;
+    align-items: center;
+    column-gap: 0.5rem;
+
+    .form-check-input {
+      float: none;
+      margin-left: 0;
+      margin-top: 0;
+      flex-shrink: 0;
+    }
+
+    .form-check-label {
+      padding-left: 0;
+    }
+  }
+
+  > div:not(.form-check) {
+    margin-bottom: 0;
+    min-height: $student-taxon-row;
+    display: flex;
+    align-items: center;
+    column-gap: 0.5rem;
+
+    input[type='checkbox'] {
+      flex-shrink: 0;
+    }
+  }
+}

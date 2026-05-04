@@ -7,13 +7,25 @@ import { useGlobalContext } from '@/context/useGlobalContext'
 import ReactQuill from 'react-quill'
 import DropzoneFormInput from '@/components/form/DropzoneFormInput'
 import SelectFormInput from '@/components/form/SelectFormInput'
+import StudentProjectFieldManageLink from '../../components/StudentProjectFieldManageLink'
+import { sortOthersLast } from '@/utils/sortOthersLast'
 import { renameKeys } from '@/utils/rename-object-keys'
 import 'react-quill/dist/quill.snow.css'
 
 const EditProject = () => {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { getProjectById, updateProject, deleteProjectGalleryImage } = useGlobalContext()
+  const {
+    getProjectById,
+    updateProject,
+    deleteProjectGalleryImage,
+    getStudentProjectConcepts,
+    getStudentProjectTypes,
+    getStudentProjectCategories,
+    getStudentProjectYears,
+    getStudentProjectLocations,
+    getStudentProjectUniversities,
+  } = useGlobalContext()
 
   const [project, setProject] = useState(null)
   const [title, setTitle] = useState('')
@@ -37,6 +49,18 @@ const EditProject = () => {
   const [existingGallery, setExistingGallery] = useState([])
   const [loading, setLoading] = useState(false)
   const [dynamicBlocks, setDynamicBlocks] = useState([])
+  const [concepts, setConcepts] = useState([])
+  const [conceptsLoading, setConceptsLoading] = useState(true)
+  const [types, setTypes] = useState([])
+  const [typesLoading, setTypesLoading] = useState(true)
+  const [categories, setCategories] = useState([])
+  const [categoriesLoading, setCategoriesLoading] = useState(true)
+  const [years, setYears] = useState([])
+  const [yearsLoading, setYearsLoading] = useState(true)
+  const [locations, setLocations] = useState([])
+  const [locationsLoading, setLocationsLoading] = useState(true)
+  const [universities, setUniversities] = useState([])
+  const [universitiesLoading, setUniversitiesLoading] = useState(true)
 
   const addBlock = (type) => {
     setDynamicBlocks((prev) => [
@@ -88,7 +112,6 @@ const EditProject = () => {
         setExistingGallery(data.gallery || [])
 
         if (data.contentBlocks) {
-          // We need to ensure each block has a unique ID for React keys
           setDynamicBlocks(
             data.contentBlocks.map((block) => ({
               ...block,
@@ -100,8 +123,89 @@ const EditProject = () => {
         alert('Failed to load project')
       }
     }
+    const fetchConcepts = async () => {
+      try {
+        const data = await getStudentProjectConcepts()
+        setConcepts(Array.isArray(data) ? data : [])
+      } catch (error) {
+        console.error('Error fetching concepts:', error)
+        setConcepts([])
+      } finally {
+        setConceptsLoading(false)
+      }
+    }
+    const fetchTypes = async () => {
+      try {
+        const data = await getStudentProjectTypes()
+        setTypes(Array.isArray(data) ? data : [])
+      } catch (error) {
+        console.error('Error fetching types:', error)
+        setTypes([])
+      } finally {
+        setTypesLoading(false)
+      }
+    }
+    const fetchCategories = async () => {
+      try {
+        const data = await getStudentProjectCategories()
+        setCategories(Array.isArray(data) ? data : [])
+      } catch (error) {
+        console.error('Error fetching categories:', error)
+        setCategories([])
+      } finally {
+        setCategoriesLoading(false)
+      }
+    }
+    const fetchYears = async () => {
+      try {
+        const data = await getStudentProjectYears()
+        setYears(Array.isArray(data) ? data : [])
+      } catch (error) {
+        console.error('Error fetching years:', error)
+        setYears([])
+      } finally {
+        setYearsLoading(false)
+      }
+    }
+    const fetchLocations = async () => {
+      try {
+        const data = await getStudentProjectLocations()
+        setLocations(Array.isArray(data) ? data : [])
+      } catch (error) {
+        console.error('Error fetching locations:', error)
+        setLocations([])
+      } finally {
+        setLocationsLoading(false)
+      }
+    }
+    const fetchUniversities = async () => {
+      try {
+        const data = await getStudentProjectUniversities()
+        setUniversities(Array.isArray(data) ? data : [])
+      } catch (error) {
+        console.error('Error fetching universities:', error)
+        setUniversities([])
+      } finally {
+        setUniversitiesLoading(false)
+      }
+    }
     fetchProject()
-  }, [id, getProjectById])
+    fetchConcepts()
+    fetchTypes()
+    fetchCategories()
+    fetchYears()
+    fetchLocations()
+    fetchUniversities()
+  }, [
+    id,
+    getProjectById,
+    getStudentProjectConcepts,
+    getStudentProjectTypes,
+    getStudentProjectCategories,
+    getStudentProjectYears,
+    getStudentProjectLocations,
+    getStudentProjectUniversities,
+  ])
 
   const handleFileChange = (e) => {
     const file = e.target.files[0]
@@ -285,72 +389,159 @@ const EditProject = () => {
                 </Row>
 
                 <Row className="mb-3">
-                  <Col lg={3}>
-                    <label className="form-label fw-bold">Concept *</label>
-                    {['Sustainability', 'Function', 'Formalism'].map((item) => (
-                      <div key={item}>
-                        <input type="checkbox" checked={concept.includes(item)} onChange={() => toggleCheckbox(item, concept, setConcept)} /> {item}
+                  <Col lg={3} className="student-project-field-box mb-2">
+                    <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
+                      <label className="form-label fw-bold mb-0">Concept *</label>
+                      <StudentProjectFieldManageLink to="/ecommerce/student-projects/concepts" title="Manage concepts" />
+                    </div>
+                    {conceptsLoading ? (
+                      <p className="text-muted mb-0 small">Loading concepts...</p>
+                    ) : concepts.length === 0 ? (
+                      <p className="text-muted mb-0 small">No concepts available</p>
+                    ) : (
+                      <div className="student-project-checkbox-scroll">
+                        {sortOthersLast(concepts).map((item) => (
+                          <div key={item._id}>
+                            <input
+                              type="checkbox"
+                              checked={concept.includes(item.name)}
+                              onChange={() => toggleCheckbox(item.name, concept, setConcept)}
+                            />{' '}
+                            {item.name}
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
                     {concept.length === 0 && <p className="text-danger">Select at least one concept</p>}
                   </Col>
 
-                  <Col lg={3}>
-                    <label className="form-label fw-bold">Type *</label>
-                    {['Educational', 'Touristic', 'Residential'].map((item) => (
-                      <div key={item}>
-                        <input type="checkbox" checked={type.includes(item)} onChange={() => toggleCheckbox(item, type, setType)} /> {item}
+                  <Col lg={3} className="student-project-field-box mb-2">
+                    <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
+                      <label className="form-label fw-bold mb-0">Type *</label>
+                      <StudentProjectFieldManageLink to="/ecommerce/student-projects/types" title="Manage types" />
+                    </div>
+                    {typesLoading ? (
+                      <p className="text-muted mb-0 small">Loading types...</p>
+                    ) : types.length === 0 ? (
+                      <p className="text-muted mb-0 small">No types available</p>
+                    ) : (
+                      <div className="student-project-checkbox-scroll">
+                        {sortOthersLast(types).map((item) => (
+                          <div key={item._id}>
+                            <input type="checkbox" checked={type.includes(item.name)} onChange={() => toggleCheckbox(item.name, type, setType)} />{' '}
+                            {item.name}
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
                     {type.length === 0 && <p className="text-danger">Select at least one type</p>}
                   </Col>
 
-                  <Col lg={3}>
-                    <label className="form-label fw-bold">Category *</label>
-                    {['Graduated Project', 'UnderGraduated Project', 'Arab Project', 'Competitions Project'].map((item) => (
-                      <div key={item}>
-                        <input type="checkbox" checked={category.includes(item)} onChange={() => toggleCheckbox(item, category, setCategory)} />{' '}
-                        {item}
+                  <Col lg={3} className="student-project-field-box mb-2">
+                    <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
+                      <label className="form-label fw-bold mb-0">Category *</label>
+                      <StudentProjectFieldManageLink to="/ecommerce/student-projects/categories" title="Manage categories" />
+                    </div>
+                    {categoriesLoading ? (
+                      <p className="text-muted mb-0 small">Loading categories...</p>
+                    ) : categories.length === 0 ? (
+                      <p className="text-muted mb-0 small">No categories available</p>
+                    ) : (
+                      <div className="student-project-checkbox-scroll">
+                        {sortOthersLast(categories).map((item) => (
+                          <div key={item._id}>
+                            <input
+                              type="checkbox"
+                              checked={category.includes(item.name)}
+                              onChange={() => toggleCheckbox(item.name, category, setCategory)}
+                            />{' '}
+                            {item.name}
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
                     {category.length === 0 && <p className="text-danger">Select at least one category</p>}
                   </Col>
 
-                  <Col lg={3}>
-                    <label className="form-label fw-bold">Year *</label>
-                    {['2025-2026', '2024-2025', '2023-2024', '2022-2023'].map((item) => (
-                      <div key={item}>
-                        <input type="checkbox" checked={year.includes(item)} onChange={() => toggleCheckbox(item, year, setYear)} /> {item}
+                  <Col lg={3} className="student-project-field-box">
+                    <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
+                      <label className="form-label fw-bold mb-0">Year *</label>
+                      <StudentProjectFieldManageLink to="/ecommerce/student-projects/years" title="Manage years" />
+                    </div>
+                    {yearsLoading ? (
+                      <p className="text-muted mb-0 small">Loading years...</p>
+                    ) : years.length === 0 ? (
+                      <p className="text-muted mb-0 small">No years available</p>
+                    ) : (
+                      <div className="student-project-checkbox-scroll">
+                        {sortOthersLast(years).map((item) => (
+                          <div key={item._id}>
+                            <input type="checkbox" checked={year.includes(item.name)} onChange={() => toggleCheckbox(item.name, year, setYear)} />{' '}
+                            {item.name}
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
                     {year.length === 0 && <p className="text-danger">Select at least one year</p>}
                   </Col>
                 </Row>
 
-                <Row>
-                  <Col lg={3}>
-                    <label className="form-label fw-bold">Location *</label>
-                    {['Lebanon', 'Jordan', 'Iraq'].map((item) => (
-                      <div key={item}>
-                        <input type="checkbox" checked={location.includes(item)} onChange={() => toggleCheckbox(item, location, setLocation)} />{' '}
-                        {item}
+                <Row className="mb-3">
+                  <Col lg={3} className="student-project-field-box mb-2">
+                    <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
+                      <label className="form-label fw-bold mb-0">Location *</label>
+                      <StudentProjectFieldManageLink to="/ecommerce/student-projects/locations" title="Manage locations" />
+                    </div>
+                    {locationsLoading ? (
+                      <p className="text-muted mb-0 small">Loading locations...</p>
+                    ) : locations.length === 0 ? (
+                      <p className="text-muted mb-0 small">No locations available</p>
+                    ) : (
+                      <div className="student-project-checkbox-scroll">
+                        {sortOthersLast(locations).map((item) => (
+                          <div key={item._id}>
+                            <input
+                              type="checkbox"
+                              checked={location.includes(item.name)}
+                              onChange={() => toggleCheckbox(item.name, location, setLocation)}
+                            />{' '}
+                            {item.name}
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
                     {location.length === 0 && <p className="text-danger">Select at least one location</p>}
                   </Col>
 
-                  <Col lg={3}>
-                    <label className="form-label fw-bold">University *</label>
-                    {['Lebaneese uni', 'USJ', 'AUB', 'Alba', 'LAU'].map((item) => (
-                      <div key={item}>
-                        <input type="checkbox" checked={university.includes(item)} onChange={() => toggleCheckbox(item, university, setUniversity)} />{' '}
-                        {item}
+                  <Col lg={3} className="student-project-field-box mb-2">
+                    <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
+                      <label className="form-label fw-bold mb-0">University *</label>
+                      <StudentProjectFieldManageLink to="/ecommerce/student-projects/universities" title="Manage universities" />
+                    </div>
+                    {universitiesLoading ? (
+                      <p className="text-muted mb-0 small">Loading universities...</p>
+                    ) : universities.length === 0 ? (
+                      <p className="text-muted mb-0 small">No universities available</p>
+                    ) : (
+                      <div className="student-project-checkbox-scroll">
+                        {sortOthersLast(universities).map((item) => (
+                          <div key={item._id}>
+                            <input
+                              type="checkbox"
+                              checked={university.includes(item.name)}
+                              onChange={() => toggleCheckbox(item.name, university, setUniversity)}
+                            />{' '}
+                            {item.name}
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
                     {university.length === 0 && <p className="text-danger">Select at least one university</p>}
                   </Col>
 
-                  <Col lg={6}>
+                  <Col lg={1} />
+
+                  <Col lg={5}>
                     <div className="mb-3">
                       <label className="form-label">Project Thumbnail</label>
                       <input type="file" className="form-control" onChange={handleFileChange} />

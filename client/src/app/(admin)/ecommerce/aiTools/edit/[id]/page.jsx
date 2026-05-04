@@ -7,6 +7,7 @@ import { useGlobalContext } from '@/context/useGlobalContext'
 import ReactQuill from 'react-quill'
 import 'react-quill/dist/quill.snow.css'
 import ComponentContainerCard from '@/components/ComponentContainerCard'
+import { sortOthersLast } from '@/utils/sortOthersLast'
 
 const normalizeQuillValue = (value) => {
   if (!value || value === '<p><br></p>' || value === '<br/>') return ''
@@ -169,7 +170,7 @@ const EditAiTool = () => {
                         onChange={(e) => setCategoryId(e.target.value)}
                         disabled={categoriesLoading}>
                         <option value="">{categoriesLoading ? 'Loading…' : 'Select category'}</option>
-                        {categories.map((c) => (
+                        {sortOthersLast(categories).map((c) => (
                           <option key={c._id} value={c._id}>
                             {c.name}
                             {c.isFallback ? ' (fallback)' : ''}

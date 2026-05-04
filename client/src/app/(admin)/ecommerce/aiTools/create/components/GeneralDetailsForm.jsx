@@ -9,6 +9,7 @@ import 'react-quill/dist/quill.snow.css'
 import { useGlobalContext } from '@/context/useGlobalContext'
 import DropzoneFormInput from '@/components/form/DropzoneFormInput'
 import ComponentContainerCard from '@/components/ComponentContainerCard'
+import { sortOthersLast } from '@/utils/sortOthersLast'
 import { Link } from 'react-router-dom'
 
 const normalizeQuillValue = (value) => {
@@ -132,7 +133,7 @@ const GeneralDetailsForm = () => {
               render={({ field }) => (
                 <Form.Select {...field} id="ai-prompt-category-select" disabled={categoriesLoading}>
                   <option value="">{categoriesLoading ? 'Loading…' : 'Select category'}</option>
-                  {categories.map((c) => (
+                  {sortOthersLast(categories).map((c) => (
                     <option key={c._id} value={c._id}>
                       {c.name}
                       {c.isFallback ? ' (fallback)' : ''}

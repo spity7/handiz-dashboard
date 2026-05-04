@@ -11,6 +11,8 @@ import 'react-quill/dist/quill.snow.css'
 import { useGlobalContext } from '@/context/useGlobalContext'
 import DropzoneFormInput from '@/components/form/DropzoneFormInput'
 import ComponentContainerCard from '@/components/ComponentContainerCard'
+import StudentProjectFieldManageLink from '../../components/StudentProjectFieldManageLink'
+import { sortOthersLast } from '@/utils/sortOthersLast'
 
 const generalFormSchema = yup.object({
   title: yup.string().required('Project title is required'),
@@ -68,12 +70,32 @@ const normalizeQuillValue = (value) => {
 }
 
 const GeneralDetailsForm = () => {
-  const { createProject } = useGlobalContext()
+  const {
+    createProject,
+    getStudentProjectConcepts,
+    getStudentProjectTypes,
+    getStudentProjectCategories,
+    getStudentProjectYears,
+    getStudentProjectLocations,
+    getStudentProjectUniversities,
+  } = useGlobalContext()
   const [loading, setLoading] = useState(false)
   const [thumbnailFile, setThumbnailFile] = useState(null)
   const [galleryFiles, setGalleryFiles] = useState([])
   const [resetDropzones, setResetDropzones] = useState(false)
   const [dynamicBlocks, setDynamicBlocks] = useState([])
+  const [concepts, setConcepts] = useState([])
+  const [conceptsLoading, setConceptsLoading] = useState(true)
+  const [types, setTypes] = useState([])
+  const [typesLoading, setTypesLoading] = useState(true)
+  const [categories, setCategories] = useState([])
+  const [categoriesLoading, setCategoriesLoading] = useState(true)
+  const [years, setYears] = useState([])
+  const [yearsLoading, setYearsLoading] = useState(true)
+  const [locations, setLocations] = useState([])
+  const [locationsLoading, setLocationsLoading] = useState(true)
+  const [universities, setUniversities] = useState([])
+  const [universitiesLoading, setUniversitiesLoading] = useState(true)
 
   const addBlock = (type) => {
     setDynamicBlocks((prev) => [
@@ -99,6 +121,88 @@ const GeneralDetailsForm = () => {
       return next
     })
   }
+
+  useEffect(() => {
+    const fetchConcepts = async () => {
+      try {
+        const data = await getStudentProjectConcepts()
+        setConcepts(Array.isArray(data) ? data : [])
+      } catch (error) {
+        console.error('Error fetching concepts:', error)
+        setConcepts([])
+      } finally {
+        setConceptsLoading(false)
+      }
+    }
+    const fetchTypes = async () => {
+      try {
+        const data = await getStudentProjectTypes()
+        setTypes(Array.isArray(data) ? data : [])
+      } catch (error) {
+        console.error('Error fetching types:', error)
+        setTypes([])
+      } finally {
+        setTypesLoading(false)
+      }
+    }
+    const fetchCategories = async () => {
+      try {
+        const data = await getStudentProjectCategories()
+        setCategories(Array.isArray(data) ? data : [])
+      } catch (error) {
+        console.error('Error fetching categories:', error)
+        setCategories([])
+      } finally {
+        setCategoriesLoading(false)
+      }
+    }
+    const fetchYears = async () => {
+      try {
+        const data = await getStudentProjectYears()
+        setYears(Array.isArray(data) ? data : [])
+      } catch (error) {
+        console.error('Error fetching years:', error)
+        setYears([])
+      } finally {
+        setYearsLoading(false)
+      }
+    }
+    const fetchLocations = async () => {
+      try {
+        const data = await getStudentProjectLocations()
+        setLocations(Array.isArray(data) ? data : [])
+      } catch (error) {
+        console.error('Error fetching locations:', error)
+        setLocations([])
+      } finally {
+        setLocationsLoading(false)
+      }
+    }
+    const fetchUniversities = async () => {
+      try {
+        const data = await getStudentProjectUniversities()
+        setUniversities(Array.isArray(data) ? data : [])
+      } catch (error) {
+        console.error('Error fetching universities:', error)
+        setUniversities([])
+      } finally {
+        setUniversitiesLoading(false)
+      }
+    }
+    fetchConcepts()
+    fetchTypes()
+    fetchCategories()
+    fetchYears()
+    fetchLocations()
+    fetchUniversities()
+  }, [
+    getStudentProjectConcepts,
+    getStudentProjectTypes,
+    getStudentProjectCategories,
+    getStudentProjectYears,
+    getStudentProjectLocations,
+    getStudentProjectUniversities,
+  ])
 
   const {
     control,
@@ -259,15 +363,31 @@ const GeneralDetailsForm = () => {
 
       <Row>
         <Col lg={3}>
-          <ComponentContainerCard title="Concept">
+          <ComponentContainerCard
+            title="Concept"
+            bodyClassName="student-project-field-box"
+            headerAction={<StudentProjectFieldManageLink to="/ecommerce/student-projects/concepts" title="Manage concepts" />}>
             <Controller
               name="concept"
               control={control}
               render={({ field }) => (
                 <>
-                  {['Sustainability', 'Function', 'Formalism'].map((item) => (
-                    <FormCheck key={item} label={item} checked={field.value.includes(item)} onChange={() => toggleCheckboxValue(item, field)} />
-                  ))}
+                  {conceptsLoading ? (
+                    <p className="text-muted mb-0 small">Loading concepts...</p>
+                  ) : concepts.length === 0 ? (
+                    <p className="text-muted mb-0 small">No concepts available</p>
+                  ) : (
+                    <div className="student-project-checkbox-scroll">
+                      {sortOthersLast(concepts).map((item) => (
+                        <FormCheck
+                          key={item._id}
+                          label={item.name}
+                          checked={field.value.includes(item.name)}
+                          onChange={() => toggleCheckboxValue(item.name, field)}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </>
               )}
             />
@@ -275,15 +395,31 @@ const GeneralDetailsForm = () => {
           </ComponentContainerCard>
         </Col>
         <Col lg={3}>
-          <ComponentContainerCard title="Type">
+          <ComponentContainerCard
+            title="Type"
+            bodyClassName="student-project-field-box"
+            headerAction={<StudentProjectFieldManageLink to="/ecommerce/student-projects/types" title="Manage types" />}>
             <Controller
               name="type"
               control={control}
               render={({ field }) => (
                 <>
-                  {['Educational', 'Touristic', 'Residential'].map((item) => (
-                    <FormCheck key={item} label={item} checked={field.value.includes(item)} onChange={() => toggleCheckboxValue(item, field)} />
-                  ))}
+                  {typesLoading ? (
+                    <p className="text-muted mb-0 small">Loading types...</p>
+                  ) : types.length === 0 ? (
+                    <p className="text-muted mb-0 small">No types available</p>
+                  ) : (
+                    <div className="student-project-checkbox-scroll">
+                      {sortOthersLast(types).map((item) => (
+                        <FormCheck
+                          key={item._id}
+                          label={item.name}
+                          checked={field.value.includes(item.name)}
+                          onChange={() => toggleCheckboxValue(item.name, field)}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </>
               )}
             />
@@ -291,15 +427,31 @@ const GeneralDetailsForm = () => {
           </ComponentContainerCard>
         </Col>
         <Col lg={3}>
-          <ComponentContainerCard title="Category">
+          <ComponentContainerCard
+            title="Category"
+            bodyClassName="student-project-field-box"
+            headerAction={<StudentProjectFieldManageLink to="/ecommerce/student-projects/categories" title="Manage categories" />}>
             <Controller
               name="category"
               control={control}
               render={({ field }) => (
                 <>
-                  {['Graduated Project', 'UnderGraduated Project', 'Arab Project', 'Competitions Project'].map((item) => (
-                    <FormCheck key={item} label={item} checked={field.value.includes(item)} onChange={() => toggleCheckboxValue(item, field)} />
-                  ))}
+                  {categoriesLoading ? (
+                    <p className="text-muted mb-0 small">Loading categories...</p>
+                  ) : categories.length === 0 ? (
+                    <p className="text-muted mb-0 small">No categories available</p>
+                  ) : (
+                    <div className="student-project-checkbox-scroll">
+                      {sortOthersLast(categories).map((item) => (
+                        <FormCheck
+                          key={item._id}
+                          label={item.name}
+                          checked={field.value.includes(item.name)}
+                          onChange={() => toggleCheckboxValue(item.name, field)}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </>
               )}
             />
@@ -307,15 +459,31 @@ const GeneralDetailsForm = () => {
           </ComponentContainerCard>
         </Col>
         <Col lg={3}>
-          <ComponentContainerCard title="Year">
+          <ComponentContainerCard
+            title="Year"
+            bodyClassName="student-project-field-box"
+            headerAction={<StudentProjectFieldManageLink to="/ecommerce/student-projects/years" title="Manage years" />}>
             <Controller
               name="year"
               control={control}
               render={({ field }) => (
                 <>
-                  {['2025-2026', '2024-2025', '2023-2024', '2022-2023'].map((item) => (
-                    <FormCheck key={item} label={item} checked={field.value.includes(item)} onChange={() => toggleCheckboxValue(item, field)} />
-                  ))}
+                  {yearsLoading ? (
+                    <p className="text-muted mb-0 small">Loading years...</p>
+                  ) : years.length === 0 ? (
+                    <p className="text-muted mb-0 small">No years available</p>
+                  ) : (
+                    <div className="student-project-checkbox-scroll">
+                      {sortOthersLast(years).map((item) => (
+                        <FormCheck
+                          key={item._id}
+                          label={item.name}
+                          checked={field.value.includes(item.name)}
+                          onChange={() => toggleCheckboxValue(item.name, field)}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </>
               )}
             />
@@ -324,17 +492,33 @@ const GeneralDetailsForm = () => {
         </Col>
       </Row>
 
-      <Row>
+      <Row className="mb-3">
         <Col lg={3}>
-          <ComponentContainerCard title="Location">
+          <ComponentContainerCard
+            title="Location"
+            bodyClassName="student-project-field-box"
+            headerAction={<StudentProjectFieldManageLink to="/ecommerce/student-projects/locations" title="Manage locations" />}>
             <Controller
               name="location"
               control={control}
               render={({ field }) => (
                 <>
-                  {['Lebanon', 'Jordan', 'Iraq'].map((item) => (
-                    <FormCheck key={item} label={item} checked={field.value.includes(item)} onChange={() => toggleCheckboxValue(item, field)} />
-                  ))}
+                  {locationsLoading ? (
+                    <p className="text-muted mb-0 small">Loading locations...</p>
+                  ) : locations.length === 0 ? (
+                    <p className="text-muted mb-0 small">No locations available</p>
+                  ) : (
+                    <div className="student-project-checkbox-scroll">
+                      {sortOthersLast(locations).map((item) => (
+                        <FormCheck
+                          key={item._id}
+                          label={item.name}
+                          checked={field.value.includes(item.name)}
+                          onChange={() => toggleCheckboxValue(item.name, field)}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </>
               )}
             />
@@ -342,15 +526,31 @@ const GeneralDetailsForm = () => {
           </ComponentContainerCard>
         </Col>
         <Col lg={3}>
-          <ComponentContainerCard title="University">
+          <ComponentContainerCard
+            title="University"
+            bodyClassName="student-project-field-box"
+            headerAction={<StudentProjectFieldManageLink to="/ecommerce/student-projects/universities" title="Manage universities" />}>
             <Controller
               name="university"
               control={control}
               render={({ field }) => (
                 <>
-                  {['Lebaneese uni', 'USJ', 'AUB', 'Alba', 'LAU'].map((item) => (
-                    <FormCheck key={item} label={item} checked={field.value.includes(item)} onChange={() => toggleCheckboxValue(item, field)} />
-                  ))}
+                  {universitiesLoading ? (
+                    <p className="text-muted mb-0 small">Loading universities...</p>
+                  ) : universities.length === 0 ? (
+                    <p className="text-muted mb-0 small">No universities available</p>
+                  ) : (
+                    <div className="student-project-checkbox-scroll">
+                      {sortOthersLast(universities).map((item) => (
+                        <FormCheck
+                          key={item._id}
+                          label={item.name}
+                          checked={field.value.includes(item.name)}
+                          onChange={() => toggleCheckboxValue(item.name, field)}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </>
               )}
             />
@@ -427,7 +627,7 @@ const GeneralDetailsForm = () => {
         </Col>
       </Row>
 
-      <Row>
+      <Row className="mb-3">
         <Col lg={6}>
           <div className="mb-5 mt-3">
             <label className="form-label">Project Description</label>

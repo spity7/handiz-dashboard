@@ -26,6 +26,45 @@ export const MENU_ITEMS = [
         label: 'Student Projects',
         url: '/ecommerce/student-projects',
         parentKey: 'ecommerce',
+        suppressDeepRouteExpand: true,
+        children: [
+          {
+            key: 'ecommerce-student-projects-concepts',
+            label: 'Student Project concepts',
+            url: '/ecommerce/student-projects/concepts',
+            parentKey: 'ecommerce-student-projects',
+          },
+          {
+            key: 'ecommerce-student-projects-types',
+            label: 'Student Project Types',
+            url: '/ecommerce/student-projects/types',
+            parentKey: 'ecommerce-student-projects',
+          },
+          {
+            key: 'ecommerce-student-projects-categories',
+            label: 'Student Project Categories',
+            url: '/ecommerce/student-projects/categories',
+            parentKey: 'ecommerce-student-projects',
+          },
+          {
+            key: 'ecommerce-student-projects-years',
+            label: 'Student Project Years',
+            url: '/ecommerce/student-projects/years',
+            parentKey: 'ecommerce-student-projects',
+          },
+          {
+            key: 'ecommerce-student-projects-locations',
+            label: 'Student Project Locations',
+            url: '/ecommerce/student-projects/locations',
+            parentKey: 'ecommerce-student-projects',
+          },
+          {
+            key: 'ecommerce-student-projects-universities',
+            label: 'Student Project Universities',
+            url: '/ecommerce/student-projects/universities',
+            parentKey: 'ecommerce-student-projects',
+          },
+        ],
       },
       {
         key: 'ecommerce-competitions',
@@ -38,12 +77,14 @@ export const MENU_ITEMS = [
         label: 'AI Prompts',
         url: '/ecommerce/aiTools',
         parentKey: 'ecommerce',
-      },
-      {
-        key: 'ecommerce-aiTools-categories',
-        label: 'AI Prompt categories',
-        url: '/ecommerce/aiTools/categories',
-        parentKey: 'ecommerce',
+        children: [
+          {
+            key: 'ecommerce-aiTools-categories',
+            label: 'AI Prompt categories',
+            url: '/ecommerce/aiTools/categories',
+            parentKey: 'ecommerce-aiTools',
+          },
+        ],
       },
       {
         key: 'ecommerce-offices',

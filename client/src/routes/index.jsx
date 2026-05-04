@@ -13,7 +13,14 @@ const EcommerceServiceUpdate = lazy(() => import('@/app/(admin)/ecommerce/servic
 const EcommerceProjects = lazy(() => import('@/app/(admin)/ecommerce/projects/page'))
 const EcommerceProjectCreate = lazy(() => import('@/app/(admin)/ecommerce/projects/create/page'))
 const EcommerceProjectUpdate = lazy(() => import('@/app/(admin)/ecommerce/projects/edit/[id]/page'))
+
 const EcommerceStudentProjects = lazy(() => import('@/app/(admin)/ecommerce/student-projects/page'))
+const EcommerceStudentProjectConcepts = lazy(() => import('@/app/(admin)/ecommerce/student-projects/concepts/page'))
+const EcommerceStudentProjectTypes = lazy(() => import('@/app/(admin)/ecommerce/student-projects/types/page'))
+const EcommerceStudentProjectCategories = lazy(() => import('@/app/(admin)/ecommerce/student-projects/categories/page'))
+const EcommerceStudentProjectYears = lazy(() => import('@/app/(admin)/ecommerce/student-projects/years/page'))
+const EcommerceStudentProjectLocations = lazy(() => import('@/app/(admin)/ecommerce/student-projects/locations/page'))
+const EcommerceStudentProjectUniversities = lazy(() => import('@/app/(admin)/ecommerce/student-projects/universities/page'))
 const EcommerceStudentProjectCreate = lazy(() => import('@/app/(admin)/ecommerce/student-projects/create/page'))
 const EcommerceStudentProjectUpdate = lazy(() => import('@/app/(admin)/ecommerce/student-projects/edit/[id]/page'))
 
@@ -209,10 +216,41 @@ const appsRoutes = [
     path: '/ecommerce/projects/edit/:id',
     element: <EcommerceProjectUpdate />,
   },
+
   {
     name: 'Student Projects',
     path: '/ecommerce/student-projects',
     element: <EcommerceStudentProjects />,
+  },
+  {
+    name: 'Student Projects concepts',
+    path: '/ecommerce/student-projects/concepts',
+    element: <EcommerceStudentProjectConcepts />,
+  },
+  {
+    name: 'Student Projects types',
+    path: '/ecommerce/student-projects/types',
+    element: <EcommerceStudentProjectTypes />,
+  },
+  {
+    name: 'Student Projects categories',
+    path: '/ecommerce/student-projects/categories',
+    element: <EcommerceStudentProjectCategories />,
+  },
+  {
+    name: 'Student Projects years',
+    path: '/ecommerce/student-projects/years',
+    element: <EcommerceStudentProjectYears />,
+  },
+  {
+    name: 'Student Projects locations',
+    path: '/ecommerce/student-projects/locations',
+    element: <EcommerceStudentProjectLocations />,
+  },
+  {
+    name: 'Student Projects universities',
+    path: '/ecommerce/student-projects/universities',
+    element: <EcommerceStudentProjectUniversities />,
   },
   {
     name: 'Create Student Project',
