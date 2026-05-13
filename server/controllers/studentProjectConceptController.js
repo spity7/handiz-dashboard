@@ -67,9 +67,27 @@ exports.updateConcept = async (req, res) => {
       return res.status(404).json({ message: "Concept not found" });
     }
 
-    concept.name = nameNorm;
-    await concept.save();
-    res.status(200).json({ concept });
+    const oldName = concept.name;
+
+    // Only update projects if the name actually changed
+    if (oldName !== nameNorm) {
+      // Update all projects that reference the old concept name
+      const updatedProjects = await Project.updateMany(
+        { concept: oldName },
+        { $set: { "concept.$": nameNorm } },
+      );
+
+      concept.name = nameNorm;
+      await concept.save();
+
+      res.status(200).json({
+        concept,
+        updatedProjectsCount: updatedProjects.modifiedCount,
+      });
+    } else {
+      // No change needed
+      res.status(200).json({ concept, updatedProjectsCount: 0 });
+    }
   } catch (error) {
     if (error.code === 11000) {
       return res

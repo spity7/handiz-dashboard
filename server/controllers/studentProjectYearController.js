@@ -16,9 +16,7 @@ const normalizeName = (raw) => {
 exports.listYears = async (req, res) => {
   try {
     await getOrCreateOthersYear();
-    const years = await StudentProjectYear.find()
-      .sort({ name: 1 })
-      .lean();
+    const years = await StudentProjectYear.find().sort({ name: 1 }).lean();
     res.status(200).json({ years });
   } catch (error) {
     console.error("listYears:", error);
@@ -67,9 +65,27 @@ exports.updateYear = async (req, res) => {
       return res.status(404).json({ message: "Year not found" });
     }
 
-    year.name = nameNorm;
-    await year.save();
-    res.status(200).json({ year });
+    const oldName = year.name;
+
+    // Only update projects if the name actually changed
+    if (oldName !== nameNorm) {
+      // Update all projects that reference the old year name
+      const updatedProjects = await Project.updateMany(
+        { year: oldName },
+        { $set: { "year.$": nameNorm } },
+      );
+
+      year.name = nameNorm;
+      await year.save();
+
+      res.status(200).json({
+        year,
+        updatedProjectsCount: updatedProjects.modifiedCount,
+      });
+    } else {
+      // No change needed
+      res.status(200).json({ year, updatedProjectsCount: 0 });
+    }
   } catch (error) {
     if (error.code === 11000) {
       return res

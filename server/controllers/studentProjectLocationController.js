@@ -67,9 +67,27 @@ exports.updateLocation = async (req, res) => {
       return res.status(404).json({ message: "Location not found" });
     }
 
-    location.name = nameNorm;
-    await location.save();
-    res.status(200).json({ location });
+    const oldName = location.name;
+
+    // Only update projects if the name actually changed
+    if (oldName !== nameNorm) {
+      // Update all projects that reference the old location name
+      const updatedProjects = await Project.updateMany(
+        { location: oldName },
+        { $set: { "location.$": nameNorm } },
+      );
+
+      location.name = nameNorm;
+      await location.save();
+
+      res.status(200).json({
+        location,
+        updatedProjectsCount: updatedProjects.modifiedCount,
+      });
+    } else {
+      // No change needed
+      res.status(200).json({ location, updatedProjectsCount: 0 });
+    }
   } catch (error) {
     if (error.code === 11000) {
       return res

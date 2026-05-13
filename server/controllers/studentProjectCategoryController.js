@@ -67,9 +67,27 @@ exports.updateCategory = async (req, res) => {
       return res.status(404).json({ message: "Category not found" });
     }
 
-    category.name = nameNorm;
-    await category.save();
-    res.status(200).json({ category });
+    const oldName = category.name;
+
+    // Only update projects if the name actually changed
+    if (oldName !== nameNorm) {
+      // Update all projects that reference the old category name
+      const updatedProjects = await Project.updateMany(
+        { category: oldName },
+        { $set: { "category.$": nameNorm } },
+      );
+
+      category.name = nameNorm;
+      await category.save();
+
+      res.status(200).json({
+        category,
+        updatedProjectsCount: updatedProjects.modifiedCount,
+      });
+    } else {
+      // No change needed
+      res.status(200).json({ category, updatedProjectsCount: 0 });
+    }
   } catch (error) {
     if (error.code === 11000) {
       return res

@@ -35,7 +35,9 @@ exports.createUniversity = async (req, res) => {
       });
     }
 
-    const university = await StudentProjectUniversity.create({ name: nameNorm });
+    const university = await StudentProjectUniversity.create({
+      name: nameNorm,
+    });
     res.status(201).json({ university });
   } catch (error) {
     if (error.code === 11000) {
@@ -67,9 +69,27 @@ exports.updateUniversity = async (req, res) => {
       return res.status(404).json({ message: "University not found" });
     }
 
-    university.name = nameNorm;
-    await university.save();
-    res.status(200).json({ university });
+    const oldName = university.name;
+
+    // Only update projects if the name actually changed
+    if (oldName !== nameNorm) {
+      // Update all projects that reference the old university name
+      const updatedProjects = await Project.updateMany(
+        { university: oldName },
+        { $set: { "university.$": nameNorm } },
+      );
+
+      university.name = nameNorm;
+      await university.save();
+
+      res.status(200).json({
+        university,
+        updatedProjectsCount: updatedProjects.modifiedCount,
+      });
+    } else {
+      // No change needed
+      res.status(200).json({ university, updatedProjectsCount: 0 });
+    }
   } catch (error) {
     if (error.code === 11000) {
       return res

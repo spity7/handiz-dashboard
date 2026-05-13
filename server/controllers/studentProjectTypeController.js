@@ -16,9 +16,7 @@ const normalizeName = (raw) => {
 exports.listTypes = async (req, res) => {
   try {
     await getOrCreateOthersType();
-    const types = await StudentProjectType.find()
-      .sort({ name: 1 })
-      .lean();
+    const types = await StudentProjectType.find().sort({ name: 1 }).lean();
     res.status(200).json({ types });
   } catch (error) {
     console.error("listTypes:", error);
@@ -67,9 +65,27 @@ exports.updateType = async (req, res) => {
       return res.status(404).json({ message: "Type not found" });
     }
 
-    type.name = nameNorm;
-    await type.save();
-    res.status(200).json({ type });
+    const oldName = type.name;
+
+    // Only update projects if the name actually changed
+    if (oldName !== nameNorm) {
+      // Update all projects that reference the old type name
+      const updatedProjects = await Project.updateMany(
+        { type: oldName },
+        { $set: { "type.$": nameNorm } },
+      );
+
+      type.name = nameNorm;
+      await type.save();
+
+      res.status(200).json({
+        type,
+        updatedProjectsCount: updatedProjects.modifiedCount,
+      });
+    } else {
+      // No change needed
+      res.status(200).json({ type, updatedProjectsCount: 0 });
+    }
   } catch (error) {
     if (error.code === 11000) {
       return res
