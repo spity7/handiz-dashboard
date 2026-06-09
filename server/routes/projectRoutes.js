@@ -4,6 +4,7 @@ const router = express.Router();
 const {
   createProject,
   getAllProjects,
+  getProjectsList,
   getProjectById,
   updateProject,
   deleteProject,
@@ -98,9 +99,10 @@ router.post(
     { name: "gallery", maxCount: 30 },
     { name: "blockImages", maxCount: 50 },
   ]),
-  createProject
+  createProject,
 );
 router.get("/projects", getAllProjects);
+router.get("/projects/list", getProjectsList);
 router.get("/projects/:id", getProjectById);
 router.put(
   "/projects/:id",
@@ -109,7 +111,7 @@ router.put(
     { name: "gallery", maxCount: 30 },
     { name: "blockImages", maxCount: 50 },
   ]),
-  updateProject
+  updateProject,
 );
 router.delete("/projects/:id", deleteProject);
 router.delete("/projects/:id/gallery", deleteProjectImage);

@@ -1,5 +1,6 @@
 const { Storage } = require("@google-cloud/storage");
 const path = require("path");
+const { optimizeThumbnail } = require("./imageProcessing");
 require("dotenv-safe").config();
 
 const keyPath =
@@ -23,8 +24,38 @@ async function uploadImage(fileBuffer, fileName, mimeType) {
 
   // Return public URL:
   return `https://storage.googleapis.com/${bucketName}/${encodeURIComponent(
-    fileName
+    fileName,
   )}`;
+}
+
+function thumbnailFileName(originalName, extension) {
+  const safeBase = path
+    .parse(originalName || "thumbnail")
+    .name.replace(/[^a-zA-Z0-9._-]/g, "_");
+  return `projects/thumbnails/${Date.now()}_${safeBase}${extension}`;
+}
+
+async function uploadThumbnail(fileBuffer, originalName) {
+  const { buffer, mimeType, extension } = await optimizeThumbnail(fileBuffer);
+  const fileName = thumbnailFileName(originalName, extension);
+  return uploadImage(buffer, fileName, mimeType);
+}
+
+function getFileNameFromUrl(fileUrl) {
+  if (!fileUrl) return null;
+  const marker = `/${bucketName}/`;
+  const idx = fileUrl.indexOf(marker);
+  if (idx === -1) return null;
+  return decodeURIComponent(fileUrl.slice(idx + marker.length));
+}
+
+async function downloadImage(fileUrl) {
+  const fileName = getFileNameFromUrl(fileUrl);
+  if (!fileName) {
+    throw new Error("Could not parse GCS file URL");
+  }
+  const [buffer] = await bucket.file(fileName).download();
+  return buffer;
 }
 
 async function deleteImage(fileUrl) {
@@ -41,4 +72,11 @@ async function deleteImage(fileUrl) {
   }
 }
 
-module.exports = { uploadImage, bucket, deleteImage };
+module.exports = {
+  uploadImage,
+  uploadThumbnail,
+  downloadImage,
+  getFileNameFromUrl,
+  bucket,
+  deleteImage,
+};

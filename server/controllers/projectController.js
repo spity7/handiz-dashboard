@@ -1,5 +1,5 @@
 const Project = require("../models/projectModel");
-const { uploadImage, deleteImage } = require("../utils/gcs");
+const { uploadImage, uploadThumbnail, deleteImage } = require("../utils/gcs");
 
 exports.createProject = async (req, res) => {
   try {
@@ -46,14 +46,9 @@ exports.createProject = async (req, res) => {
       return res.status(400).json({ message: "Thumbnail image is required." });
     }
 
-    // Upload thumbnail
-    const thumbnailFileName = `projects/thumbnails/${Date.now()}_${
-      thumbnailFile.originalname
-    }`;
-    const thumbnailUrl = await uploadImage(
+    const thumbnailUrl = await uploadThumbnail(
       thumbnailFile.buffer,
-      thumbnailFileName,
-      thumbnailFile.mimetype,
+      thumbnailFile.originalname,
     );
 
     // Upload gallery (optional)
@@ -169,6 +164,29 @@ exports.getAllProjects = async (req, res) => {
   } catch (error) {
     console.error("Error fetching projects:", error);
     res.status(500).json({ message: "Server error fetching projects" });
+  }
+};
+
+const stripHtml = (html) => (html || "").replace(/<[^>]+>/g, "").trim();
+
+exports.getProjectsList = async (req, res) => {
+  try {
+    const projects = await Project.find()
+      .select(
+        "_id title student area description order thumbnailUrl concept type category year location university",
+      )
+      .sort({ order: 1, createdAt: -1 })
+      .lean();
+
+    const list = projects.map((project) => ({
+      ...project,
+      description: stripHtml(project.description),
+    }));
+
+    res.status(200).json({ projects: list });
+  } catch (error) {
+    console.error("Error fetching projects list:", error);
+    res.status(500).json({ message: "Server error fetching projects list" });
   }
 };
 
@@ -333,14 +351,9 @@ exports.updateProject = async (req, res) => {
         }
       }
 
-      // Upload new one
-      const newThumbnailName = `projects/thumbnails/${Date.now()}_${
-        thumbnailFile.originalname
-      }`;
-      const newThumbnailUrl = await uploadImage(
+      const newThumbnailUrl = await uploadThumbnail(
         thumbnailFile.buffer,
-        newThumbnailName,
-        thumbnailFile.mimetype,
+        thumbnailFile.originalname,
       );
       updateData.thumbnailUrl = newThumbnailUrl;
     }
