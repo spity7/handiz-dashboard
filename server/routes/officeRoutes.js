@@ -9,6 +9,7 @@ const {
   deleteOffice,
   deleteOfficeImage,
 } = require("../controllers/officeController");
+const protectCmsWrite = require("../middlewares/protectCmsWrite");
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -20,6 +21,7 @@ const upload = multer({
 
 router.post(
   "/offices",
+  protectCmsWrite,
   upload.fields([{ name: "thumbnail", maxCount: 1 }]),
   createOffice,
 );
@@ -27,10 +29,11 @@ router.get("/offices", getAllOffices);
 router.get("/offices/:id", getOfficeById);
 router.put(
   "/offices/:id",
+  protectCmsWrite,
   upload.fields([{ name: "thumbnail", maxCount: 1 }]),
   updateOffice,
 );
-router.delete("/offices/:id", deleteOffice);
-router.delete("/offices/:id/gallery", deleteOfficeImage);
+router.delete("/offices/:id", protectCmsWrite, deleteOffice);
+router.delete("/offices/:id/gallery", protectCmsWrite, deleteOfficeImage);
 
 module.exports = router;

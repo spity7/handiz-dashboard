@@ -15,6 +15,7 @@ const {
   updateCategory,
   deleteCategory,
 } = require("../controllers/aiPromptCategoryController");
+const protectCmsWrite = require("../middlewares/protectCmsWrite");
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -25,12 +26,17 @@ const upload = multer({
 });
 
 router.get("/aiTools/categories", listCategories);
-router.post("/aiTools/categories", createCategory);
-router.put("/aiTools/categories/:categoryId", updateCategory);
-router.delete("/aiTools/categories/:categoryId", deleteCategory);
+router.post("/aiTools/categories", protectCmsWrite, createCategory);
+router.put("/aiTools/categories/:categoryId", protectCmsWrite, updateCategory);
+router.delete(
+  "/aiTools/categories/:categoryId",
+  protectCmsWrite,
+  deleteCategory,
+);
 
 router.post(
   "/aiTools",
+  protectCmsWrite,
   upload.fields([{ name: "thumbnail", maxCount: 1 }]),
   createAiTool,
 );
@@ -38,10 +44,11 @@ router.get("/aiTools", getAllAiTools);
 router.get("/aiTools/:id", getAiToolById);
 router.put(
   "/aiTools/:id",
+  protectCmsWrite,
   upload.fields([{ name: "thumbnail", maxCount: 1 }]),
   updateAiTool,
 );
-router.delete("/aiTools/:id", deleteAiTool);
-router.delete("/aiTools/:id/gallery", deleteAiToolImage);
+router.delete("/aiTools/:id", protectCmsWrite, deleteAiTool);
+router.delete("/aiTools/:id/gallery", protectCmsWrite, deleteAiToolImage);
 
 module.exports = router;

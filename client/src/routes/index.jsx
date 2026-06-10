@@ -65,6 +65,9 @@ const ContactUs = lazy(() => import('@/app/(admin)/pages/contact-us/page'))
 const AboutUs = lazy(() => import('@/app/(admin)/pages/about-us/page'))
 const AboutUsCreate = lazy(() => import('@/app/(admin)/pages/about-us/create/page'))
 const AboutUsEdit = lazy(() => import('@/app/(admin)/pages/about-us/edit/[id]/page'))
+const UsersPage = lazy(() => import('@/app/(admin)/pages/users/page'))
+const UserRequestsPage = lazy(() => import('@/app/(admin)/pages/user-requests/page'))
+const UnauthorizedPage = lazy(() => import('@/app/(admin)/pages/unauthorized/page'))
 const OurTeam = lazy(() => import('@/app/(admin)/pages/our-team/page'))
 const TimelinePage = lazy(() => import('@/app/(admin)/pages/timeline/page'))
 const Pricing = lazy(() => import('@/app/(admin)/pages/pricing/page'))
@@ -429,6 +432,21 @@ const customRoutes = [
     name: 'Contact Us',
     path: '/pages/contact-us',
     element: <ContactUs />,
+  },
+  {
+    name: 'Users',
+    path: '/pages/users',
+    element: <UsersPage />,
+  },
+  {
+    name: 'User Requests',
+    path: '/pages/user-requests',
+    element: <UserRequestsPage />,
+  },
+  {
+    name: 'Unauthorized',
+    path: '/pages/unauthorized',
+    element: <UnauthorizedPage />,
   },
   {
     name: 'About Us',

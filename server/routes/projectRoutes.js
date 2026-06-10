@@ -9,6 +9,8 @@ const {
   updateProject,
   deleteProject,
   deleteProjectImage,
+  publishProject,
+  unpublishProject,
 } = require("../controllers/projectController");
 const {
   listConcepts,
@@ -47,53 +49,87 @@ const {
   deleteUniversity,
 } = require("../controllers/studentProjectUniversityController");
 
+const protectRoute = require("../middlewares/protectRoute");
+const authorizePermission = require("../middlewares/authorizePermission");
+const optionalAuth = require("../middlewares/optionalAuth");
+const {
+  loadProject,
+  requireProjectWrite,
+  requireProjectPublish,
+} = require("../middlewares/canAccessProject");
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 20 * 1024 * 1024, // 20MB per file
-    files: 30, // allow up to 30 files total
+    fileSize: 20 * 1024 * 1024,
+    files: 30,
   },
 });
 
-// Concept management endpoints
+const taxonomyWrite = [
+  protectRoute,
+  authorizePermission("studentProjects:taxonomy"),
+];
+
+// Taxonomy — public read, protected write
 router.get("/projects/concepts", listConcepts);
-router.post("/projects/concepts", createConcept);
-router.put("/projects/concepts/:conceptId", updateConcept);
-router.delete("/projects/concepts/:conceptId", deleteConcept);
+router.post("/projects/concepts", ...taxonomyWrite, createConcept);
+router.put("/projects/concepts/:conceptId", ...taxonomyWrite, updateConcept);
+router.delete("/projects/concepts/:conceptId", ...taxonomyWrite, deleteConcept);
 
-// Type management endpoints
 router.get("/projects/types", listTypes);
-router.post("/projects/types", createType);
-router.put("/projects/types/:typeId", updateType);
-router.delete("/projects/types/:typeId", deleteType);
+router.post("/projects/types", ...taxonomyWrite, createType);
+router.put("/projects/types/:typeId", ...taxonomyWrite, updateType);
+router.delete("/projects/types/:typeId", ...taxonomyWrite, deleteType);
 
-// Category management endpoints
 router.get("/projects/categories", listCategories);
-router.post("/projects/categories", createCategory);
-router.put("/projects/categories/:categoryId", updateCategory);
-router.delete("/projects/categories/:categoryId", deleteCategory);
+router.post("/projects/categories", ...taxonomyWrite, createCategory);
+router.put(
+  "/projects/categories/:categoryId",
+  ...taxonomyWrite,
+  updateCategory,
+);
+router.delete(
+  "/projects/categories/:categoryId",
+  ...taxonomyWrite,
+  deleteCategory,
+);
 
-// Year management endpoints
 router.get("/projects/years", listYears);
-router.post("/projects/years", createYear);
-router.put("/projects/years/:yearId", updateYear);
-router.delete("/projects/years/:yearId", deleteYear);
+router.post("/projects/years", ...taxonomyWrite, createYear);
+router.put("/projects/years/:yearId", ...taxonomyWrite, updateYear);
+router.delete("/projects/years/:yearId", ...taxonomyWrite, deleteYear);
 
-// Location management endpoints
 router.get("/projects/locations", listLocations);
-router.post("/projects/locations", createLocation);
-router.put("/projects/locations/:locationId", updateLocation);
-router.delete("/projects/locations/:locationId", deleteLocation);
+router.post("/projects/locations", ...taxonomyWrite, createLocation);
+router.put("/projects/locations/:locationId", ...taxonomyWrite, updateLocation);
+router.delete(
+  "/projects/locations/:locationId",
+  ...taxonomyWrite,
+  deleteLocation,
+);
 
-// University management endpoints
 router.get("/projects/universities", listUniversities);
-router.post("/projects/universities", createUniversity);
-router.put("/projects/universities/:universityId", updateUniversity);
-router.delete("/projects/universities/:universityId", deleteUniversity);
+router.post("/projects/universities", ...taxonomyWrite, createUniversity);
+router.put(
+  "/projects/universities/:universityId",
+  ...taxonomyWrite,
+  updateUniversity,
+);
+router.delete(
+  "/projects/universities/:universityId",
+  ...taxonomyWrite,
+  deleteUniversity,
+);
 
-// Project endpoints
+// Public list for handiz.org (Published only)
+router.get("/projects/list", getProjectsList);
+
+// Dashboard project routes
 router.post(
   "/projects",
+  protectRoute,
+  authorizePermission("studentProjects:create"),
   upload.fields([
     { name: "thumbnail", maxCount: 1 },
     { name: "gallery", maxCount: 30 },
@@ -101,11 +137,21 @@ router.post(
   ]),
   createProject,
 );
-router.get("/projects", getAllProjects);
-router.get("/projects/list", getProjectsList);
-router.get("/projects/:id", getProjectById);
+
+router.get(
+  "/projects",
+  protectRoute,
+  authorizePermission("studentProjects:read"),
+  getAllProjects,
+);
+
+router.get("/projects/:id", optionalAuth, getProjectById);
+
 router.put(
   "/projects/:id",
+  protectRoute,
+  loadProject,
+  requireProjectWrite,
   upload.fields([
     { name: "thumbnail", maxCount: 1 },
     { name: "gallery", maxCount: 30 },
@@ -113,7 +159,37 @@ router.put(
   ]),
   updateProject,
 );
-router.delete("/projects/:id", deleteProject);
-router.delete("/projects/:id/gallery", deleteProjectImage);
+
+router.patch(
+  "/projects/:id/publish",
+  protectRoute,
+  loadProject,
+  requireProjectPublish,
+  publishProject,
+);
+
+router.patch(
+  "/projects/:id/unpublish",
+  protectRoute,
+  loadProject,
+  requireProjectPublish,
+  unpublishProject,
+);
+
+router.delete(
+  "/projects/:id",
+  protectRoute,
+  loadProject,
+  requireProjectWrite,
+  deleteProject,
+);
+
+router.delete(
+  "/projects/:id/gallery",
+  protectRoute,
+  loadProject,
+  requireProjectWrite,
+  deleteProjectImage,
+);
 
 module.exports = router;

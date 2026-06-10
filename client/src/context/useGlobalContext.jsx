@@ -84,6 +84,71 @@ export const GlobalProvider = ({ children }) => {
     return response.data
   }
 
+  const publishProject = async (id) => {
+    const response = await axiosInstance.patch(`/projects/${id}/publish`)
+    return response.data
+  }
+
+  const unpublishProject = async (id) => {
+    const response = await axiosInstance.patch(`/projects/${id}/unpublish`)
+    return response.data
+  }
+
+  const getEmployees = async (params = {}) => {
+    const response = await axiosInstance.get('/get-all-employees', { params })
+    return response.data
+  }
+
+  const updateEmployee = async (id, data) => {
+    const response = await axiosInstance.put(`/update-employee/${id}`, data)
+    return response.data
+  }
+
+  const deleteEmployee = async (id) => {
+    const response = await axiosInstance.delete(`/delete-employee/${id}`)
+    return response.data
+  }
+
+  const getNotifications = async (params = {}) => {
+    const response = await axiosInstance.get('/notifications', { params })
+    return response.data
+  }
+
+  const getUnreadNotificationCount = async () => {
+    const response = await axiosInstance.get('/notifications/unread-count')
+    return response.data.count
+  }
+
+  const markNotificationRead = async (id) => {
+    const response = await axiosInstance.patch(`/notifications/${id}/read`)
+    return response.data
+  }
+
+  const markAllNotificationsRead = async () => {
+    const response = await axiosInstance.patch('/notifications/read-all')
+    return response.data
+  }
+
+  const createUserActionRequest = async (data) => {
+    const response = await axiosInstance.post('/user-action-requests', data)
+    return response.data
+  }
+
+  const getUserActionRequests = async (params = {}) => {
+    const response = await axiosInstance.get('/user-action-requests', { params })
+    return response.data
+  }
+
+  const getMyUserActionRequests = async () => {
+    const response = await axiosInstance.get('/user-action-requests/mine')
+    return response.data
+  }
+
+  const reviewUserActionRequest = async (id, data) => {
+    const response = await axiosInstance.patch(`/user-action-requests/${id}`, data)
+    return response.data
+  }
+
   const deleteProjectGalleryImage = async (id, imageUrl) => {
     const response = await axiosInstance.delete(`/projects/${id}/gallery`, {
       data: { imageUrl },
@@ -378,7 +443,20 @@ export const GlobalProvider = ({ children }) => {
         getProjectById,
         updateProject,
         deleteProject,
+        publishProject,
+        unpublishProject,
         deleteProjectGalleryImage,
+        getEmployees,
+        updateEmployee,
+        deleteEmployee,
+        getNotifications,
+        getUnreadNotificationCount,
+        markNotificationRead,
+        markAllNotificationsRead,
+        createUserActionRequest,
+        getUserActionRequests,
+        getMyUserActionRequests,
+        reviewUserActionRequest,
         createCompetition,
         getAllCompetitions,
         getCompetitionById,

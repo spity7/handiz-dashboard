@@ -4,6 +4,10 @@ import { Card, CardBody, Col, Row, Button, Spinner } from 'react-bootstrap'
 import PageMetaData from '@/components/PageTitle'
 import PageBreadcrumb from '@/components/layout/PageBreadcrumb'
 import { useGlobalContext } from '@/context/useGlobalContext'
+import { useAuthContext } from '@/context/useAuthContext'
+import useConfirmAction from '@/hooks/useConfirmAction'
+import { ROLES, PROJECT_STATUS } from '@/constants/roles'
+import Swal from 'sweetalert2'
 import ReactQuill from 'react-quill'
 import DropzoneFormInput from '@/components/form/DropzoneFormInput'
 import SelectFormInput from '@/components/form/SelectFormInput'
@@ -26,6 +30,8 @@ const EditProject = () => {
     getStudentProjectLocations,
     getStudentProjectUniversities,
   } = useGlobalContext()
+  const { user } = useAuthContext()
+  const confirmAction = useConfirmAction()
 
   const [project, setProject] = useState(null)
   const [title, setTitle] = useState('')
@@ -221,117 +227,136 @@ const EditProject = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    try {
-      setLoading(true)
-      if (
-        concept.length === 0 ||
-        type.length === 0 ||
-        category.length === 0 ||
-        year.length === 0 ||
-        location.length === 0 ||
-        university.length === 0
-      ) {
-        alert('Please select at least one Concept, Type, Category, Year, Location, and University')
-        setLoading(false)
-        return
-      }
 
-      const checkOptionalUrl = (val) => {
-        const t = (val || '').trim()
-        if (!t) return true
-        try {
-          const u = new URL(t)
-          return u.protocol === 'http:' || u.protocol === 'https:'
-        } catch {
-          return false
+    const saveProject = async () => {
+      try {
+        setLoading(true)
+        if (
+          concept.length === 0 ||
+          type.length === 0 ||
+          category.length === 0 ||
+          year.length === 0 ||
+          location.length === 0 ||
+          university.length === 0
+        ) {
+          alert('Please select at least one Concept, Type, Category, Year, Location, and University')
+          setLoading(false)
+          return
         }
-      }
-      if (!checkOptionalUrl(googleMapUrl)) {
-        alert('Google Map must be a valid http(s) URL')
-        setLoading(false)
-        return
-      }
-      if (!checkOptionalUrl(thesisUrl)) {
-        alert('Thesis must be a valid http(s) URL')
-        setLoading(false)
-        return
-      }
-      if (!checkOptionalUrl(fileUrl)) {
-        alert('File must be a valid http(s) URL')
-        setLoading(false)
-        return
-      }
 
-      const formData = new FormData()
-      formData.append('title', title)
-      formData.append('student', student)
-      formData.append('area', area)
-      formData.append('description', description)
+        const checkOptionalUrl = (val) => {
+          const t = (val || '').trim()
+          if (!t) return true
+          try {
+            const u = new URL(t)
+            return u.protocol === 'http:' || u.protocol === 'https:'
+          } catch {
+            return false
+          }
+        }
+        if (!checkOptionalUrl(googleMapUrl)) {
+          alert('Google Map must be a valid http(s) URL')
+          setLoading(false)
+          return
+        }
+        if (!checkOptionalUrl(thesisUrl)) {
+          alert('Thesis must be a valid http(s) URL')
+          setLoading(false)
+          return
+        }
+        if (!checkOptionalUrl(fileUrl)) {
+          alert('File must be a valid http(s) URL')
+          setLoading(false)
+          return
+        }
 
-      formData.append('order', order)
+        const formData = new FormData()
+        formData.append('title', title)
+        formData.append('student', student)
+        formData.append('area', area)
+        formData.append('description', description)
 
-      if (thumbnail) formData.append('thumbnail', thumbnail)
-      galleryFiles.forEach((file) => formData.append('gallery', file))
+        formData.append('order', order)
 
-      concept.forEach((c) => formData.append('concept', c))
-      type.forEach((t) => formData.append('type', t))
-      category.forEach((c) => formData.append('category', c))
-      year.forEach((c) => formData.append('year', c))
-      location.forEach((c) => formData.append('location', c))
-      university.forEach((c) => formData.append('university', c))
-      formData.append('googleMapUrl', (googleMapUrl || '').trim())
-      formData.append('thesisUrl', (thesisUrl || '').trim())
-      formData.append('fileUrl', (fileUrl || '').trim())
+        if (thumbnail) formData.append('thumbnail', thumbnail)
+        galleryFiles.forEach((file) => formData.append('gallery', file))
 
-      // ✅ Process dynamic blocks
-      const blocksPayload = []
-      let imageIndex = 0
+        concept.forEach((c) => formData.append('concept', c))
+        type.forEach((t) => formData.append('type', t))
+        category.forEach((c) => formData.append('category', c))
+        year.forEach((c) => formData.append('year', c))
+        location.forEach((c) => formData.append('location', c))
+        university.forEach((c) => formData.append('university', c))
+        formData.append('googleMapUrl', (googleMapUrl || '').trim())
+        formData.append('thesisUrl', (thesisUrl || '').trim())
+        formData.append('fileUrl', (fileUrl || '').trim())
 
-      dynamicBlocks.forEach((block) => {
-        if (block.type === 'image') {
-          // If content is a File object, it's a NEW image
-          if (block.content instanceof File) {
-            formData.append('blockImages', block.content)
-            blocksPayload.push({
-              type: 'image',
-              fileIndex: imageIndex++,
-            })
+        // ✅ Process dynamic blocks
+        const blocksPayload = []
+        let imageIndex = 0
+
+        dynamicBlocks.forEach((block) => {
+          if (block.type === 'image') {
+            // If content is a File object, it's a NEW image
+            if (block.content instanceof File) {
+              formData.append('blockImages', block.content)
+              blocksPayload.push({
+                type: 'image',
+                fileIndex: imageIndex++,
+              })
+            } else {
+              // It's an existing image URL or empty
+              blocksPayload.push({
+                type: 'image',
+                content: block.content,
+              })
+            }
           } else {
-            // It's an existing image URL or empty
             blocksPayload.push({
-              type: 'image',
+              type: block.type,
               content: block.content,
             })
           }
-        } else {
-          blocksPayload.push({
-            type: block.type,
-            content: block.content,
-          })
-        }
-      })
-      formData.append('contentBlocks', JSON.stringify(blocksPayload))
+        })
+        formData.append('contentBlocks', JSON.stringify(blocksPayload))
 
-      await updateProject(id, formData)
-      alert('Project updated successfully!')
-      navigate('/ecommerce/student-projects')
-    } catch (error) {
-      alert(error?.response?.data?.message || 'Update failed')
-    } finally {
-      setLoading(false)
+        await updateProject(id, formData)
+        await Swal.fire('Saved', 'Project updated successfully.', 'success')
+        navigate('/ecommerce/student-projects')
+      } catch (error) {
+        Swal.fire('Error', error?.response?.data?.message || 'Update failed', 'error')
+      } finally {
+        setLoading(false)
+      }
     }
+
+    const needsReReview = user?.role === ROLES.USER && project?.status === PROJECT_STATUS.PUBLISHED
+
+    await confirmAction({
+      title: 'Save changes?',
+      text: needsReReview ? 'Saving will set this project back to Pending for Admin/Editor review.' : 'Update this student project?',
+      confirmLabel: 'Save',
+      onConfirm: saveProject,
+    })
   }
 
   const handleDeleteOldImage = async (imageUrl) => {
-    if (!window.confirm('Are you sure you want to delete this image?')) return
-
-    try {
-      const res = await deleteProjectGalleryImage(id, imageUrl)
-      alert('Image deleted successfully!')
-      setExistingGallery(res.gallery)
-    } catch (error) {
-      alert(error?.response?.data?.message || 'Failed to delete image')
-    }
+    await confirmAction({
+      title: 'Delete gallery image?',
+      text: 'This image will be removed from the project.',
+      confirmLabel: 'Delete',
+      variant: 'danger',
+      icon: 'warning',
+      onConfirm: async () => {
+        try {
+          const res = await deleteProjectGalleryImage(id, imageUrl)
+          await Swal.fire('Deleted', 'Image deleted successfully.', 'success')
+          setExistingGallery(res.gallery)
+        } catch (error) {
+          Swal.fire('Error', error?.response?.data?.message || 'Failed to delete image', 'error')
+        }
+      },
+    })
   }
 
   const toggleCheckbox = (value, state, setState) => {

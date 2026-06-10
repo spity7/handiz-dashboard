@@ -8,6 +8,7 @@ export const MENU_ITEMS = [
     key: 'ecommerce',
     icon: 'iconamoon:shopping-bag-duotone',
     label: 'Dashboard',
+    roles: ['Admin', 'Editor', 'User'],
     children: [
       // {
       //   key: 'ecommerce-services',
@@ -26,6 +27,7 @@ export const MENU_ITEMS = [
         label: 'Student Projects',
         url: '/ecommerce/student-projects',
         parentKey: 'ecommerce',
+        roles: ['Admin', 'Editor', 'User'],
         suppressDeepRouteExpand: true,
         children: [
           {
@@ -33,36 +35,42 @@ export const MENU_ITEMS = [
             label: 'Student Project concepts',
             url: '/ecommerce/student-projects/concepts',
             parentKey: 'ecommerce-student-projects',
+            roles: ['Admin', 'Editor'],
           },
           {
             key: 'ecommerce-student-projects-types',
             label: 'Student Project Types',
             url: '/ecommerce/student-projects/types',
             parentKey: 'ecommerce-student-projects',
+            roles: ['Admin', 'Editor'],
           },
           {
             key: 'ecommerce-student-projects-categories',
             label: 'Student Project Categories',
             url: '/ecommerce/student-projects/categories',
             parentKey: 'ecommerce-student-projects',
+            roles: ['Admin', 'Editor'],
           },
           {
             key: 'ecommerce-student-projects-years',
             label: 'Student Project Years',
             url: '/ecommerce/student-projects/years',
             parentKey: 'ecommerce-student-projects',
+            roles: ['Admin', 'Editor'],
           },
           {
             key: 'ecommerce-student-projects-locations',
             label: 'Student Project Locations',
             url: '/ecommerce/student-projects/locations',
             parentKey: 'ecommerce-student-projects',
+            roles: ['Admin', 'Editor'],
           },
           {
             key: 'ecommerce-student-projects-universities',
             label: 'Student Project Universities',
             url: '/ecommerce/student-projects/universities',
             parentKey: 'ecommerce-student-projects',
+            roles: ['Admin', 'Editor'],
           },
         ],
       },
@@ -71,18 +79,21 @@ export const MENU_ITEMS = [
         label: 'Competitions',
         url: '/ecommerce/competitions',
         parentKey: 'ecommerce',
+        roles: ['Admin'],
       },
       {
         key: 'ecommerce-aiTools',
         label: 'AI Prompts',
         url: '/ecommerce/aiTools',
         parentKey: 'ecommerce',
+        roles: ['Admin'],
         children: [
           {
             key: 'ecommerce-aiTools-categories',
             label: 'AI Prompt categories',
             url: '/ecommerce/aiTools/categories',
             parentKey: 'ecommerce-aiTools',
+            roles: ['Admin'],
           },
         ],
       },
@@ -91,12 +102,14 @@ export const MENU_ITEMS = [
         label: 'Offices',
         url: '/ecommerce/offices',
         parentKey: 'ecommerce',
+        roles: ['Admin'],
       },
       {
         key: 'ecommerce-about-us',
         label: 'About Us',
         url: '/pages/about-us',
         parentKey: 'ecommerce',
+        roles: ['Admin'],
       },
 
       // {
@@ -148,6 +161,26 @@ export const MENU_ITEMS = [
       //   parentKey: 'ecommerce',
       // },
     ],
+  },
+  {
+    key: 'administration',
+    label: 'ADMINISTRATION',
+    isTitle: true,
+    roles: ['Admin', 'Editor'],
+  },
+  {
+    key: 'pages-users',
+    icon: 'iconamoon:profile-circle-duotone',
+    label: 'Users',
+    url: '/pages/users',
+    roles: ['Admin', 'Editor'],
+  },
+  {
+    key: 'pages-user-requests',
+    icon: 'iconamoon:file-check-duotone',
+    label: 'User Requests',
+    url: '/pages/user-requests',
+    roles: ['Admin'],
   },
 
   //   {

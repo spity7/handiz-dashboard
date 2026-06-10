@@ -1,4 +1,8 @@
 const mongoose = require("mongoose");
+const {
+  PROJECT_STATUS,
+  PROJECT_STATUS_VALUES,
+} = require("../constants/projectStatus");
 
 const projectSchema = new mongoose.Schema(
   {
@@ -105,6 +109,28 @@ const projectSchema = new mongoose.Schema(
         },
       },
     ],
+    status: {
+      type: String,
+      enum: PROJECT_STATUS_VALUES,
+      default: PROJECT_STATUS.PENDING,
+    },
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    createdByRole: {
+      type: String,
+      enum: ["Admin", "Editor", "User"],
+    },
+    publishedAt: {
+      type: Date,
+      default: null,
+    },
+    publishedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
   },
   {
     timestamps: true, // adds createdAt & updatedAt

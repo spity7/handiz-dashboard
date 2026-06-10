@@ -35,7 +35,7 @@ const userSchema = mongoose.Schema(
     role: {
       type: String,
       required: true,
-      enum: ["Admin", "User"],
+      enum: ["Admin", "Editor", "User"],
       default: "User",
     },
     isVerified: {
@@ -53,12 +53,8 @@ const userSchema = mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
-
-// add indizes
-userSchema.index({ email: 1 }, { unique: true });
-userSchema.index({ username: 1 }, { unique: true });
 
 // Pre-save Hook to hash password
 userSchema.pre("save", async function (next) {

@@ -8,6 +8,7 @@ const {
   updateAboutUs,
   deleteAboutUs,
 } = require("../controllers/aboutUsController");
+const protectCmsWrite = require("../middlewares/protectCmsWrite");
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -19,6 +20,7 @@ const upload = multer({
 
 router.post(
   "/about-us",
+  protectCmsWrite,
   upload.fields([{ name: "blockImages", maxCount: 50 }]),
   createAboutUs,
 );
@@ -26,9 +28,10 @@ router.get("/about-us", getAboutUs);
 router.get("/about-us/:id", getAboutUsById);
 router.put(
   "/about-us/:id",
+  protectCmsWrite,
   upload.fields([{ name: "blockImages", maxCount: 50 }]),
   updateAboutUs,
 );
-router.delete("/about-us/:id", deleteAboutUs);
+router.delete("/about-us/:id", protectCmsWrite, deleteAboutUs);
 
 module.exports = router;

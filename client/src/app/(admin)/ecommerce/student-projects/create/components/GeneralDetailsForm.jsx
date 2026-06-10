@@ -9,6 +9,9 @@ import TextFormInput from '@/components/form/TextFormInput'
 import { renameKeys } from '@/utils/rename-object-keys'
 import 'react-quill/dist/quill.snow.css'
 import { useGlobalContext } from '@/context/useGlobalContext'
+import { useAuthContext } from '@/context/useAuthContext'
+import useConfirmAction from '@/hooks/useConfirmAction'
+import { ROLES } from '@/constants/roles'
 import DropzoneFormInput from '@/components/form/DropzoneFormInput'
 import ComponentContainerCard from '@/components/ComponentContainerCard'
 import StudentProjectFieldManageLink from '../../components/StudentProjectFieldManageLink'
@@ -79,6 +82,8 @@ const GeneralDetailsForm = () => {
     getStudentProjectLocations,
     getStudentProjectUniversities,
   } = useGlobalContext()
+  const { user } = useAuthContext()
+  const confirmAction = useConfirmAction()
   const [loading, setLoading] = useState(false)
   const [thumbnailFile, setThumbnailFile] = useState(null)
   const [galleryFiles, setGalleryFiles] = useState([])
@@ -230,89 +235,98 @@ const GeneralDetailsForm = () => {
   })
 
   const onSubmit = async (data) => {
-    try {
-      setLoading(true)
-      if (!thumbnailFile) {
-        alert('Thumbnail image is required')
-        return
-      }
+    const submitProject = async () => {
+      try {
+        setLoading(true)
+        if (!thumbnailFile) {
+          alert('Thumbnail image is required')
+          return
+        }
 
-      const formData = new FormData()
-      formData.append('title', data.title)
-      formData.append('student', data.student)
-      formData.append('area', data.area)
+        const formData = new FormData()
+        formData.append('title', data.title)
+        formData.append('student', data.student)
+        formData.append('area', data.area)
 
-      formData.append('description', data.descQuill)
-      formData.append('thumbnail', thumbnailFile)
-      formData.append('order', data.order)
+        formData.append('description', data.descQuill)
+        formData.append('thumbnail', thumbnailFile)
+        formData.append('order', data.order)
 
-      // ✅ multiple gallery files (optional)
-      galleryFiles.forEach((file) => formData.append('gallery', file))
+        // ✅ multiple gallery files (optional)
+        galleryFiles.forEach((file) => formData.append('gallery', file))
 
-      data.concept.forEach((value) => formData.append('concept', value))
-      data.type.forEach((value) => formData.append('type', value))
-      data.category.forEach((value) => formData.append('category', value))
-      data.year.forEach((value) => formData.append('year', value))
-      data.location.forEach((value) => formData.append('location', value))
-      data.university.forEach((value) => formData.append('university', value))
-      formData.append('googleMapUrl', data.googleMapUrl || '')
-      formData.append('thesisUrl', data.thesisUrl || '')
-      formData.append('fileUrl', data.fileUrl || '')
+        data.concept.forEach((value) => formData.append('concept', value))
+        data.type.forEach((value) => formData.append('type', value))
+        data.category.forEach((value) => formData.append('category', value))
+        data.year.forEach((value) => formData.append('year', value))
+        data.location.forEach((value) => formData.append('location', value))
+        data.university.forEach((value) => formData.append('university', value))
+        formData.append('googleMapUrl', data.googleMapUrl || '')
+        formData.append('thesisUrl', data.thesisUrl || '')
+        formData.append('fileUrl', data.fileUrl || '')
 
-      // ✅ Process dynamic blocks
-      const blocksPayload = []
-      let imageIndex = 0
+        // ✅ Process dynamic blocks
+        const blocksPayload = []
+        let imageIndex = 0
 
-      dynamicBlocks.forEach((block) => {
-        if (block.type === 'image') {
-          if (block.content instanceof File) {
-            formData.append('blockImages', block.content)
+        dynamicBlocks.forEach((block) => {
+          if (block.type === 'image') {
+            if (block.content instanceof File) {
+              formData.append('blockImages', block.content)
+              blocksPayload.push({
+                type: 'image',
+                fileIndex: imageIndex++,
+              })
+            }
+          } else {
             blocksPayload.push({
-              type: 'image',
-              fileIndex: imageIndex++,
+              type: block.type,
+              content: block.content,
             })
           }
-        } else {
-          blocksPayload.push({
-            type: block.type,
-            content: block.content,
-          })
-        }
-      })
-      formData.append('contentBlocks', JSON.stringify(blocksPayload))
+        })
+        formData.append('contentBlocks', JSON.stringify(blocksPayload))
 
-      await createProject(formData)
+        await createProject(formData)
 
-      alert('Project created successfully!')
+        alert('Project created successfully!')
 
-      // ✅ Clear all form fields properly
-      reset({
-        title: '',
-        student: '',
-        area: '',
-        descQuill: '',
-        order: 999,
-        concept: [],
-        type: [],
-        category: [],
-        year: [],
-        location: [],
-        university: [],
-        googleMapUrl: '',
-        thesisUrl: '',
-        fileUrl: '',
-      })
+        // ✅ Clear all form fields properly
+        reset({
+          title: '',
+          student: '',
+          area: '',
+          descQuill: '',
+          order: 999,
+          concept: [],
+          type: [],
+          category: [],
+          year: [],
+          location: [],
+          university: [],
+          googleMapUrl: '',
+          thesisUrl: '',
+          fileUrl: '',
+        })
 
-      setThumbnailFile(null)
-      setGalleryFiles([])
-      setDynamicBlocks([]) // Reset blocks
-      setResetDropzones(true)
-      setTimeout(() => setResetDropzones(false), 0) // reset flag
-    } catch (error) {
-      alert(error?.response?.data?.message || '❌ Failed to create project')
-    } finally {
-      setLoading(false)
+        setThumbnailFile(null)
+        setGalleryFiles([])
+        setDynamicBlocks([]) // Reset blocks
+        setResetDropzones(true)
+        setTimeout(() => setResetDropzones(false), 0) // reset flag
+      } catch (error) {
+        alert(error?.response?.data?.message || '❌ Failed to create project')
+      } finally {
+        setLoading(false)
+      }
     }
+
+    await confirmAction({
+      title: 'Create student project?',
+      text: user?.role === ROLES.USER ? 'Your project will be submitted as Pending for Admin and Editor review.' : 'Create this student project?',
+      confirmLabel: 'Create',
+      onConfirm: submitProject,
+    })
   }
 
   const toggleCheckboxValue = (value, field) => {

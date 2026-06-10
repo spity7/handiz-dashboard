@@ -89,7 +89,7 @@ const SignUpForm = () => {
   const OnHandleSubmit = async (data) => {
     try {
       // data contains: firstname, lastname, username, email, password, confirmPassword, role
-      await handleSignup(data.firstname, data.lastname, data.username, data.email, data.password, data.role ?? 'User')
+      await handleSignup(data.firstname, data.lastname, data.username, data.email, data.password)
     } catch (error) {
       // keep minimal logging
       console.error(error?.message ?? error)

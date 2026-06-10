@@ -1,4 +1,5 @@
 const User = require("../models/userModel.js");
+const { ROLES } = require("../constants/permissions");
 const generateTokenAndSetCookie = require("../utils/helpers/generateTokenAndSetCookie.js");
 const isPasswordComplex = require("../utils/helpers/isPasswordComplex.js");
 const sendVerificationEmail = require("../utils/helpers/sendVerificationEmail.js");
@@ -22,7 +23,7 @@ const transporter = nodemailer.createTransport({
 
 exports.signupUser = async (req, res) => {
   try {
-    const { firstname, lastname, email, username, password, role } = req.body;
+    const { firstname, lastname, email, username, password } = req.body;
 
     // Validate password complexity
     if (!isPasswordComplex(password)) {
@@ -52,7 +53,7 @@ exports.signupUser = async (req, res) => {
       email,
       username,
       password,
-      role,
+      role: ROLES.USER,
     });
 
     // Save the new user
@@ -157,6 +158,26 @@ exports.loginUser = async (req, res) => {
   }
 };
 
+exports.getMe = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select("-password");
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    res.status(200).json({
+      _id: user._id,
+      firstname: user.firstname,
+      lastname: user.lastname,
+      email: user.email,
+      username: user.username,
+      role: user.role,
+      isVerified: user.isVerified,
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
 exports.logoutUser = (req, res) => {
   try {
     res.clearCookie("jwt", {
@@ -184,7 +205,11 @@ exports.getRoles = async (req, res) => {
 exports.getAllEmployees = async (req, res) => {
   try {
     const { search, roles = [], page = 1, limit = 10 } = req.query;
-    const query = { isVerified: true }; // only verified users
+    const query = { isVerified: true };
+
+    if (req.user.role === ROLES.EDITOR) {
+      query.role = ROLES.USER;
+    }
 
     if (search) {
       const searchRegex = new RegExp(search, "i"); // Case-insensitive regex
@@ -209,6 +234,7 @@ exports.getAllEmployees = async (req, res) => {
     }
 
     const employees = await User.find(query)
+      .select("-password")
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(Number(limit));
@@ -310,11 +336,19 @@ exports.updateEmployee = async (req, res) => {
     const { id } = req.params;
     const { firstname, lastname, username, role } = req.body;
 
-    // Find the current user being updated
     const currentUser = await User.findById(id);
 
     if (!currentUser) {
       return res.status(404).json({ error: "Employee not found" });
+    }
+
+    if (currentUser.role === ROLES.ADMIN) {
+      const adminCount = await User.countDocuments({ role: ROLES.ADMIN });
+      if (adminCount <= 1 && role && role !== ROLES.ADMIN) {
+        return res
+          .status(400)
+          .json({ error: "Cannot change role of the last Admin" });
+      }
     }
 
     const usernameTaken = await User.findOne({ username, _id: { $ne: id } });
@@ -327,7 +361,7 @@ exports.updateEmployee = async (req, res) => {
     const updatedEmployee = await User.findByIdAndUpdate(
       id,
       { firstname, lastname, username, role },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
 
     if (!updatedEmployee) {
@@ -344,7 +378,19 @@ exports.deleteEmployee = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Versuche, den Mitarbeiter zu finden und zu löschen
+    const target = await User.findById(id);
+    if (!target) {
+      return res.status(404).json({ error: "Employee not found" });
+    }
+    if (target.role === ROLES.ADMIN) {
+      const adminCount = await User.countDocuments({ role: ROLES.ADMIN });
+      if (adminCount <= 1) {
+        return res
+          .status(400)
+          .json({ error: "Cannot delete the last Admin account" });
+      }
+    }
+
     const deletedEmployee = await User.findByIdAndDelete(id);
 
     if (!deletedEmployee) {
@@ -361,9 +407,16 @@ exports.deleteEmployee = async (req, res) => {
 // Get user details by ID
 exports.getUserById = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
+    const user = await User.findById(req.params.id).select("-password");
     if (!user) {
       return res.status(404).json({ error: "User not found" });
+    }
+    if (
+      req.user.role === ROLES.EDITOR &&
+      user.role !== ROLES.USER &&
+      String(user._id) !== String(req.user._id)
+    ) {
+      return res.status(403).json({ error: "Forbidden" });
     }
     res.json(user);
   } catch (error) {
@@ -376,6 +429,12 @@ exports.updateProfile = async (req, res) => {
   try {
     const { id } = req.params;
     const { firstname, lastname, username } = req.body;
+
+    if (req.user.role !== ROLES.ADMIN && String(req.user._id) !== String(id)) {
+      return res
+        .status(403)
+        .json({ error: "You can only update your own profile" });
+    }
 
     const currentUser = await User.findById(id);
 
@@ -393,7 +452,7 @@ exports.updateProfile = async (req, res) => {
     const updatedUser = await User.findByIdAndUpdate(
       id,
       { firstname, lastname, username },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
 
     if (!updatedUser) {
@@ -431,7 +490,7 @@ exports.contactUs = async (req, res) => {
     }
 
     logger.info(
-      `Contact form submitted: ${name} (${email}, ${phone}) - ${subject}: ${message}`
+      `Contact form submitted: ${name} (${email}, ${phone}) - ${subject}: ${message}`,
     );
 
     const mailOptions = {

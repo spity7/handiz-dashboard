@@ -1,11 +1,18 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import AuthLayout from '@/layouts/AuthLayout'
 import { useAuthContext } from '@/context/useAuthContext'
 import { appRoutes, authRoutes } from '@/routes/index'
 import AdminLayout from '@/layouts/AdminLayout'
+import FallbackLoading from '@/components/FallbackLoading'
+import { canAccessRoute } from '@/utils/routeAccess'
 
 const AppRouter = (props) => {
-  const { isAuthenticated } = useAuthContext()
+  const { isAuthenticated, user, loading } = useAuthContext()
+  const location = useLocation()
+
+  if (loading) {
+    return <FallbackLoading />
+  }
 
   return (
     <Routes>
@@ -13,10 +20,7 @@ const AppRouter = (props) => {
         <Route
           key={idx + route.name}
           path={route.path}
-          element={
-            // If already authenticated, redirect away from auth pages to home (or route.redirectTo)
-            isAuthenticated ? <Navigate to={route.redirectTo || '/'} replace /> : <AuthLayout {...props}>{route.element}</AuthLayout>
-          }
+          element={isAuthenticated ? <Navigate to={route.redirectTo || '/'} replace /> : <AuthLayout {...props}>{route.element}</AuthLayout>}
         />
       ))}
 
@@ -26,7 +30,11 @@ const AppRouter = (props) => {
           path={route.path}
           element={
             isAuthenticated ? (
-              <AdminLayout {...props}>{route.element}</AdminLayout>
+              canAccessRoute(user?.role, route.path) ? (
+                <AdminLayout {...props}>{route.element}</AdminLayout>
+              ) : (
+                <Navigate to="/pages/unauthorized" replace state={{ from: location }} />
+              )
             ) : (
               <Navigate
                 to={{

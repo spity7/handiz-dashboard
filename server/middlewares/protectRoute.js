@@ -22,11 +22,9 @@ const protectRoute = async (req, res, next) => {
     // Pass control to the next middleware/route handler
     next();
   } catch (err) {
-    // If there is an error (e.g., token verification fails), respond with a server error
-    res.status(500).json({ message: err.message });
+    res.status(401).json({ message: "Unauthorized" });
     logger.error("Error in protectRoute: ", err.message);
   }
 };
 
 module.exports = protectRoute;
-

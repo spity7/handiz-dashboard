@@ -11,15 +11,16 @@ const StudentProjects = () => {
   const { getAllProjects } = useGlobalContext()
   const [studentProjectsList, setStudentProjectsList] = useState([])
 
-  useEffect(() => {
-    const fetchProjects = async () => {
-      try {
-        const data = await getAllProjects()
-        setStudentProjectsList(data)
-      } catch (error) {
-        console.error('Error fetching projects:', error)
-      }
+  const fetchProjects = async () => {
+    try {
+      const data = await getAllProjects()
+      setStudentProjectsList(data)
+    } catch (error) {
+      console.error('Error fetching projects:', error)
     }
+  }
+
+  useEffect(() => {
     fetchProjects()
   }, [getAllProjects])
 
@@ -40,7 +41,7 @@ const StudentProjects = () => {
             </CardBody>
             <div>
               {studentProjectsList.length > 0 ? (
-                <ProjectsListTable projects={studentProjectsList} />
+                <ProjectsListTable projects={studentProjectsList} onRefresh={fetchProjects} />
               ) : (
                 <div className="text-center p-4">No Student Projects Found</div>
               )}

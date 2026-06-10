@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import axios from 'axios'
 import { useAtom } from 'jotai'
 import userAtom from '@/atoms/userAtom'
@@ -34,16 +34,65 @@ function getStoredUser() {
   }
 }
 
+function persistUser(data) {
+  const expiry = Date.now() + 7 * 24 * 60 * 60 * 1000
+  const payload = { ...data, expiry }
+  localStorage.setItem('user-app', JSON.stringify(payload))
+  return payload
+}
+
 export function AuthProvider({ children }) {
   const showModal = useShowModal()
-  const [, setUser] = useAtom(userAtom)
+  const [, setUserAtom] = useAtom(userAtom)
+  const [user, setUser] = useState(() => getStoredUser())
+  const [loading, setLoading] = useState(true)
 
-  const handleSignup = async (firstname, lastname, username, email, password, role) => {
-    // Simple email validation regex
+  const clearSession = useCallback(() => {
+    localStorage.removeItem('user-app')
+    setUser(null)
+    setUserAtom(null)
+  }, [setUserAtom])
+
+  useEffect(() => {
+    const interceptor = axios.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error?.response?.status === 401) {
+          clearSession()
+          if (!window.location.pathname.startsWith('/auth/')) {
+            window.location.href = '/auth/sign-in'
+          }
+        }
+        return Promise.reject(error)
+      },
+    )
+    return () => axios.interceptors.response.eject(interceptor)
+  }, [clearSession])
+
+  useEffect(() => {
+    const stored = getStoredUser()
+    if (!stored) {
+      setLoading(false)
+      return
+    }
+    axios
+      .get(`${BASE_URL}me`)
+      .then((res) => {
+        const fresh = persistUser(res.data)
+        setUser(fresh)
+        setUserAtom(fresh)
+      })
+      .catch(() => {
+        clearSession()
+      })
+      .finally(() => setLoading(false))
+  }, [clearSession, setUserAtom])
+
+  const handleSignup = async (firstname, lastname, username, email, password) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(email)) {
       showModal('Error', 'Please enter a valid email address.', 'error')
-      return // Don't proceed with signup if email is invalid
+      return
     }
 
     try {
@@ -53,123 +102,65 @@ export function AuthProvider({ children }) {
         username,
         email,
         password,
-        role,
       })
 
-      // log full response for debugging
-      console.log('signup response:', res.status, res.data)
-
-      const data = await res.data
-
-      if (res.status < 200 || res.status >= 300) {
-        // show backend message if available
-        showModal('Error', data?.error || data?.message || `Signup failed (status ${res.status})`, 'error')
+      const data = res.data
+      if (res.status < 200 || res.status >= 300 || data?.error) {
+        showModal('Error', data?.error || data?.message || 'Signup failed', 'error')
         return
       }
 
-      if (data?.error) {
-        showModal('Error', data.error, 'error')
-        return
-      }
-
-      // Store a message or status in localStorage to show to the user
       localStorage.setItem(
         'signup-status',
         JSON.stringify({
           message: 'Signup successful! Please check your email to verify your account.',
         }),
       )
-
       window.location.href = '/auth/verify-email'
     } catch (error) {
-      // print full error (network / CORS / server) for debugging
-      console.error('Signup error:', error)
-
-      const backendMessage = error?.response?.data?.error || error?.response?.data?.message || error?.response?.data || null
-
-      if (backendMessage) {
-        showModal('Error', backendMessage, 'error')
-      } else {
-        // network or unexpected error
-        showModal('Error', error.message || 'An error occurred. Please try again.', 'error')
-      }
+      const backendMessage = error?.response?.data?.error || error?.response?.data?.message || error.message
+      showModal('Error', backendMessage || 'An error occurred. Please try again.', 'error')
     }
   }
 
   const handleLogin = async (emailOrUsername, password) => {
     try {
-      const res = await axios.post(`${BASE_URL}login`, {
-        emailOrUsername,
-        password,
-      })
-
+      const res = await axios.post(`${BASE_URL}login`, { emailOrUsername, password })
       const data = res.data
-      console.log('data', data)
-      if (res.status === 200) {
-        // check if user is verified
-        if (!data.isVerified) {
-          showModal('Error', 'Please verify your email before logging in.', 'error')
-          return
-        }
-        // check if there is signup-status in localstorage and clear
-        if (localStorage.getItem('signup-status')) {
-          localStorage.removeItem('signup-status')
-        }
-        const expiry = Date.now() + 7 * 24 * 60 * 60 * 1000 // 7 days
-        localStorage.setItem('user-app', JSON.stringify({ ...data, expiry }))
 
-        setUser(data)
-      } else {
-        showModal('Error', data.error || 'Unknown error occurred', 'error')
+      if (!data.isVerified) {
+        showModal('Error', 'Please verify your email before logging in.', 'error')
+        return
       }
 
+      if (localStorage.getItem('signup-status')) {
+        localStorage.removeItem('signup-status')
+      }
+
+      const fresh = persistUser(data)
+      setUser(fresh)
+      setUserAtom(fresh)
       window.location.href = '/'
     } catch (error) {
-      // Netzwerkfehler oder andere Fehler
-      if (error.response) {
-        const status = error.response.status
-        if (status === 401) {
-          showModal('Error', 'Unauthorized. Please log in again.', 'error')
-        } else if (status === 400) {
-          showModal('Error', error.response.data.error, 'error')
-        } else {
-          showModal('Error', `HTTP Error ${status}`, 'error')
-        }
-      } else if (error.request) {
-        showModal('Error', 'No response from server', 'error')
-      } else {
-        showModal('Error', 'An error occurred. Please try again.', 'error')
-      }
-      console.error('Login error:', error.message)
+      const msg = error?.response?.data?.error || error.message || 'Login failed'
+      showModal('Error', msg, 'error')
     }
   }
 
   const handleLogout = async () => {
     try {
-      // Attempt server logout; don't block client-side cleanup on failure
-      await axios.post(`${BASE_URL}logout`).catch((err) => {
-        console.warn('Logout request failed (continuing local cleanup):', err?.message || err)
-      })
-    } catch (err) {
-      console.warn('Unexpected error during logout request:', err)
+      await confirmLogout()
+    } catch {
+      // user cancelled
+      return
+    }
+    try {
+      await axios.post(`${BASE_URL}logout`)
+    } catch {
+      // continue local cleanup
     } finally {
-      // Always clear local session state
-      localStorage.removeItem('user-app')
-      // write a small key so other tabs can detect logout via storage event
-      try {
-        localStorage.setItem('logout-event', Date.now().toString())
-      } catch (e) {
-        // ignore quota errors
-      }
-      // dispatch a window event for same-tab listeners
-      try {
-        window.dispatchEvent(new Event('logout'))
-      } catch (e) {
-        // ignore
-      }
-      setUser(null)
-      // redirect to home or sign-in page
-      window.location.href = '/'
+      clearSession()
+      window.location.href = '/auth/sign-in'
     }
   }
 
@@ -179,10 +170,25 @@ export function AuthProvider({ children }) {
         handleSignup,
         handleLogin,
         handleLogout,
-        user: getStoredUser(),
-        isAuthenticated: !!getStoredUser(),
+        user,
+        isAuthenticated: !!user,
+        loading,
       }}>
       {children}
     </AuthContext.Provider>
   )
+}
+
+async function confirmLogout() {
+  const Swal = (await import('sweetalert2')).default
+  const result = await Swal.fire({
+    title: 'Log out?',
+    text: 'You will need to sign in again to access the dashboard.',
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonText: 'Log out',
+    cancelButtonText: 'Stay',
+    reverseButtons: true,
+  })
+  if (!result.isConfirmed) throw new Error('cancelled')
 }

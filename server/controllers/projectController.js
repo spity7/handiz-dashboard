@@ -1,5 +1,12 @@
 const Project = require("../models/projectModel");
 const { uploadImage, uploadThumbnail, deleteImage } = require("../utils/gcs");
+const { ROLES } = require("../constants/permissions");
+const { PROJECT_STATUS } = require("../constants/projectStatus");
+const {
+  canReadProject,
+  getProjectListFilter,
+} = require("../utils/projectAccess");
+const notifyProjectPending = require("../utils/helpers/sendProjectPendingNotification");
 
 exports.createProject = async (req, res) => {
   try {
@@ -123,7 +130,12 @@ exports.createProject = async (req, res) => {
 
     const trimUrl = (v) => (typeof v === "string" ? v.trim() : "") || "";
 
-    // Save project to DB
+    const creatorRole = req.user.role;
+    const initialStatus =
+      creatorRole === ROLES.USER
+        ? PROJECT_STATUS.PENDING
+        : PROJECT_STATUS.PUBLISHED;
+
     const newProject = await Project.create({
       title,
       student,
@@ -142,7 +154,18 @@ exports.createProject = async (req, res) => {
       thesisUrl: trimUrl(thesisUrl),
       fileUrl: trimUrl(fileUrl),
       contentBlocks: parsedContentBlocks,
+      createdBy: req.user._id,
+      createdByRole: creatorRole,
+      status: initialStatus,
+      ...(initialStatus === PROJECT_STATUS.PUBLISHED && {
+        publishedAt: new Date(),
+        publishedBy: req.user._id,
+      }),
     });
+
+    if (initialStatus === PROJECT_STATUS.PENDING) {
+      await notifyProjectPending(newProject, req.user);
+    }
 
     res.status(201).json({
       message: "Project created successfully",
@@ -159,7 +182,10 @@ exports.createProject = async (req, res) => {
 
 exports.getAllProjects = async (req, res) => {
   try {
-    const projects = await Project.find().sort({ order: 1, createdAt: -1 });
+    const filter = getProjectListFilter(req.user);
+    const projects = await Project.find(filter)
+      .sort({ order: 1, createdAt: -1 })
+      .populate("createdBy", "firstname lastname username role");
     res.status(200).json({ projects });
   } catch (error) {
     console.error("Error fetching projects:", error);
@@ -171,7 +197,7 @@ const stripHtml = (html) => (html || "").replace(/<[^>]+>/g, "").trim();
 
 exports.getProjectsList = async (req, res) => {
   try {
-    const projects = await Project.find()
+    const projects = await Project.find({ status: PROJECT_STATUS.PUBLISHED })
       .select(
         "_id title student area description order thumbnailUrl concept type category year location university",
       )
@@ -192,8 +218,25 @@ exports.getProjectsList = async (req, res) => {
 
 exports.getProjectById = async (req, res) => {
   try {
-    const project = await Project.findById(req.params.id);
+    const project = await Project.findById(req.params.id).populate(
+      "createdBy",
+      "firstname lastname username role",
+    );
     if (!project) return res.status(404).json({ message: "Project not found" });
+
+    if (!req.user) {
+      if (project.status !== PROJECT_STATUS.PUBLISHED) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      return res.status(200).json({ project });
+    }
+
+    if (!canReadProject(req.user, project)) {
+      return res
+        .status(403)
+        .json({ message: "Forbidden: cannot access this project" });
+    }
+
     res.status(200).json({ project });
   } catch (error) {
     console.error("Error fetching project:", error);
@@ -231,11 +274,14 @@ exports.updateProject = async (req, res) => {
       });
     }
 
-    // ✅ Find existing project first
-    const existingProject = await Project.findById(req.params.id);
+    const existingProject =
+      req.project || (await Project.findById(req.params.id));
     if (!existingProject) {
       return res.status(404).json({ message: "Project not found" });
     }
+
+    const wasPublished = existingProject.status === PROJECT_STATUS.PUBLISHED;
+    const userResubmit = req.user.role === ROLES.USER && wasPublished;
 
     const parsedConcept = Array.isArray(concept) ? concept : [concept];
     const parsedType = Array.isArray(type) ? type : [type];
@@ -380,19 +426,27 @@ exports.updateProject = async (req, res) => {
     }
 
     if (newGalleryUrls.length > 0) {
-      // Option 1: append new gallery images
       updateData.gallery = [
         ...(existingProject.gallery || []),
         ...newGalleryUrls,
       ];
     }
 
-    // ✅ Update project
+    if (userResubmit) {
+      updateData.status = PROJECT_STATUS.PENDING;
+      updateData.publishedAt = null;
+      updateData.publishedBy = null;
+    }
+
     const updatedProject = await Project.findByIdAndUpdate(
       req.params.id,
       updateData,
       { new: true },
     );
+
+    if (userResubmit) {
+      await notifyProjectPending(updatedProject, req.user);
+    }
 
     res.status(200).json({
       message: "Project updated successfully",
@@ -407,9 +461,35 @@ exports.updateProject = async (req, res) => {
   }
 };
 
+exports.publishProject = async (req, res) => {
+  try {
+    const project = req.project;
+    project.status = PROJECT_STATUS.PUBLISHED;
+    project.publishedAt = new Date();
+    project.publishedBy = req.user._id;
+    await project.save();
+    res.status(200).json({ message: "Project published", project });
+  } catch (error) {
+    res.status(500).json({ message: "Server error publishing project" });
+  }
+};
+
+exports.unpublishProject = async (req, res) => {
+  try {
+    const project = req.project;
+    project.status = PROJECT_STATUS.UNPUBLISHED;
+    project.publishedAt = null;
+    project.publishedBy = null;
+    await project.save();
+    res.status(200).json({ message: "Project unpublished", project });
+  } catch (error) {
+    res.status(500).json({ message: "Server error unpublishing project" });
+  }
+};
+
 exports.deleteProject = async (req, res) => {
   try {
-    const project = await Project.findById(req.params.id);
+    const project = req.project || (await Project.findById(req.params.id));
     if (!project) return res.status(404).json({ message: "Project not found" });
 
     // Delete thumbnail from GCS
@@ -467,7 +547,7 @@ exports.deleteProjectImage = async (req, res) => {
       return res.status(400).json({ message: "Image URL is required" });
     }
 
-    const project = await Project.findById(id);
+    const project = req.project || (await Project.findById(id));
     if (!project) {
       return res.status(404).json({ message: "Project not found" });
     }

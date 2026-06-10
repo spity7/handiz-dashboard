@@ -9,6 +9,7 @@ const {
   deleteCompetition,
   deleteCompetitionImage,
 } = require("../controllers/competitionController");
+const protectCmsWrite = require("../middlewares/protectCmsWrite");
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -20,23 +21,29 @@ const upload = multer({
 
 router.post(
   "/competitions",
+  protectCmsWrite,
   upload.fields([
     { name: "thumbnail", maxCount: 1 },
     { name: "gallery", maxCount: 30 },
   ]),
-  createCompetition
+  createCompetition,
 );
 router.get("/competitions", getAllCompetitions);
 router.get("/competitions/:id", getCompetitionById);
 router.put(
   "/competitions/:id",
+  protectCmsWrite,
   upload.fields([
     { name: "thumbnail", maxCount: 1 },
     { name: "gallery", maxCount: 30 },
   ]),
-  updateCompetition
+  updateCompetition,
 );
-router.delete("/competitions/:id", deleteCompetition);
-router.delete("/competitions/:id/gallery", deleteCompetitionImage);
+router.delete("/competitions/:id", protectCmsWrite, deleteCompetition);
+router.delete(
+  "/competitions/:id/gallery",
+  protectCmsWrite,
+  deleteCompetitionImage,
+);
 
 module.exports = router;

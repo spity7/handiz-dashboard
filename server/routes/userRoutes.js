@@ -3,6 +3,7 @@ const {
   signupUser,
   loginUser,
   logoutUser,
+  getMe,
   getRoles,
   getAllEmployees,
   verifyEmail,
@@ -15,66 +16,53 @@ const {
   contactUs,
 } = require("../controllers/userController");
 const protectRoute = require("../middlewares/protectRoute.js");
-const authorizeRole = require("../middlewares/authorizeRole.js");
+const authorizePermission = require("../middlewares/authorizePermission.js");
 
 const router = express.Router();
 
-// public Routen
 router.post("/signup", signupUser);
 router.get("/verify-email", verifyEmail);
 router.post("/login", loginUser);
 router.post("/logout", logoutUser);
+router.post("/contact-us", contactUs);
 
-// protected routes
+router.get("/me", protectRoute, getMe);
 
-// Only Admin Routes
 router.get(
   "/get-all-employees",
   protectRoute,
-  authorizeRole("Admin"),
-  getAllEmployees
+  authorizePermission("users:read"),
+  getAllEmployees,
 );
+
 router.get(
   "/export-all-employees-to-csv",
   protectRoute,
-  authorizeRole("Admin"),
-  exportAllEmployeesToCSV
+  authorizePermission("users:manage"),
+  exportAllEmployeesToCSV,
 );
 router.get(
   "/export-filtered-employees-to-csv",
   protectRoute,
-  authorizeRole("Admin"),
-  exportFilteredEmployeesToCSV
+  authorizePermission("users:manage"),
+  exportFilteredEmployeesToCSV,
 );
 router.put(
   "/update-employee/:id",
   protectRoute,
-  authorizeRole("Admin"),
-  updateEmployee
+  authorizePermission("users:manage"),
+  updateEmployee,
 );
 router.delete(
   "/delete-employee/:id",
   protectRoute,
-  authorizeRole("Admin"),
-  deleteEmployee
+  authorizePermission("users:manage"),
+  deleteEmployee,
 );
 
-// Other Routes
-router.get("/roles", protectRoute, authorizeRole("Admin", "User"), getRoles);
+router.get("/roles", protectRoute, authorizePermission("users:read"), getRoles);
 
-router.get(
-  "/user/:id",
-  protectRoute,
-  authorizeRole("Admin", "User"),
-  getUserById
-);
-router.put(
-  "/user/:id",
-  protectRoute,
-  authorizeRole("Admin", "User"),
-  updateProfile
-);
-
-router.post("/contact-us", contactUs);
+router.get("/user/:id", protectRoute, getUserById);
+router.put("/user/:id", protectRoute, updateProfile);
 
 module.exports = router;

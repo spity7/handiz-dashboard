@@ -1,7 +1,27 @@
 import { MENU_ITEMS } from '@/assets/data/menu-items'
 
-export const getMenuItems = () => {
-  return MENU_ITEMS
+const filterByRole = (items, role) => {
+  if (!items) return []
+  return items
+    .map((item) => {
+      if (item.isTitle) {
+        if (item.roles && role && !item.roles.includes(role)) return null
+        return item
+      }
+      if (item.children?.length) {
+        const children = filterByRole(item.children, role)
+        if (!children.length) return null
+        return { ...item, children }
+      }
+      if (item.roles && role && !item.roles.includes(role)) return null
+      return item
+    })
+    .filter(Boolean)
+}
+
+export const getMenuItems = (role) => {
+  if (!role) return MENU_ITEMS
+  return filterByRole(MENU_ITEMS, role)
 }
 
 export const findAllParent = (menuItems, menuItem) => {
