@@ -1,21 +1,40 @@
-import { Col, Row } from 'react-bootstrap';
-import PageBreadcrumb from '@/components/layout/PageBreadcrumb';
-import About from './components/About';
-import Services from './components/Services';
-import Team from './components/Team';
-import PageMetaData from '@/components/PageTitle';
-const AboutUs = () => {
-  return <>
-      <PageBreadcrumb subName="Pages" title="About Us" />
-      <PageMetaData title="About Us" />
+import { useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Spinner } from 'react-bootstrap'
+import PageBreadcrumb from '@/components/layout/PageBreadcrumb'
+import PageMetaData from '@/components/PageTitle'
+import { useGlobalContext } from '@/context/useGlobalContext'
 
-      <Row>
-        <Col xs={12}>
-          <About />
-          <Services />
-          <Team />
-        </Col>
-      </Row>
-    </>;
-};
-export default AboutUs;
+const AboutUs = () => {
+  const navigate = useNavigate()
+  const { getAboutUs } = useGlobalContext()
+
+  useEffect(() => {
+    const redirectToAboutUs = async () => {
+      try {
+        const aboutUs = await getAboutUs()
+        if (aboutUs) {
+          navigate(`/pages/about-us/edit/${aboutUs._id}`, { replace: true })
+        } else {
+          navigate('/pages/about-us/create', { replace: true })
+        }
+      } catch (error) {
+        console.error('Error fetching About Us page:', error)
+        navigate('/pages/about-us/create', { replace: true })
+      }
+    }
+    redirectToAboutUs()
+  }, [getAboutUs, navigate])
+
+  return (
+    <>
+      <PageMetaData title="About Us" />
+      <PageBreadcrumb subName="Pages" title="About Us" />
+      <div className="text-center p-5">
+        <Spinner animation="border" />
+      </div>
+    </>
+  )
+}
+
+export default AboutUs

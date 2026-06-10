@@ -92,6 +92,12 @@ export const MENU_ITEMS = [
         url: '/ecommerce/offices',
         parentKey: 'ecommerce',
       },
+      {
+        key: 'ecommerce-about-us',
+        label: 'About Us',
+        url: '/pages/about-us',
+        parentKey: 'ecommerce',
+      },
 
       // {
       //   key: 'ecommerce-products',

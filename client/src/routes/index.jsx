@@ -63,6 +63,8 @@ const Profile = lazy(() => import('@/app/(admin)/pages/profile/page'))
 const ComingSoon = lazy(() => import('@/app/(other)/coming-soon/page'))
 const ContactUs = lazy(() => import('@/app/(admin)/pages/contact-us/page'))
 const AboutUs = lazy(() => import('@/app/(admin)/pages/about-us/page'))
+const AboutUsCreate = lazy(() => import('@/app/(admin)/pages/about-us/create/page'))
+const AboutUsEdit = lazy(() => import('@/app/(admin)/pages/about-us/edit/[id]/page'))
 const OurTeam = lazy(() => import('@/app/(admin)/pages/our-team/page'))
 const TimelinePage = lazy(() => import('@/app/(admin)/pages/timeline/page'))
 const Pricing = lazy(() => import('@/app/(admin)/pages/pricing/page'))
@@ -432,6 +434,16 @@ const customRoutes = [
     name: 'About Us',
     path: '/pages/about-us',
     element: <AboutUs />,
+  },
+  {
+    name: 'Create About Us',
+    path: '/pages/about-us/create',
+    element: <AboutUsCreate />,
+  },
+  {
+    name: 'Edit About Us',
+    path: '/pages/about-us/edit/:id',
+    element: <AboutUsEdit />,
   },
   {
     name: 'Our Team',

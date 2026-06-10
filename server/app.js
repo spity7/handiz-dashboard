@@ -13,6 +13,7 @@ const projectRoutes = require("./routes/projectRoutes");
 const competitionRoutes = require("./routes/competitionRoutes");
 const aiToolsRoutes = require("./routes/aiToolsRoutes");
 const officeRoutes = require("./routes/officeRoutes");
+const aboutUsRoutes = require("./routes/aboutUsRoutes");
 const logger = require("./config/logger");
 require("./cron/cron");
 
@@ -61,6 +62,7 @@ app.use("/api/v1", projectRoutes);
 app.use("/api/v1", competitionRoutes);
 app.use("/api/v1", aiToolsRoutes);
 app.use("/api/v1", officeRoutes);
+app.use("/api/v1", aboutUsRoutes);
 // app.use("/api/v1", propertyRoutes);
 
 // errorhandling for Middleware

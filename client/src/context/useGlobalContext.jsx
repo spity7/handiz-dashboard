@@ -2,8 +2,8 @@ import { createContext, useContext, useMemo } from 'react'
 import axios from 'axios'
 
 axios.defaults.withCredentials = true
-const BASE_URL = 'https://api.handiz.org/api/v1/'
-// const BASE_URL = 'http://localhost:5016/api/v1/'
+// const BASE_URL = 'https://api.handiz.org/api/v1/'
+const BASE_URL = 'http://localhost:5016/api/v1/'
 
 const GlobalContext = createContext()
 
@@ -336,6 +336,35 @@ export const GlobalProvider = ({ children }) => {
     return response.data
   }
 
+  const createAboutUs = async (data) => {
+    const response = await axiosInstance.post('/about-us', data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return response.data
+  }
+
+  const getAboutUs = async () => {
+    const response = await axiosInstance.get('/about-us')
+    return response.data.aboutUs
+  }
+
+  const getAboutUsById = async (id) => {
+    const response = await axiosInstance.get(`/about-us/${id}`)
+    return response.data.aboutUs
+  }
+
+  const updateAboutUs = async (id, data) => {
+    const response = await axiosInstance.put(`/about-us/${id}`, data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return response.data.aboutUs
+  }
+
+  const deleteAboutUs = async (id) => {
+    const response = await axiosInstance.delete(`/about-us/${id}`)
+    return response.data
+  }
+
   return (
     <GlobalContext.Provider
       value={{
@@ -396,6 +425,11 @@ export const GlobalProvider = ({ children }) => {
         updateOffice,
         deleteOffice,
         deleteOfficeGalleryImage,
+        createAboutUs,
+        getAboutUs,
+        getAboutUsById,
+        updateAboutUs,
+        deleteAboutUs,
       }}>
       {children}
     </GlobalContext.Provider>
