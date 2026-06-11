@@ -34,7 +34,8 @@ const NotificationItem = ({ notification, onRead }) => {
       await onRead(notification._id)
     }
     if (notification.link) {
-      navigate(notification.link)
+      const link = notification.link.startsWith('/pages/user-requests') ? '/pages/users' : notification.link
+      navigate(link)
     }
   }
 

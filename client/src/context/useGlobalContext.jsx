@@ -2,8 +2,8 @@ import { createContext, useContext, useMemo } from 'react'
 import axios from 'axios'
 
 axios.defaults.withCredentials = true
-// const BASE_URL = 'https://api.handiz.org/api/v1/'
-const BASE_URL = 'http://localhost:5016/api/v1/'
+const BASE_URL = 'https://api.handiz.org/api/v1/'
+// const BASE_URL = 'http://localhost:5016/api/v1/'
 
 const GlobalContext = createContext()
 
@@ -126,26 +126,6 @@ export const GlobalProvider = ({ children }) => {
 
   const markAllNotificationsRead = async () => {
     const response = await axiosInstance.patch('/notifications/read-all')
-    return response.data
-  }
-
-  const createUserActionRequest = async (data) => {
-    const response = await axiosInstance.post('/user-action-requests', data)
-    return response.data
-  }
-
-  const getUserActionRequests = async (params = {}) => {
-    const response = await axiosInstance.get('/user-action-requests', { params })
-    return response.data
-  }
-
-  const getMyUserActionRequests = async () => {
-    const response = await axiosInstance.get('/user-action-requests/mine')
-    return response.data
-  }
-
-  const reviewUserActionRequest = async (id, data) => {
-    const response = await axiosInstance.patch(`/user-action-requests/${id}`, data)
     return response.data
   }
 
@@ -453,10 +433,6 @@ export const GlobalProvider = ({ children }) => {
         getUnreadNotificationCount,
         markNotificationRead,
         markAllNotificationsRead,
-        createUserActionRequest,
-        getUserActionRequests,
-        getMyUserActionRequests,
-        reviewUserActionRequest,
         createCompetition,
         getAllCompetitions,
         getCompetitionById,

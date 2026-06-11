@@ -21,11 +21,6 @@ const notificationSchema = new mongoose.Schema(
       ref: "Project",
       default: null,
     },
-    relatedRequestId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "UserActionRequest",
-      default: null,
-    },
     isRead: { type: Boolean, default: false },
   },
   { timestamps: true },

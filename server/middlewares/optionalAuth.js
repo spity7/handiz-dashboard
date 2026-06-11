@@ -1,5 +1,6 @@
 const User = require("../models/userModel.js");
 const jwt = require("jsonwebtoken");
+const isTokenValidForUser = require("../utils/helpers/isTokenValidForUser.js");
 
 /**
  * Attaches req.user when a valid JWT cookie is present; continues otherwise.
@@ -11,7 +12,9 @@ const optionalAuth = async (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findById(decoded.userId).select("-password");
-    if (user) req.user = user;
+    if (user && isTokenValidForUser(decoded, user)) {
+      req.user = user;
+    }
     next();
   } catch {
     next();

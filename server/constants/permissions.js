@@ -9,10 +9,8 @@ const PERMISSIONS = {
   "studentProjects:create": [ROLES.ADMIN, ROLES.EDITOR, ROLES.USER],
   "studentProjects:taxonomy": [ROLES.ADMIN, ROLES.EDITOR],
   "cms:manage": [ROLES.ADMIN],
-  "users:read": [ROLES.ADMIN, ROLES.EDITOR],
+  "users:read": [ROLES.ADMIN],
   "users:manage": [ROLES.ADMIN],
-  "userRequests:submit": [ROLES.EDITOR],
-  "userRequests:review": [ROLES.ADMIN],
 };
 
 const hasPermission = (role, permission) =>

@@ -1,29 +1,32 @@
-import { Link } from 'react-router-dom';
-import { Card, CardBody, Col, Row } from 'react-bootstrap';
-import LogoBox from '@/components/LogoBox';
-import LockScreenForm from './components/LockScreenForm';
-import PageMetaData from '@/components/PageTitle';
-import signInImg from '@/assets/images/sign-in.svg';
+import { Link } from 'react-router-dom'
+import { Card, CardBody, Col, Row } from 'react-bootstrap'
+import LogoBox from '@/components/LogoBox'
+import LockScreenForm from './components/LockScreenForm'
+import PageMetaData from '@/components/PageTitle'
 const LockScreen = () => {
-  return <>
+  return (
+    <>
       <PageMetaData title="Lock Screen" />
 
       <Card className="auth-card">
-        <CardBody className="p-0">
+        <CardBody className="auth-card-body px-0">
           <Row className="align-items-center g-0">
             <Col lg={6} className="d-none d-lg-inline-block border-end">
               <div className="auth-page-sidebar">
-                <img src={signInImg} width={521} height={521} alt="auth" className="img-fluid" />
+                <LogoBox
+                  textLogo={{
+                    height: 80,
+                    width: 120,
+                  }}
+                  squareLogo={{
+                    className: 'me-1',
+                  }}
+                  containerClassName="text-center auth-logo"
+                />
               </div>
             </Col>
             <Col lg={6}>
-              <div className="p-4">
-                <LogoBox textLogo={{
-                height: 24,
-                width: 73
-              }} squareLogo={{
-                className: 'me-1'
-              }} containerClassName="mx-auto mb-4 text-center auth-logo" />
+              <div className="px-4 py-5">
                 <h2 className="fw-bold text-center fs-18">Hi ! Gaston</h2>
                 <p className="text-muted text-center mt-1 mb-4">Enter your password to access the admin.</p>
                 <Row className="justify-content-center">
@@ -42,6 +45,7 @@ const LockScreen = () => {
           Sign In
         </Link>
       </p>
-    </>;
-};
-export default LockScreen;
+    </>
+  )
+}
+export default LockScreen

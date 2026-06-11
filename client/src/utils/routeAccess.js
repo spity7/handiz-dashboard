@@ -5,7 +5,7 @@ const ADMIN_ONLY_PREFIXES = [
   '/ecommerce/aiTools',
   '/ecommerce/offices',
   '/pages/about-us',
-  '/pages/user-requests',
+  '/pages/users',
   '/ecommerce/services',
   '/dashboard/',
 ]
@@ -17,7 +17,6 @@ const ADMIN_EDITOR_PREFIXES = [
   '/ecommerce/student-projects/years',
   '/ecommerce/student-projects/locations',
   '/ecommerce/student-projects/universities',
-  '/pages/users',
 ]
 
 export function getAllowedRolesForPath(path) {
@@ -26,9 +25,6 @@ export function getAllowedRolesForPath(path) {
     return [ROLES.ADMIN]
   }
   if (ADMIN_EDITOR_PREFIXES.some((prefix) => p === prefix || p.startsWith(`${prefix}/`))) {
-    return [ROLES.ADMIN, ROLES.EDITOR]
-  }
-  if (p.startsWith('/pages/users')) {
     return [ROLES.ADMIN, ROLES.EDITOR]
   }
   return null

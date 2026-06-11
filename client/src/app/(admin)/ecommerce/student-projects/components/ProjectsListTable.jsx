@@ -28,42 +28,17 @@ const TableHeaderFilter = ({ label, value, onChange, children }) => (
 
 const ProjectsListTable = ({ projects, onRefresh, highlightProjectId, onClearHighlight }) => {
   const { user } = useAuthContext()
-  const { deleteProject, publishProject, unpublishProject, getEmployees } = useGlobalContext()
+  const { deleteProject, publishProject, unpublishProject } = useGlobalContext()
   const confirmAction = useConfirmAction()
   const tablePageSize = 10
   const [activeHighlightId, setActiveHighlightId] = useState(highlightProjectId)
   const [isDismissing, setIsDismissing] = useState(false)
   const [ownerFilter, setOwnerFilter] = useState(ALL_FILTER)
   const [statusFilter, setStatusFilter] = useState(ALL_FILTER)
-  const [accounts, setAccounts] = useState([])
-
   const showAdminColumns = user?.role === ROLES.ADMIN || user?.role === ROLES.EDITOR
-
-  useEffect(() => {
-    if (!showAdminColumns) return
-
-    const loadAccounts = async () => {
-      try {
-        const data = await getEmployees({ limit: 500 })
-        setAccounts(data.employees || [])
-      } catch (error) {
-        console.error('Error fetching accounts:', error)
-      }
-    }
-
-    loadAccounts()
-  }, [getEmployees, showAdminColumns])
 
   const ownerOptions = useMemo(() => {
     const byId = new Map()
-
-    accounts.forEach((account) => {
-      byId.set(String(account._id), {
-        _id: String(account._id),
-        username: account.username,
-        email: account.email,
-      })
-    })
 
     projects.forEach((project) => {
       const owner = project.createdBy
@@ -79,7 +54,7 @@ const ProjectsListTable = ({ projects, onRefresh, highlightProjectId, onClearHig
     })
 
     return Array.from(byId.values()).sort((a, b) => a.username.localeCompare(b.username))
-  }, [accounts, projects])
+  }, [projects])
 
   const filteredProjects = useMemo(() => {
     if (!showAdminColumns) return projects

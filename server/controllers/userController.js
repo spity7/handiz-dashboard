@@ -207,10 +207,6 @@ exports.getAllEmployees = async (req, res) => {
     const { search, roles = [], page = 1, limit = 10 } = req.query;
     const query = { isVerified: true };
 
-    if (req.user.role === ROLES.EDITOR) {
-      query.role = ROLES.USER;
-    }
-
     if (search) {
       const searchRegex = new RegExp(search, "i"); // Case-insensitive regex
       query.$or = [
@@ -334,7 +330,7 @@ exports.exportFilteredEmployeesToCSV = async (req, res) => {
 exports.updateEmployee = async (req, res) => {
   try {
     const { id } = req.params;
-    const { firstname, lastname, username, role } = req.body;
+    const { role } = req.body;
 
     const currentUser = await User.findById(id);
 
@@ -342,25 +338,19 @@ exports.updateEmployee = async (req, res) => {
       return res.status(404).json({ error: "Employee not found" });
     }
 
-    if (currentUser.role === ROLES.ADMIN && role && role !== currentUser.role) {
+    if (currentUser.role === ROLES.ADMIN) {
       return res.status(400).json({ error: "Admin role cannot be changed" });
     }
 
-    const usernameTaken = await User.findOne({ username, _id: { $ne: id } });
-
-    if (usernameTaken) {
-      return res.status(400).json({ error: "Username already taken" });
+    if (!role || role === currentUser.role) {
+      return res.status(200).json(currentUser);
     }
 
-    const updateData = { firstname, lastname, username };
-    if (currentUser.role !== ROLES.ADMIN) {
-      updateData.role = role;
-    }
-
-    const updatedEmployee = await User.findByIdAndUpdate(id, updateData, {
-      new: true,
-      runValidators: true,
-    });
+    const updatedEmployee = await User.findByIdAndUpdate(
+      id,
+      { role },
+      { new: true, runValidators: true },
+    );
 
     if (!updatedEmployee) {
       return res.status(404).json({ error: "Employee not found" });

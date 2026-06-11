@@ -14,8 +14,6 @@ const sameId = (a, b) => String(a) === String(b)
 
 export const isOwner = (user, project) => user && project?.createdBy && sameId(user._id, project.createdBy?._id ?? project.createdBy)
 
-export const isUserCreatedProject = (project) => project?.createdByRole === ROLES.USER
-
 export const canReadProject = (user, project) => {
   if (!user || !project) return false
   if (user.role === ROLES.ADMIN || user.role === ROLES.EDITOR) return true
@@ -38,10 +36,6 @@ export const canPublishProject = (user, project) => {
 }
 
 export const canManageCms = (user) => user?.role === ROLES.ADMIN
-
-export const canViewUsers = (user) => user?.role === ROLES.ADMIN || user?.role === ROLES.EDITOR
-
-export const canManageUsersDirect = (user) => user?.role === ROLES.ADMIN
 
 export const canManageTaxonomy = (user) => user?.role === ROLES.ADMIN || user?.role === ROLES.EDITOR
 

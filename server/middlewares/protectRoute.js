@@ -1,6 +1,7 @@
 const User = require("../models/userModel.js");
 const jwt = require("jsonwebtoken");
 const logger = require("../config/logger.js");
+const isTokenValidForUser = require("../utils/helpers/isTokenValidForUser.js");
 
 const protectRoute = async (req, res, next) => {
   try {
@@ -15,6 +16,10 @@ const protectRoute = async (req, res, next) => {
 
     // Find the user by the decoded userId, excluding the password field
     const user = await User.findById(decoded.userId).select("-password");
+
+    if (!user || !isTokenValidForUser(decoded, user)) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
 
     // Attach the user data to the request object for further use in the route handler
     req.user = user;

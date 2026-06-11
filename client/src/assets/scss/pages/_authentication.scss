@@ -41,6 +41,11 @@ html[data-bs-theme='dark'] {
         border: 0;
         box-shadow: none;
 
+        .auth-card-body {
+            padding-top: 3rem;
+            padding-bottom: 3rem;
+        }
+
         &::after {
             content: '';
             position: absolute;

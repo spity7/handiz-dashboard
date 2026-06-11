@@ -15,7 +15,6 @@ const aiToolsRoutes = require("./routes/aiToolsRoutes");
 const officeRoutes = require("./routes/officeRoutes");
 const aboutUsRoutes = require("./routes/aboutUsRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
-const userActionRequestRoutes = require("./routes/userActionRequestRoutes");
 const logger = require("./config/logger");
 require("./cron/cron");
 
@@ -66,7 +65,6 @@ app.use("/api/v1", aiToolsRoutes);
 app.use("/api/v1", officeRoutes);
 app.use("/api/v1", aboutUsRoutes);
 app.use("/api/v1", notificationRoutes);
-app.use("/api/v1", userActionRequestRoutes);
 // app.use("/api/v1", propertyRoutes);
 
 // errorhandling for Middleware

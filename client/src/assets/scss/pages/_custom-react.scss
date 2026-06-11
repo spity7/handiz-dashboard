@@ -142,6 +142,51 @@
   }
 }
 
+// Users page — current signed-in account row
+.users-table-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  background-color: rgba(var(--#{$prefix}secondary-rgb), 0.15);
+  color: var(--#{$prefix}secondary);
+  flex-shrink: 0;
+
+  &--current {
+    background-color: rgba(var(--#{$prefix}primary-rgb), 0.15);
+    color: var(--#{$prefix}primary);
+    box-shadow: 0 0 0 2px rgba(var(--#{$prefix}primary-rgb), 0.22);
+  }
+}
+
+.users-table-you-badge {
+  font-size: 0.65rem;
+  vertical-align: middle;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.users-table-current-row {
+  background-color: rgba(var(--#{$prefix}primary-rgb), 0.06) !important;
+
+  td {
+    border-top-color: rgba(var(--#{$prefix}primary-rgb), 0.14) !important;
+    border-bottom-color: rgba(var(--#{$prefix}primary-rgb), 0.14) !important;
+  }
+
+  td:first-child {
+    box-shadow: inset 3px 0 0 var(--#{$prefix}primary);
+  }
+}
+
+.users-table-account-alert {
+  border-left: 3px solid var(--#{$prefix}primary);
+}
+
 // Topbar notifications dropdown
 .dropdown-notifications {
   width: min(420px, calc(100vw - 2rem));

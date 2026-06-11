@@ -166,20 +166,13 @@ export const MENU_ITEMS = [
     key: 'administration',
     label: 'ADMINISTRATION',
     isTitle: true,
-    roles: ['Admin', 'Editor'],
+    roles: ['Admin'],
   },
   {
     key: 'pages-users',
     icon: 'iconamoon:profile-circle-duotone',
     label: 'Users',
     url: '/pages/users',
-    roles: ['Admin', 'Editor'],
-  },
-  {
-    key: 'pages-user-requests',
-    icon: 'iconamoon:file-check-duotone',
-    label: 'User Requests',
-    url: '/pages/user-requests',
     roles: ['Admin'],
   },
 

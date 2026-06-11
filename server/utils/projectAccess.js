@@ -8,8 +8,6 @@ const isOwner = (actor, project) => {
   return sameId(actor._id, creatorId);
 };
 
-const isUserCreatedProject = (project) => project?.createdByRole === ROLES.USER;
-
 /**
  * Dashboard read access
  */
@@ -55,5 +53,4 @@ module.exports = {
   canPublishProject,
   getProjectListFilter,
   isOwner,
-  isUserCreatedProject,
 };
