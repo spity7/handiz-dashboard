@@ -241,3 +241,111 @@
   margin-top: 0.35rem;
   box-shadow: 0 0 0 3px rgba(var(--#{$prefix}primary-rgb), 0.2);
 }
+
+.projects-list-table {
+  .projects-table-filter {
+    min-width: 10rem;
+    max-width: 14rem;
+    font-weight: 400;
+  }
+
+  th {
+    vertical-align: top;
+  }
+
+  .projects-list-col-title {
+    max-width: 20rem;
+    white-space: normal;
+    word-break: break-word;
+  }
+
+  .projects-list-col-title__heading {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .projects-list-col-title__type {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.table-empty-state-row:hover td {
+  background-color: transparent !important;
+}
+
+.projects-list-empty {
+  padding: 3.5rem 1.5rem 4rem;
+  text-align: center;
+  max-width: 32rem;
+  margin: 0 auto;
+
+  &--in-table {
+    max-width: none;
+    padding: 2.5rem 1.5rem 3rem;
+  }
+
+  &--filtered {
+    max-width: 36rem;
+  }
+
+  &__icon {
+    width: 5rem;
+    height: 5rem;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.25rem;
+
+    &--empty {
+      background: rgba(var(--#{$prefix}primary-rgb), 0.1);
+      color: var(--#{$prefix}primary);
+    }
+
+    &--filtered {
+      background: rgba(var(--#{$prefix}warning-rgb), 0.12);
+      color: var(--#{$prefix}warning);
+    }
+  }
+
+  &__title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--#{$prefix}emphasis-color);
+  }
+
+  &__description {
+    color: var(--#{$prefix}secondary-color);
+    font-size: 0.9375rem;
+    line-height: 1.55;
+    margin-bottom: 0;
+  }
+
+  &__filters {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 1.25rem;
+  }
+
+  &__filter-badge {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    padding: 0.45em 0.75em;
+  }
+
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+  }
+}

@@ -342,13 +342,8 @@ exports.updateEmployee = async (req, res) => {
       return res.status(404).json({ error: "Employee not found" });
     }
 
-    if (currentUser.role === ROLES.ADMIN) {
-      const adminCount = await User.countDocuments({ role: ROLES.ADMIN });
-      if (adminCount <= 1 && role && role !== ROLES.ADMIN) {
-        return res
-          .status(400)
-          .json({ error: "Cannot change role of the last Admin" });
-      }
+    if (currentUser.role === ROLES.ADMIN && role && role !== currentUser.role) {
+      return res.status(400).json({ error: "Admin role cannot be changed" });
     }
 
     const usernameTaken = await User.findOne({ username, _id: { $ne: id } });
@@ -357,12 +352,15 @@ exports.updateEmployee = async (req, res) => {
       return res.status(400).json({ error: "Username already taken" });
     }
 
-    // Proceed with updating the employee
-    const updatedEmployee = await User.findByIdAndUpdate(
-      id,
-      { firstname, lastname, username, role },
-      { new: true, runValidators: true },
-    );
+    const updateData = { firstname, lastname, username };
+    if (currentUser.role !== ROLES.ADMIN) {
+      updateData.role = role;
+    }
+
+    const updatedEmployee = await User.findByIdAndUpdate(id, updateData, {
+      new: true,
+      runValidators: true,
+    });
 
     if (!updatedEmployee) {
       return res.status(404).json({ error: "Employee not found" });

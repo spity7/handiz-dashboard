@@ -49,16 +49,12 @@ const StudentProjects = () => {
               </div>
             </CardBody>
             <div>
-              {studentProjectsList.length > 0 ? (
-                <ProjectsListTable
-                  projects={studentProjectsList}
-                  onRefresh={fetchProjects}
-                  highlightProjectId={highlightProjectId}
-                  onClearHighlight={clearHighlightFromUrl}
-                />
-              ) : (
-                <div className="text-center p-4">No Student Projects Found</div>
-              )}
+              <ProjectsListTable
+                projects={studentProjectsList}
+                onRefresh={fetchProjects}
+                highlightProjectId={highlightProjectId}
+                onClearHighlight={clearHighlightFromUrl}
+              />
             </div>
           </Card>
         </Col>

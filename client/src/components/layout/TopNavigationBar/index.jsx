@@ -1,5 +1,7 @@
 import { lazy } from 'react'
 import { Suspense } from 'react'
+import LogoBox from '@/components/LogoBox'
+import { useLayoutContext } from '@/context/useLayoutContext'
 import ActivityStreamToggle from './components/ActivityStreamToggle'
 import LeftSideBarToggle from './components/LeftSideBarToggle'
 import ProfileDropdown from './components/ProfileDropdown'
@@ -11,12 +13,17 @@ const AppsDropdown = lazy(() => import('./components/AppsDropdown'))
 const Notifications = lazy(() => import('./components/Notifications'))
 
 const TopNavigationBar = () => {
+  const {
+    menu: { size },
+  } = useLayoutContext()
+
   return (
     <header className="topbar">
       <div className="container-xxl">
         <div className="navbar-header">
-          <div className="d-flex align-items-center gap-2">
+          <div className="d-flex align-items-center gap-3">
             <LeftSideBarToggle />
+            {size === 'hidden' && <LogoBox containerClassName="topbar-logo" textLogo={{ height: 50, width: 150 }} />}
 
             {/* <SearchBox /> */}
           </div>

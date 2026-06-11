@@ -185,7 +185,7 @@ exports.getAllProjects = async (req, res) => {
     const filter = getProjectListFilter(req.user);
     const projects = await Project.find(filter)
       .sort({ order: 1, createdAt: -1 })
-      .populate("createdBy", "firstname lastname username role");
+      .populate("createdBy", "firstname lastname username email role");
     res.status(200).json({ projects });
   } catch (error) {
     console.error("Error fetching projects:", error);
@@ -220,7 +220,7 @@ exports.getProjectById = async (req, res) => {
   try {
     const project = await Project.findById(req.params.id).populate(
       "createdBy",
-      "firstname lastname username role",
+      "firstname lastname username email role",
     );
     if (!project) return res.status(404).json({ message: "Project not found" });
 
@@ -280,8 +280,7 @@ exports.updateProject = async (req, res) => {
       return res.status(404).json({ message: "Project not found" });
     }
 
-    const wasPublished = existingProject.status === PROJECT_STATUS.PUBLISHED;
-    const userResubmit = req.user.role === ROLES.USER && wasPublished;
+    const userEdited = req.user.role === ROLES.USER;
 
     const parsedConcept = Array.isArray(concept) ? concept : [concept];
     const parsedType = Array.isArray(type) ? type : [type];
@@ -432,10 +431,12 @@ exports.updateProject = async (req, res) => {
       ];
     }
 
-    if (userResubmit) {
+    if (userEdited) {
       updateData.status = PROJECT_STATUS.PENDING;
-      updateData.publishedAt = null;
-      updateData.publishedBy = null;
+      if (existingProject.status === PROJECT_STATUS.PUBLISHED) {
+        updateData.publishedAt = null;
+        updateData.publishedBy = null;
+      }
     }
 
     const updatedProject = await Project.findByIdAndUpdate(
@@ -444,7 +445,7 @@ exports.updateProject = async (req, res) => {
       { new: true },
     );
 
-    if (userResubmit) {
+    if (userEdited) {
       await notifyProjectPending(updatedProject, req.user);
     }
 

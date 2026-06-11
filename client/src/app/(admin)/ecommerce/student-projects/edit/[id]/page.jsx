@@ -322,7 +322,7 @@ const EditProject = () => {
 
         await updateProject(id, formData)
         await Swal.fire('Saved', 'Project updated successfully.', 'success')
-        navigate('/ecommerce/student-projects')
+        navigate('/')
       } catch (error) {
         Swal.fire('Error', error?.response?.data?.message || 'Update failed', 'error')
       } finally {
@@ -330,11 +330,11 @@ const EditProject = () => {
       }
     }
 
-    const needsReReview = user?.role === ROLES.USER && project?.status === PROJECT_STATUS.PUBLISHED
+    const needsReReview = user?.role === ROLES.USER
 
     await confirmAction({
       title: 'Save changes?',
-      text: needsReReview ? 'Saving will set this project back to Pending for Admin/Editor review.' : 'Update this student project?',
+      text: needsReReview ? 'Saving will set this project to Pending for Admin/Editor review.' : 'Update this student project?',
       confirmLabel: 'Save',
       onConfirm: saveProject,
     })

@@ -1,6 +1,8 @@
 import { yupResolver } from '@hookform/resolvers/yup'
 import { Col, Row, Button, FormCheck } from 'react-bootstrap'
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import Swal from 'sweetalert2'
 import { useForm, Controller } from 'react-hook-form'
 import ReactQuill from 'react-quill'
 import * as yup from 'yup'
@@ -91,6 +93,7 @@ const GeneralDetailsForm = () => {
     getStudentProjectUniversities,
   } = useGlobalContext()
   const { user } = useAuthContext()
+  const navigate = useNavigate()
   const confirmAction = useConfirmAction()
   const [loading, setLoading] = useState(false)
   const [thumbnailFile, setThumbnailFile] = useState(null)
@@ -315,32 +318,8 @@ const GeneralDetailsForm = () => {
         formData.append('contentBlocks', JSON.stringify(blocksPayload))
 
         await createProject(formData)
-
-        alert('Project created successfully!')
-
-        // ✅ Clear all form fields properly
-        reset({
-          title: '',
-          student: '',
-          area: '',
-          descQuill: '',
-          order: 999,
-          concept: [],
-          type: [],
-          category: [],
-          year: [],
-          location: [],
-          university: [],
-          googleMapUrl: '',
-          thesisUrl: '',
-          fileUrl: '',
-        })
-
-        setThumbnailFile(null)
-        setGalleryFiles([])
-        setDynamicBlocks([]) // Reset blocks
-        setResetDropzones(true)
-        setTimeout(() => setResetDropzones(false), 0) // reset flag
+        await Swal.fire('Created', 'Project created successfully.', 'success')
+        navigate('/')
       } catch (error) {
         alert(error?.response?.data?.message || '❌ Failed to create project')
       } finally {

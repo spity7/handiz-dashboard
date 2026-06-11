@@ -177,11 +177,15 @@ const UsersPage = () => {
             {isAdmin && (
               <Form.Group className="mb-3">
                 <Form.Label>Role</Form.Label>
-                <Form.Select value={form.role} onChange={(ev) => setForm({ ...form, role: ev.target.value })}>
+                <Form.Select
+                  value={form.role}
+                  disabled={editUser?.role === ROLES.ADMIN}
+                  onChange={(ev) => setForm({ ...form, role: ev.target.value })}>
                   <option value={ROLES.USER}>User</option>
                   <option value={ROLES.EDITOR}>Editor</option>
                   <option value={ROLES.ADMIN}>Admin</option>
                 </Form.Select>
+                {editUser?.role === ROLES.ADMIN && <Form.Text className="text-muted">Admin role cannot be changed.</Form.Text>}
               </Form.Group>
             )}
             {isAdmin && editUser?.role === ROLES.ADMIN && <p className="text-muted small mb-0">Admin accounts cannot be deleted.</p>}

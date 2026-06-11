@@ -18,27 +18,22 @@ export const isUserCreatedProject = (project) => project?.createdByRole === ROLE
 
 export const canReadProject = (user, project) => {
   if (!user || !project) return false
-  if (user.role === ROLES.ADMIN) return true
+  if (user.role === ROLES.ADMIN || user.role === ROLES.EDITOR) return true
   if (isOwner(user, project)) return true
-  if (user.role === ROLES.EDITOR && isUserCreatedProject(project)) return true
   return false
 }
 
 export const canWriteProject = (user, project) => {
   if (!user || !project) return false
-  if (user.role === ROLES.ADMIN) return true
+  if (user.role === ROLES.ADMIN || user.role === ROLES.EDITOR) return true
   if (isOwner(user, project)) return true
-  if (user.role === ROLES.EDITOR && isUserCreatedProject(project)) return true
   return false
 }
 
 export const canPublishProject = (user, project) => {
   if (!user || !project) return false
   if (user.role === ROLES.USER) return false
-  if (user.role === ROLES.ADMIN) return true
-  if (user.role === ROLES.EDITOR) {
-    return isOwner(user, project) || isUserCreatedProject(project)
-  }
+  if (user.role === ROLES.ADMIN || user.role === ROLES.EDITOR) return true
   return false
 }
 

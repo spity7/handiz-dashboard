@@ -1,24 +1,95 @@
 import clsx from 'clsx'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Badge } from 'react-bootstrap'
+import { Badge, Form } from 'react-bootstrap'
 import Swal from 'sweetalert2'
 import ReactTable from '@/components/Table'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
 import { useGlobalContext } from '@/context/useGlobalContext'
 import { useAuthContext } from '@/context/useAuthContext'
 import useConfirmAction from '@/hooks/useConfirmAction'
-import { canWriteProject, canPublishProject, PROJECT_STATUS, statusBadgeVariant } from '@/constants/roles'
+import { canWriteProject, canPublishProject, PROJECT_STATUS, ROLES, statusBadgeVariant } from '@/constants/roles'
+import ProjectsListEmptyState from './ProjectsListEmptyState'
 
 const FOCUS_DISMISS_MS = 450
+const ALL_FILTER = ''
+
+const getOwnerId = (project) => {
+  const owner = project?.createdBy
+  if (!owner) return ''
+  return String(owner._id ?? owner)
+}
+
+const TableHeaderFilter = ({ label, value, onChange, children }) => (
+  <Form.Select size="sm" value={value} onChange={(e) => onChange(e.target.value)} className="projects-table-filter" aria-label={label}>
+    {children}
+  </Form.Select>
+)
 
 const ProjectsListTable = ({ projects, onRefresh, highlightProjectId, onClearHighlight }) => {
   const { user } = useAuthContext()
-  const { deleteProject, publishProject, unpublishProject } = useGlobalContext()
+  const { deleteProject, publishProject, unpublishProject, getEmployees } = useGlobalContext()
   const confirmAction = useConfirmAction()
   const tablePageSize = 10
   const [activeHighlightId, setActiveHighlightId] = useState(highlightProjectId)
   const [isDismissing, setIsDismissing] = useState(false)
+  const [ownerFilter, setOwnerFilter] = useState(ALL_FILTER)
+  const [statusFilter, setStatusFilter] = useState(ALL_FILTER)
+  const [accounts, setAccounts] = useState([])
+
+  const showAdminColumns = user?.role === ROLES.ADMIN || user?.role === ROLES.EDITOR
+
+  useEffect(() => {
+    if (!showAdminColumns) return
+
+    const loadAccounts = async () => {
+      try {
+        const data = await getEmployees({ limit: 500 })
+        setAccounts(data.employees || [])
+      } catch (error) {
+        console.error('Error fetching accounts:', error)
+      }
+    }
+
+    loadAccounts()
+  }, [getEmployees, showAdminColumns])
+
+  const ownerOptions = useMemo(() => {
+    const byId = new Map()
+
+    accounts.forEach((account) => {
+      byId.set(String(account._id), {
+        _id: String(account._id),
+        username: account.username,
+        email: account.email,
+      })
+    })
+
+    projects.forEach((project) => {
+      const owner = project.createdBy
+      if (!owner) return
+      const id = String(owner._id ?? owner)
+      if (!byId.has(id)) {
+        byId.set(id, {
+          _id: id,
+          username: owner.username || 'Unknown',
+          email: owner.email || '',
+        })
+      }
+    })
+
+    return Array.from(byId.values()).sort((a, b) => a.username.localeCompare(b.username))
+  }, [accounts, projects])
+
+  const filteredProjects = useMemo(() => {
+    if (!showAdminColumns) return projects
+
+    return projects.filter((project) => {
+      const matchesOwner = !ownerFilter || getOwnerId(project) === ownerFilter
+      const matchesStatus = !statusFilter || project.status === statusFilter
+      return matchesOwner && matchesStatus
+    })
+  }, [projects, ownerFilter, statusFilter, showAdminColumns])
 
   useEffect(() => {
     if (highlightProjectId) {
@@ -26,6 +97,17 @@ const ProjectsListTable = ({ projects, onRefresh, highlightProjectId, onClearHig
       setIsDismissing(false)
     }
   }, [highlightProjectId])
+
+  useEffect(() => {
+    if (!activeHighlightId || !showAdminColumns || !projects.length) return
+    const exists = projects.some((project) => String(project._id) === String(activeHighlightId))
+    if (!exists) return
+    const visible = filteredProjects.some((project) => String(project._id) === String(activeHighlightId))
+    if (!visible && (ownerFilter || statusFilter)) {
+      setOwnerFilter(ALL_FILTER)
+      setStatusFilter(ALL_FILTER)
+    }
+  }, [activeHighlightId, projects, filteredProjects, ownerFilter, statusFilter, showAdminColumns])
 
   const clearHighlight = useCallback(() => {
     if (!activeHighlightId || isDismissing) return
@@ -38,22 +120,11 @@ const ProjectsListTable = ({ projects, onRefresh, highlightProjectId, onClearHig
   }, [activeHighlightId, isDismissing, onClearHighlight])
 
   const initialPageIndex = useMemo(() => {
-    if (!activeHighlightId || !projects.length) return 0
-    const index = projects.findIndex((project) => String(project._id) === activeHighlightId)
+    if (!activeHighlightId || !filteredProjects.length) return 0
+    const index = filteredProjects.findIndex((project) => String(project._id) === activeHighlightId)
     if (index < 0) return 0
     return Math.floor(index / tablePageSize)
-  }, [activeHighlightId, projects])
-
-  useEffect(() => {
-    if (!activeHighlightId || isDismissing) return
-    const timer = window.setTimeout(() => {
-      document.getElementById(`project-row-${activeHighlightId}`)?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
-      })
-    }, 200)
-    return () => window.clearTimeout(timer)
-  }, [activeHighlightId, projects, initialPageIndex, isDismissing])
+  }, [activeHighlightId, filteredProjects])
 
   const refresh = async () => {
     if (onRefresh) await onRefresh()
@@ -125,15 +196,65 @@ const ProjectsListTable = ({ projects, onRefresh, highlightProjectId, onClearHig
     })
   }
 
+  const ownerColumn = {
+    id: 'owner',
+    header: () => (
+      <TableHeaderFilter label="Owner" value={ownerFilter} onChange={setOwnerFilter}>
+        <option value={ALL_FILTER}>All owners</option>
+        {ownerOptions.map((account) => (
+          <option key={account._id} value={account._id}>
+            {account.username}
+            {account.email ? ` (${account.email})` : ''}
+          </option>
+        ))}
+      </TableHeaderFilter>
+    ),
+    cell: ({
+      row: {
+        original: { createdBy },
+      },
+    }) => {
+      if (!createdBy) {
+        return <span className="text-muted fst-italic">Deleted account</span>
+      }
+      return (
+        <div>
+          <div className="fw-medium">{createdBy.username}</div>
+          {createdBy.email && <div className="fs-13 text-muted">{createdBy.email}</div>}
+        </div>
+      )
+    },
+  }
+
+  const statusColumn = {
+    id: 'status',
+    header: () => (
+      <TableHeaderFilter label="Status" value={statusFilter} onChange={setStatusFilter}>
+        <option value={ALL_FILTER}>All statuses</option>
+        <option value={PROJECT_STATUS.PENDING}>{PROJECT_STATUS.PENDING}</option>
+        <option value={PROJECT_STATUS.PUBLISHED}>{PROJECT_STATUS.PUBLISHED}</option>
+        <option value={PROJECT_STATUS.UNPUBLISHED}>{PROJECT_STATUS.UNPUBLISHED}</option>
+      </TableHeaderFilter>
+    ),
+    cell: ({
+      row: {
+        original: { status },
+      },
+    }) => (status ? <Badge bg={statusBadgeVariant(status)}>{status}</Badge> : <span className="text-muted">—</span>),
+  }
+
   const columns = [
+    ...(showAdminColumns ? [ownerColumn] : []),
     {
+      id: 'projectTitle',
       header: 'Project Title',
+      meta: { className: 'projects-list-col-title' },
       cell: ({
         row: {
-          original: { _id, thumbnailUrl, title, type, status },
+          original: { thumbnailUrl, title, type, status },
         },
       }) => (
-        <div className="d-flex align-items-center">
+        <div className="d-flex align-items-center projects-list-col-title__content">
           <div className="flex-shrink-0 me-3">
             {thumbnailUrl ? (
               <img src={thumbnailUrl} alt={title} className="img-fluid avatar-sm" style={{ width: 50, height: 50, objectFit: 'contain' }} />
@@ -143,10 +264,10 @@ const ProjectsListTable = ({ projects, onRefresh, highlightProjectId, onClearHig
               </div>
             )}
           </div>
-          <div className="flex-grow-1">
-            <h5 className="mt-0 mb-1">{title}</h5>
-            <span className="fs-13 text-muted" dangerouslySetInnerHTML={{ __html: type }} />
-            {status && (
+          <div className="flex-grow-1 min-w-0">
+            <h5 className="mt-0 mb-1 projects-list-col-title__heading">{title}</h5>
+            <span className="fs-13 text-muted projects-list-col-title__type" dangerouslySetInnerHTML={{ __html: type }} />
+            {!showAdminColumns && status && (
               <Badge bg={statusBadgeVariant(status)} className="ms-2">
                 {status}
               </Badge>
@@ -155,6 +276,7 @@ const ProjectsListTable = ({ projects, onRefresh, highlightProjectId, onClearHig
         </div>
       ),
     },
+    ...(showAdminColumns ? [statusColumn] : []),
     {
       header: 'Order',
       cell: ({
@@ -202,22 +324,45 @@ const ProjectsListTable = ({ projects, onRefresh, highlightProjectId, onClearHig
   ]
 
   const pageSizeList = [5, 10, 20, 50]
+
+  const isFilteredEmpty = filteredProjects.length === 0 && projects.length > 0
+  const isFullyEmpty = projects.length === 0
+
+  const emptyState =
+    isFilteredEmpty || isFullyEmpty ? (
+      <ProjectsListEmptyState
+        variant={isFilteredEmpty ? 'filtered' : 'empty'}
+        inTable
+        userRole={user?.role}
+        ownerFilter={ownerFilter}
+        statusFilter={statusFilter}
+        ownerOptions={ownerOptions}
+        onClearFilters={() => {
+          setOwnerFilter(ALL_FILTER)
+          setStatusFilter(ALL_FILTER)
+        }}
+      />
+    ) : null
+
   return (
     <ReactTable
+      key={`${ownerFilter}-${statusFilter}-${filteredProjects.length}-${activeHighlightId || 'none'}`}
       columns={columns}
-      data={projects}
+      data={filteredProjects}
       rowsPerPageList={pageSizeList}
       pageSize={tablePageSize}
       initialPageIndex={initialPageIndex}
       getRowDomId={(project) => project._id}
+      rowDomIdPrefix="project-row-"
       highlightedRowId={activeHighlightId}
       highlightDismissing={isDismissing}
       getRowClassName={(_, { isHighlighted, isDismissing: dismissing }) =>
         clsx(isHighlighted && 'project-row-focus', isHighlighted && dismissing && 'project-row-focus--dismissing')
       }
-      tableClass={clsx('text-nowrap mb-0')}
+      tableClass={clsx('text-nowrap mb-0 projects-list-table')}
       theadClass="bg-light bg-opacity-50"
       showPagination
+      emptyState={emptyState}
     />
   )
 }

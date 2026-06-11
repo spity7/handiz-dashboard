@@ -3,9 +3,17 @@ const UserActionRequest = require("../models/userActionRequestModel");
 const Notification = require("../models/notificationModel");
 const { ROLES } = require("../constants/permissions");
 const logger = require("../config/logger");
+const notifyUserActionRequest = require("../utils/helpers/sendUserActionRequestNotification");
 
 const executeUpdateEmployee = async (targetUserId, payload) => {
   const { firstname, lastname, username, role } = payload;
+  const target = await User.findById(targetUserId);
+  if (!target) {
+    throw new Error("User not found");
+  }
+  if (target.role === ROLES.ADMIN && role && role !== target.role) {
+    throw new Error("Admin role cannot be changed");
+  }
   const usernameTaken = await User.findOne({
     username,
     _id: { $ne: targetUserId },
@@ -13,11 +21,14 @@ const executeUpdateEmployee = async (targetUserId, payload) => {
   if (usernameTaken) {
     throw new Error("Username already taken");
   }
-  return User.findByIdAndUpdate(
-    targetUserId,
-    { firstname, lastname, username, role },
-    { new: true, runValidators: true },
-  ).select("-password");
+  const updateData = { firstname, lastname, username };
+  if (target.role !== ROLES.ADMIN) {
+    updateData.role = role;
+  }
+  return User.findByIdAndUpdate(targetUserId, updateData, {
+    new: true,
+    runValidators: true,
+  }).select("-password");
 };
 
 const executeDeleteEmployee = async (targetUserId) => {
@@ -84,20 +95,7 @@ exports.createRequest = async (req, res) => {
       payload,
     });
 
-    const admins = await User.find({
-      role: ROLES.ADMIN,
-      isVerified: true,
-    }).select("_id");
-    await Notification.insertMany(
-      admins.map((a) => ({
-        recipientId: a._id,
-        type: "user_action_request",
-        title: "User management request",
-        message: `${req.user.firstname} ${req.user.lastname} requested to ${action} user ${target.username}.`,
-        link: "/pages/user-requests",
-        relatedRequestId: request._id,
-      })),
-    );
+    await notifyUserActionRequest(request, req.user, target);
 
     res.status(201).json({ request });
   } catch (error) {

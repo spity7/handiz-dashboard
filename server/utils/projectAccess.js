@@ -15,9 +15,8 @@ const isUserCreatedProject = (project) => project?.createdByRole === ROLES.USER;
  */
 const canReadProject = (actor, project) => {
   if (!actor) return false;
-  if (actor.role === ROLES.ADMIN) return true;
+  if (actor.role === ROLES.ADMIN || actor.role === ROLES.EDITOR) return true;
   if (isOwner(actor, project)) return true;
-  if (actor.role === ROLES.EDITOR && isUserCreatedProject(project)) return true;
   return false;
 };
 
@@ -26,9 +25,8 @@ const canReadProject = (actor, project) => {
  */
 const canWriteProject = (actor, project) => {
   if (!actor || !project) return false;
-  if (actor.role === ROLES.ADMIN) return true;
+  if (actor.role === ROLES.ADMIN || actor.role === ROLES.EDITOR) return true;
   if (isOwner(actor, project)) return true;
-  if (actor.role === ROLES.EDITOR && isUserCreatedProject(project)) return true;
   return false;
 };
 
@@ -38,10 +36,7 @@ const canWriteProject = (actor, project) => {
 const canPublishProject = (actor, project) => {
   if (!actor || !project) return false;
   if (actor.role === ROLES.USER) return false;
-  if (actor.role === ROLES.ADMIN) return true;
-  if (actor.role === ROLES.EDITOR) {
-    return isOwner(actor, project) || isUserCreatedProject(project);
-  }
+  if (actor.role === ROLES.ADMIN || actor.role === ROLES.EDITOR) return true;
   return false;
 };
 
@@ -50,12 +45,7 @@ const canPublishProject = (actor, project) => {
  */
 const getProjectListFilter = (actor) => {
   if (!actor) return { _id: null };
-  if (actor.role === ROLES.ADMIN) return {};
-  if (actor.role === ROLES.EDITOR) {
-    return {
-      $or: [{ createdBy: actor._id }, { createdByRole: ROLES.USER }],
-    };
-  }
+  if (actor.role === ROLES.ADMIN || actor.role === ROLES.EDITOR) return {};
   return { createdBy: actor._id };
 };
 
