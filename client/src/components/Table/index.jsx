@@ -1,7 +1,7 @@
-import { flexRender, getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
-import { useState } from 'react';
-import { Table } from 'react-bootstrap';
-import Pagination from './Pagination';
+import { flexRender, getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table'
+import { useEffect, useState } from 'react'
+import { Table } from 'react-bootstrap'
+import Pagination from './Pagination'
 const ReactTable = ({
   options,
   columns,
@@ -10,42 +10,76 @@ const ReactTable = ({
   showPagination,
   rowsPerPageList,
   tableClass,
-  theadClass
+  theadClass,
+  getRowDomId,
+  highlightedRowId,
+  highlightDismissing,
+  getRowClassName,
+  initialPageIndex,
 }) => {
   const [pagination, setPagination] = useState({
-    pageIndex: 0,
-    pageSize: pageSize ?? 5
-  });
+    pageIndex: initialPageIndex ?? 0,
+    pageSize: pageSize ?? 5,
+  })
+
+  useEffect(() => {
+    if (initialPageIndex != null) {
+      setPagination((prev) => ({ ...prev, pageIndex: initialPageIndex }))
+    }
+  }, [initialPageIndex])
   const table = useReactTable({
     ...options,
     data,
     columns,
     onPaginationChange: setPagination,
     state: {
-      pagination
+      pagination,
     },
     getCoreRowModel: getCoreRowModel(),
     ...(showPagination && {
-      getPaginationRowModel: getPaginationRowModel()
-    })
-  });
-  return <>
+      getPaginationRowModel: getPaginationRowModel(),
+    }),
+  })
+  return (
+    <>
       <Table hover responsive className={tableClass}>
         <thead className={theadClass}>
-          {table.getHeaderGroups().map(headerGroup => <tr key={headerGroup.id}>
-              {headerGroup.headers.map(header => <th key={header.id} colSpan={header.colSpan}>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <tr key={headerGroup.id}>
+              {headerGroup.headers.map((header) => (
+                <th key={header.id} colSpan={header.colSpan}>
                   {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                </th>)}
-            </tr>)}
+                </th>
+              ))}
+            </tr>
+          ))}
         </thead>
         <tbody>
-          {table.getRowModel().rows.map(row => <tr key={row.id}>
-              {row.getVisibleCells().map(cell => <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>)}
-            </tr>)}
+          {table.getRowModel().rows.map((row) => {
+            const rowDomId = getRowDomId?.(row.original)
+            const isHighlighted = highlightedRowId && rowDomId && String(highlightedRowId) === String(rowDomId)
+            const rowClassName = getRowClassName?.(row.original, { isHighlighted, isDismissing: highlightDismissing })
+            return (
+              <tr key={row.id} id={rowDomId ? `project-row-${rowDomId}` : undefined} className={rowClassName || undefined}>
+                {row.getVisibleCells().map((cell) => (
+                  <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
+                ))}
+              </tr>
+            )
+          })}
         </tbody>
       </Table>
 
-      {showPagination && <Pagination table={table} currentPage={table.getState().pagination.pageIndex + 1} totalPages={table.getPageCount()} rowsPerPageList={rowsPerPageList} pagination={pagination} />}
-    </>;
-};
-export default ReactTable;
+      {showPagination && (
+        <Pagination
+          table={table}
+          currentPage={table.getState().pagination.pageIndex + 1}
+          totalPages={table.getPageCount()}
+          rowsPerPageList={rowsPerPageList}
+          pagination={pagination}
+        />
+      )}
+    </>
+  )
+}
+export default ReactTable

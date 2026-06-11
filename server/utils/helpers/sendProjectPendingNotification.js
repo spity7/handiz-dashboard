@@ -27,7 +27,7 @@ const notifyProjectPending = async (project, submittedBy) => {
 
   const title = "New student project pending review";
   const message = `${submittedBy?.firstname || "A user"} submitted "${project.title}" for review.`;
-  const link = `/ecommerce/student-projects/edit/${project._id}`;
+  const link = `/ecommerce/student-projects?project=${project._id}`;
 
   await Notification.insertMany(
     reviewers.map((r) => ({

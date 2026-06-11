@@ -383,12 +383,9 @@ exports.deleteEmployee = async (req, res) => {
       return res.status(404).json({ error: "Employee not found" });
     }
     if (target.role === ROLES.ADMIN) {
-      const adminCount = await User.countDocuments({ role: ROLES.ADMIN });
-      if (adminCount <= 1) {
-        return res
-          .status(400)
-          .json({ error: "Cannot delete the last Admin account" });
-      }
+      return res
+        .status(400)
+        .json({ error: "Admin accounts cannot be deleted" });
     }
 
     const deletedEmployee = await User.findByIdAndDelete(id);

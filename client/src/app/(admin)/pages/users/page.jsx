@@ -66,9 +66,9 @@ const UsersPage = () => {
 
   const handleAdminDelete = async (emp) => {
     await confirmAction({
-      title: 'Delete user?',
+      title: 'Delete account?',
       text: `Permanently delete ${emp.username}?`,
-      confirmLabel: 'Delete',
+      confirmLabel: 'Delete Account',
       variant: 'danger',
       icon: 'warning',
       onConfirm: async () => {
@@ -184,13 +184,14 @@ const UsersPage = () => {
                 </Form.Select>
               </Form.Group>
             )}
+            {isAdmin && editUser?.role === ROLES.ADMIN && <p className="text-muted small mb-0">Admin accounts cannot be deleted.</p>}
           </Form>
         </Modal.Body>
         <Modal.Footer>
           {isAdmin ? (
             <>
-              <Button variant="danger" onClick={() => handleAdminDelete(editUser)}>
-                Delete
+              <Button variant="danger" onClick={() => handleAdminDelete(editUser)} disabled={editUser?.role === ROLES.ADMIN}>
+                Delete Account?
               </Button>
               <Button variant="primary" onClick={handleAdminSave}>
                 Save changes

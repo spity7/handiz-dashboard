@@ -30,9 +30,9 @@ const TopNavigationBar = () => {
             </Suspense> */}
 
             {/* Notification Dropdown */}
-            {/* <Suspense>
+            <Suspense>
               <Notifications />
-            </Suspense> */}
+            </Suspense>
 
             {/* Toggle for Theme Customizer */}
             {/* <ThemeCustomizerToggle /> */}

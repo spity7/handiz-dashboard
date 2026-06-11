@@ -1,14 +1,36 @@
 import { useEffect, useState, useCallback } from 'react'
+import clsx from 'clsx'
 import { Link, useNavigate } from 'react-router-dom'
-import { Button, Col, Dropdown, DropdownItem, DropdownMenu, DropdownToggle, Row } from 'react-bootstrap'
+import { Badge, Button, Col, Dropdown, DropdownItem, DropdownMenu, DropdownToggle, Row } from 'react-bootstrap'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
 import SimplebarReactClient from '@/components/wrappers/SimplebarReactClient'
 import { useGlobalContext } from '@/context/useGlobalContext'
+import { timeSince } from '@/utils/date'
+
+const NOTIFICATION_META = {
+  project_pending: {
+    icon: 'bx:time-five',
+    iconClass: 'notification-item-icon--pending',
+  },
+  user_action_request: {
+    icon: 'bx:user-voice',
+    iconClass: 'notification-item-icon--request',
+  },
+  user_action_decided: {
+    icon: 'bx:check-circle',
+    iconClass: 'notification-item-icon--decided',
+  },
+}
+
+const getNotificationMeta = (type) => NOTIFICATION_META[type] || { icon: 'bx:bell', iconClass: 'notification-item-icon--default' }
 
 const NotificationItem = ({ notification, onRead }) => {
   const navigate = useNavigate()
+  const isUnread = !notification.isRead
+  const meta = getNotificationMeta(notification.type)
+
   const handleClick = async () => {
-    if (!notification.isRead) {
+    if (isUnread) {
       await onRead(notification._id)
     }
     if (notification.link) {
@@ -17,16 +39,29 @@ const NotificationItem = ({ notification, onRead }) => {
   }
 
   return (
-    <DropdownItem className="py-3 border-bottom text-wrap" onClick={handleClick}>
-      <div className="d-flex">
-        <div className="flex-shrink-0">
-          <div className="avatar-sm me-2">
-            <span className="avatar-title bg-soft-info text-info fs-20 rounded-circle">!</span>
+    <DropdownItem
+      as="button"
+      type="button"
+      className={clsx(
+        'notification-item py-3 px-3 text-start border-0 rounded-0',
+        isUnread ? 'notification-item--unread' : 'notification-item--read',
+      )}
+      onClick={handleClick}>
+      <div className="d-flex align-items-start gap-3">
+        <span className={clsx('notification-item-icon', meta.iconClass)}>
+          <IconifyIcon icon={meta.icon} className="fs-20" />
+        </span>
+        <div className="flex-grow-1 min-w-0">
+          <div className="d-flex align-items-start justify-content-between gap-2">
+            <p className="notification-item-title mb-1 fw-semibold lh-sm">{notification.title}</p>
+            {isUnread && <span className="notification-unread-dot" aria-hidden="true" />}
           </div>
-        </div>
-        <div className="flex-grow-1">
-          <p className="mb-0 fw-semibold">{notification.title}</p>
-          <p className="mb-0 text-wrap text-muted small">{notification.message}</p>
+          <p className="mb-1 text-wrap text-muted small lh-base">{notification.message}</p>
+          {notification.createdAt && (
+            <span className="text-muted" style={{ fontSize: '0.75rem' }}>
+              {timeSince(notification.createdAt)}
+            </span>
+          )}
         </div>
       </div>
     </DropdownItem>
@@ -60,6 +95,7 @@ const Notifications = () => {
   }
 
   const handleClearAll = async () => {
+    if (!unreadCount) return
     await markAllNotificationsRead()
     load()
   }
@@ -75,30 +111,44 @@ const Notifications = () => {
           </span>
         )}
       </DropdownToggle>
-      <DropdownMenu className="py-0 dropdown-lg">
-        <div className="p-3 border-top-0 border-start-0 border-end-0 border-dashed border">
-          <Row className="align-items-center">
+      <DropdownMenu className="py-0 dropdown-notifications">
+        <div className="dropdown-notifications-header p-3 border-bottom border-dashed">
+          <Row className="align-items-center g-2">
             <Col>
               <h6 className="m-0 fs-16 fw-semibold">Notifications</h6>
+              {unreadCount > 0 ? (
+                <p className="mb-0 mt-1 text-muted small">
+                  You have{' '}
+                  <Badge bg="primary" pill>
+                    {unreadCount}
+                  </Badge>{' '}
+                  unread {unreadCount === 1 ? 'notification' : 'notifications'}
+                </p>
+              ) : (
+                <p className="mb-0 mt-1 text-muted small">You&apos;re all caught up</p>
+              )}
             </Col>
             <Col xs="auto">
-              <button type="button" className="btn btn-link btn-sm p-0 text-dark text-decoration-underline" onClick={handleClearAll}>
-                Clear all
+              <button type="button" className="btn btn-link btn-sm p-0 text-decoration-none" onClick={handleClearAll} disabled={!unreadCount}>
+                Mark all read
               </button>
             </Col>
           </Row>
         </div>
-        <SimplebarReactClient style={{ maxHeight: 280 }}>
+        <SimplebarReactClient style={{ maxHeight: 360 }}>
           {notifications.length ? (
             notifications.map((n) => <NotificationItem key={n._id} notification={n} onRead={handleMarkRead} />)
           ) : (
-            <div className="text-center text-muted py-4 small">No notifications</div>
+            <div className="text-center text-muted py-5 px-3">
+              <IconifyIcon icon="bx:bell-off" className="fs-32 mb-2 d-block mx-auto opacity-50" />
+              <p className="mb-0 small">No notifications yet</p>
+            </div>
           )}
         </SimplebarReactClient>
-        <div className="text-center py-3">
-          <Link to="/ecommerce/student-projects">
-            <Button size="sm" variant="primary" className="icons-center">
-              View projects
+        <div className="dropdown-notifications-footer text-center py-3 px-3">
+          <Link to="/ecommerce/student-projects" className="d-block">
+            <Button size="sm" variant="soft-primary" className="icons-center w-100">
+              View student projects
               <IconifyIcon icon="bx:right-arrow-alt" className="ms-2" />
             </Button>
           </Link>

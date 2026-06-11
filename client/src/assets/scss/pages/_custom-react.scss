@@ -79,3 +79,165 @@
     }
   }
 }
+
+// Highlighted row when arriving from notification / email link
+@keyframes project-row-focus-enter {
+  from {
+    background-color: rgba(var(--#{$prefix}warning-rgb), 0.02);
+    box-shadow: 0 0 0 0 rgba(var(--#{$prefix}warning-rgb), 0);
+  }
+  to {
+    background-color: rgba(var(--#{$prefix}warning-rgb), 0.14);
+    box-shadow:
+      inset 4px 0 0 var(--#{$prefix}warning),
+      0 4px 18px rgba(var(--#{$prefix}warning-rgb), 0.22),
+      0 0 0 1px rgba(var(--#{$prefix}warning-rgb), 0.18);
+  }
+}
+
+@keyframes project-row-focus-pulse {
+  0%,
+  100% {
+    box-shadow:
+      inset 4px 0 0 var(--#{$prefix}warning),
+      0 4px 18px rgba(var(--#{$prefix}warning-rgb), 0.22),
+      0 0 0 1px rgba(var(--#{$prefix}warning-rgb), 0.18);
+  }
+  50% {
+    box-shadow:
+      inset 4px 0 0 var(--#{$prefix}warning),
+      0 8px 28px rgba(var(--#{$prefix}warning-rgb), 0.32),
+      0 0 0 3px rgba(var(--#{$prefix}warning-rgb), 0.12);
+  }
+}
+
+@keyframes project-row-focus-exit {
+  from {
+    background-color: rgba(var(--#{$prefix}warning-rgb), 0.14);
+    box-shadow:
+      inset 4px 0 0 var(--#{$prefix}warning),
+      0 4px 18px rgba(var(--#{$prefix}warning-rgb), 0.22),
+      0 0 0 1px rgba(var(--#{$prefix}warning-rgb), 0.18);
+  }
+  to {
+    background-color: transparent;
+    box-shadow: none;
+  }
+}
+
+.project-row-focus {
+  background-color: rgba(var(--#{$prefix}warning-rgb), 0.14) !important;
+  animation:
+    project-row-focus-enter 0.5s ease-out forwards,
+    project-row-focus-pulse 2.2s ease-in-out 0.5s 3;
+
+  td {
+    border-top-color: rgba(var(--#{$prefix}warning-rgb), 0.28) !important;
+    border-bottom-color: rgba(var(--#{$prefix}warning-rgb), 0.28) !important;
+    transition: background-color 0.35s ease;
+  }
+
+  &--dismissing {
+    animation: project-row-focus-exit 0.45s ease-in forwards !important;
+  }
+}
+
+// Topbar notifications dropdown
+.dropdown-notifications {
+  width: min(420px, calc(100vw - 2rem));
+  border: 1px solid var(--#{$prefix}border-color);
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.12);
+  overflow: hidden;
+
+  .dropdown-notifications-header {
+    background: linear-gradient(
+      180deg,
+      rgba(var(--#{$prefix}primary-rgb), 0.06) 0%,
+      var(--#{$prefix}secondary-bg) 100%
+    );
+  }
+
+  .dropdown-notifications-footer {
+    background-color: var(--#{$prefix}secondary-bg);
+    border-top: 1px dashed var(--#{$prefix}border-color);
+  }
+}
+
+.notification-item {
+  white-space: normal;
+  border-bottom: 1px solid var(--#{$prefix}border-color-translucent);
+  transition: background-color 0.2s ease;
+
+  &:last-child {
+    border-bottom: 0;
+  }
+
+  &:hover,
+  &:focus {
+    background-color: rgba(var(--#{$prefix}primary-rgb), 0.05);
+  }
+
+  &--unread {
+    background-color: rgba(var(--#{$prefix}primary-rgb), 0.1);
+    border-left: 3px solid var(--#{$prefix}primary);
+
+    &:hover,
+    &:focus {
+      background-color: rgba(var(--#{$prefix}primary-rgb), 0.14);
+    }
+
+    .notification-item-title {
+      color: var(--#{$prefix}emphasis-color);
+    }
+  }
+
+  &--read {
+    background-color: transparent;
+    border-left: 3px solid transparent;
+
+    .notification-item-title {
+      color: var(--#{$prefix}body-color);
+      font-weight: 500;
+    }
+  }
+}
+
+.notification-item-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  flex-shrink: 0;
+
+  &--pending {
+    background-color: rgba(var(--#{$prefix}warning-rgb), 0.15);
+    color: var(--#{$prefix}warning);
+  }
+
+  &--request {
+    background-color: rgba(var(--#{$prefix}info-rgb), 0.15);
+    color: var(--#{$prefix}info);
+  }
+
+  &--decided {
+    background-color: rgba(var(--#{$prefix}success-rgb), 0.15);
+    color: var(--#{$prefix}success);
+  }
+
+  &--default {
+    background-color: rgba(var(--#{$prefix}primary-rgb), 0.12);
+    color: var(--#{$prefix}primary);
+  }
+}
+
+.notification-unread-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background-color: var(--#{$prefix}primary);
+  flex-shrink: 0;
+  margin-top: 0.35rem;
+  box-shadow: 0 0 0 3px rgba(var(--#{$prefix}primary-rgb), 0.2);
+}

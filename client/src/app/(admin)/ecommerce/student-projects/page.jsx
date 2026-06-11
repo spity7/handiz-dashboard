@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Card, CardBody, Col, Row } from 'react-bootstrap'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import PageBreadcrumb from '@/components/layout/PageBreadcrumb'
 import PageMetaData from '@/components/PageTitle'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
@@ -9,6 +9,15 @@ import ProjectsListTable from './components/ProjectsListTable'
 
 const StudentProjects = () => {
   const { getAllProjects } = useGlobalContext()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const highlightProjectId = searchParams.get('project')
+
+  const clearHighlightFromUrl = () => {
+    if (!searchParams.has('project')) return
+    const next = new URLSearchParams(searchParams)
+    next.delete('project')
+    setSearchParams(next, { replace: true })
+  }
   const [studentProjectsList, setStudentProjectsList] = useState([])
 
   const fetchProjects = async () => {
@@ -41,7 +50,12 @@ const StudentProjects = () => {
             </CardBody>
             <div>
               {studentProjectsList.length > 0 ? (
-                <ProjectsListTable projects={studentProjectsList} onRefresh={fetchProjects} />
+                <ProjectsListTable
+                  projects={studentProjectsList}
+                  onRefresh={fetchProjects}
+                  highlightProjectId={highlightProjectId}
+                  onClearHighlight={clearHighlightFromUrl}
+                />
               ) : (
                 <div className="text-center p-4">No Student Projects Found</div>
               )}

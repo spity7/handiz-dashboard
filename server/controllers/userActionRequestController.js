@@ -21,11 +21,10 @@ const executeUpdateEmployee = async (targetUserId, payload) => {
 };
 
 const executeDeleteEmployee = async (targetUserId) => {
-  const adminCount = await User.countDocuments({ role: ROLES.ADMIN });
   const target = await User.findById(targetUserId);
   if (!target) throw new Error("User not found");
-  if (target.role === ROLES.ADMIN && adminCount <= 1) {
-    throw new Error("Cannot delete the last Admin account");
+  if (target.role === ROLES.ADMIN) {
+    throw new Error("Admin accounts cannot be deleted");
   }
   await User.findByIdAndDelete(targetUserId);
   return target;

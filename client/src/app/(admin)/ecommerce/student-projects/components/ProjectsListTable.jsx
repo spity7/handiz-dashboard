@@ -1,4 +1,5 @@
 import clsx from 'clsx'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Badge } from 'react-bootstrap'
 import Swal from 'sweetalert2'
@@ -9,14 +10,60 @@ import { useAuthContext } from '@/context/useAuthContext'
 import useConfirmAction from '@/hooks/useConfirmAction'
 import { canWriteProject, canPublishProject, PROJECT_STATUS, statusBadgeVariant } from '@/constants/roles'
 
-const ProjectsListTable = ({ projects, onRefresh }) => {
+const FOCUS_DISMISS_MS = 450
+
+const ProjectsListTable = ({ projects, onRefresh, highlightProjectId, onClearHighlight }) => {
   const { user } = useAuthContext()
   const { deleteProject, publishProject, unpublishProject } = useGlobalContext()
   const confirmAction = useConfirmAction()
+  const tablePageSize = 10
+  const [activeHighlightId, setActiveHighlightId] = useState(highlightProjectId)
+  const [isDismissing, setIsDismissing] = useState(false)
 
-  const refresh = () => {
-    if (onRefresh) onRefresh()
+  useEffect(() => {
+    if (highlightProjectId) {
+      setActiveHighlightId(highlightProjectId)
+      setIsDismissing(false)
+    }
+  }, [highlightProjectId])
+
+  const clearHighlight = useCallback(() => {
+    if (!activeHighlightId || isDismissing) return
+    onClearHighlight?.()
+    setIsDismissing(true)
+    window.setTimeout(() => {
+      setActiveHighlightId(null)
+      setIsDismissing(false)
+    }, FOCUS_DISMISS_MS)
+  }, [activeHighlightId, isDismissing, onClearHighlight])
+
+  const initialPageIndex = useMemo(() => {
+    if (!activeHighlightId || !projects.length) return 0
+    const index = projects.findIndex((project) => String(project._id) === activeHighlightId)
+    if (index < 0) return 0
+    return Math.floor(index / tablePageSize)
+  }, [activeHighlightId, projects])
+
+  useEffect(() => {
+    if (!activeHighlightId || isDismissing) return
+    const timer = window.setTimeout(() => {
+      document.getElementById(`project-row-${activeHighlightId}`)?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      })
+    }, 200)
+    return () => window.clearTimeout(timer)
+  }, [activeHighlightId, projects, initialPageIndex, isDismissing])
+
+  const refresh = async () => {
+    if (onRefresh) await onRefresh()
     else window.location.reload()
+  }
+
+  const runProjectAction = async (onSuccess) => {
+    await onSuccess()
+    clearHighlight()
+    await refresh()
   }
 
   const handleDelete = async (project) => {
@@ -28,9 +75,10 @@ const ProjectsListTable = ({ projects, onRefresh }) => {
       icon: 'warning',
       onConfirm: async () => {
         try {
-          await deleteProject(project._id)
-          await Swal.fire('Deleted', 'Project has been deleted.', 'success')
-          refresh()
+          await runProjectAction(async () => {
+            await deleteProject(project._id)
+            await Swal.fire('Deleted', 'Project has been deleted.', 'success')
+          })
         } catch (error) {
           Swal.fire('Error', error?.response?.data?.message || 'Delete failed', 'error')
         }
@@ -46,9 +94,10 @@ const ProjectsListTable = ({ projects, onRefresh }) => {
       variant: 'primary',
       onConfirm: async () => {
         try {
-          await publishProject(project._id)
-          await Swal.fire('Published', 'Project is now live.', 'success')
-          refresh()
+          await runProjectAction(async () => {
+            await publishProject(project._id)
+            await Swal.fire('Published', 'Project is now live.', 'success')
+          })
         } catch (error) {
           Swal.fire('Error', error?.response?.data?.message || 'Publish failed', 'error')
         }
@@ -65,9 +114,10 @@ const ProjectsListTable = ({ projects, onRefresh }) => {
       icon: 'warning',
       onConfirm: async () => {
         try {
-          await unpublishProject(project._id)
-          await Swal.fire('Unpublished', 'Project is no longer public.', 'success')
-          refresh()
+          await runProjectAction(async () => {
+            await unpublishProject(project._id)
+            await Swal.fire('Unpublished', 'Project is no longer public.', 'success')
+          })
         } catch (error) {
           Swal.fire('Error', error?.response?.data?.message || 'Unpublish failed', 'error')
         }
@@ -118,10 +168,15 @@ const ProjectsListTable = ({ projects, onRefresh }) => {
       cell: ({ row: { original: project } }) => {
         const showWrite = canWriteProject(user, project)
         const showPublish = canPublishProject(user, project)
+        const isFocusedProject = activeHighlightId && String(project._id) === String(activeHighlightId)
         return (
           <div className="d-flex gap-2 flex-wrap">
             {showWrite && (
-              <Link to={`/ecommerce/student-projects/edit/${project._id}`} className="btn btn-sm btn-soft-secondary" title="Edit Project">
+              <Link
+                to={`/ecommerce/student-projects/edit/${project._id}`}
+                className="btn btn-sm btn-soft-secondary"
+                title="Edit Project"
+                onClick={() => isFocusedProject && clearHighlight()}>
                 <IconifyIcon icon="bx:edit" className="fs-18" />
               </Link>
             )}
@@ -152,7 +207,14 @@ const ProjectsListTable = ({ projects, onRefresh }) => {
       columns={columns}
       data={projects}
       rowsPerPageList={pageSizeList}
-      pageSize={10}
+      pageSize={tablePageSize}
+      initialPageIndex={initialPageIndex}
+      getRowDomId={(project) => project._id}
+      highlightedRowId={activeHighlightId}
+      highlightDismissing={isDismissing}
+      getRowClassName={(_, { isHighlighted, isDismissing: dismissing }) =>
+        clsx(isHighlighted && 'project-row-focus', isHighlighted && dismissing && 'project-row-focus--dismissing')
+      }
       tableClass={clsx('text-nowrap mb-0')}
       theadClass="bg-light bg-opacity-50"
       showPagination

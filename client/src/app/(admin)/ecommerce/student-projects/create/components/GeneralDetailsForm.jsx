@@ -21,7 +21,10 @@ const generalFormSchema = yup.object({
   title: yup.string().required('Project title is required'),
   student: yup.string().required('Student is required'),
   area: yup.string().required('Area is required'),
-  descQuill: yup.string().required('Project description is required'),
+  descQuill: yup
+    .string()
+    .transform((value) => normalizeQuillValue(value))
+    .required('Project description is required'),
   order: yup.number().typeError('Order must be a number').required('Order is required'),
   concept: yup.array().of(yup.string()).min(1, 'Select at least one concept').required(),
   type: yup.array().of(yup.string()).min(1, 'Select at least one type').required(),
@@ -72,6 +75,11 @@ const normalizeQuillValue = (value) => {
   return value
 }
 
+const collectValidationMessages = (formErrors) =>
+  Object.values(formErrors)
+    .map((error) => error?.message)
+    .filter(Boolean)
+
 const GeneralDetailsForm = () => {
   const {
     createProject,
@@ -86,6 +94,7 @@ const GeneralDetailsForm = () => {
   const confirmAction = useConfirmAction()
   const [loading, setLoading] = useState(false)
   const [thumbnailFile, setThumbnailFile] = useState(null)
+  const [thumbnailError, setThumbnailError] = useState(null)
   const [galleryFiles, setGalleryFiles] = useState([])
   const [resetDropzones, setResetDropzones] = useState(false)
   const [dynamicBlocks, setDynamicBlocks] = useState([])
@@ -234,14 +243,32 @@ const GeneralDetailsForm = () => {
     },
   })
 
+  const onInvalid = (formErrors) => {
+    if (!thumbnailFile) {
+      setThumbnailError('Thumbnail image is required')
+    }
+
+    const messages = collectValidationMessages(formErrors)
+    if (!thumbnailFile) {
+      messages.push('Thumbnail image is required')
+    }
+
+    if (messages.length > 0) {
+      alert(`Please complete all required fields:\n\n• ${messages.join('\n• ')}`)
+    }
+  }
+
   const onSubmit = async (data) => {
+    if (!thumbnailFile) {
+      setThumbnailError('Thumbnail image is required')
+      alert('Thumbnail image is required')
+      return
+    }
+    setThumbnailError(null)
+
     const submitProject = async () => {
       try {
         setLoading(true)
-        if (!thumbnailFile) {
-          alert('Thumbnail image is required')
-          return
-        }
 
         const formData = new FormData()
         formData.append('title', data.title)
@@ -335,17 +362,16 @@ const GeneralDetailsForm = () => {
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)}>
+    <form noValidate onSubmit={handleSubmit(onSubmit, onInvalid)}>
       <Row>
         <Col lg={3}>
           <TextFormInput
             control={control}
             label="Project Title"
             placeholder="Enter project title"
-            containerClassTitle="mb-3"
+            containerClassName="mb-3"
             id="project-title"
             name="title"
-            // error={errors.title?.message}
           />
         </Col>
         <Col lg={3}>
@@ -353,22 +379,13 @@ const GeneralDetailsForm = () => {
             control={control}
             label="Student"
             placeholder="Enter Student"
-            containerClassTitle="mb-3"
+            containerClassName="mb-3"
             id="project-student"
             name="student"
-            // error={errors.student?.message}
           />
         </Col>
         <Col lg={3}>
-          <TextFormInput
-            control={control}
-            label="Area"
-            placeholder="Enter Area"
-            containerClassTitle="mb-3"
-            id="project-area"
-            name="area"
-            // error={errors.area?.message}
-          />
+          <TextFormInput control={control} label="Area" placeholder="Enter Area" containerClassName="mb-3" id="project-area" name="area" />
         </Col>
         <Col lg={3}>
           <TextFormInput control={control} label="Order" placeholder="Enter display order" containerClassName="mb-3" name="order" type="number" />
@@ -596,9 +613,10 @@ const GeneralDetailsForm = () => {
 
               // ✅ valid single file
               setThumbnailFile(files[0])
+              setThumbnailError(null)
             }}
           />
-          {errors.thumbnail && <p className="text-danger mt-1">{errors.thumbnail.message}</p>}
+          {thumbnailError && <p className="text-danger mt-1">{thumbnailError}</p>}
         </Col>
       </Row>
 
@@ -608,10 +626,10 @@ const GeneralDetailsForm = () => {
             control={control}
             label="Google Map (optional)"
             placeholder="https://maps.google.com/..."
-            containerClassTitle="mb-3"
+            containerClassName="mb-3"
             id="project-google-map"
             name="googleMapUrl"
-            type="url"
+            type="text"
           />
           {errors.googleMapUrl && <p className="text-danger small">{errors.googleMapUrl.message}</p>}
         </Col>
@@ -620,10 +638,10 @@ const GeneralDetailsForm = () => {
             control={control}
             label="Thesis (optional)"
             placeholder="https://..."
-            containerClassTitle="mb-3"
+            containerClassName="mb-3"
             id="project-thesis"
             name="thesisUrl"
-            type="url"
+            type="text"
           />
           {errors.thesisUrl && <p className="text-danger small">{errors.thesisUrl.message}</p>}
         </Col>
@@ -632,10 +650,10 @@ const GeneralDetailsForm = () => {
             control={control}
             label="File (optional)"
             placeholder="https://..."
-            containerClassTitle="mb-3"
+            containerClassName="mb-3"
             id="project-file-url"
             name="fileUrl"
-            type="url"
+            type="text"
           />
           {errors.fileUrl && <p className="text-danger small">{errors.fileUrl.message}</p>}
         </Col>

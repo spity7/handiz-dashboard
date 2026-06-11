@@ -2,8 +2,11 @@ const { ROLES } = require("../constants/permissions");
 
 const sameId = (a, b) => String(a) === String(b);
 
-const isOwner = (actor, project) =>
-  actor && project?.createdBy && sameId(actor._id, project.createdBy);
+const isOwner = (actor, project) => {
+  if (!actor || !project?.createdBy) return false;
+  const creatorId = project.createdBy._id ?? project.createdBy;
+  return sameId(actor._id, creatorId);
+};
 
 const isUserCreatedProject = (project) => project?.createdByRole === ROLES.USER;
 
