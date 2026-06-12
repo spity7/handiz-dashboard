@@ -1,4 +1,5 @@
 const express = require("express");
+const { googleAuth } = require("../controllers/googleAuthController");
 const {
   signupUser,
   loginUser,
@@ -23,6 +24,7 @@ const router = express.Router();
 router.post("/signup", signupUser);
 router.get("/verify-email", verifyEmail);
 router.post("/login", loginUser);
+router.post("/auth/google", googleAuth);
 router.post("/logout", logoutUser);
 router.post("/contact-us", contactUs);
 

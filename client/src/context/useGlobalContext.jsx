@@ -1,9 +1,8 @@
 import { createContext, useContext, useMemo } from 'react'
 import axios from 'axios'
+import { API_BASE_URL } from '@/config/api'
 
 axios.defaults.withCredentials = true
-const BASE_URL = 'https://api.handiz.org/api/v1/'
-// const BASE_URL = 'http://localhost:5016/api/v1/'
 
 const GlobalContext = createContext()
 
@@ -11,7 +10,7 @@ export const GlobalProvider = ({ children }) => {
   // Create a memoized axios instance
   const axiosInstance = useMemo(() => {
     const instance = axios.create({
-      baseURL: BASE_URL,
+      baseURL: API_BASE_URL,
       withCredentials: true,
     })
 

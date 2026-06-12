@@ -3,10 +3,10 @@ import axios from 'axios'
 import { useAtom } from 'jotai'
 import userAtom from '@/atoms/userAtom'
 import useShowModal from '@/hooks/useShowModal'
+import { API_BASE_URL } from '@/config/api'
 
 axios.defaults.withCredentials = true
-const BASE_URL = 'https://api.handiz.org/api/v1/'
-// const BASE_URL = 'http://localhost:5016/api/v1/'
+const BASE_URL = API_BASE_URL
 
 const AuthContext = createContext(undefined)
 
@@ -147,6 +147,27 @@ export function AuthProvider({ children }) {
     }
   }
 
+  const handleGoogleLogin = async (credential) => {
+    if (!credential) return
+
+    try {
+      const res = await axios.post(`${BASE_URL}auth/google`, { credential })
+      const data = res.data
+
+      if (localStorage.getItem('signup-status')) {
+        localStorage.removeItem('signup-status')
+      }
+
+      const fresh = persistUser(data)
+      setUser(fresh)
+      setUserAtom(fresh)
+      window.location.href = '/'
+    } catch (error) {
+      const msg = error?.response?.data?.error || error.message || 'Google sign in failed'
+      showModal('Error', msg, 'error')
+    }
+  }
+
   const handleLogout = async () => {
     try {
       await confirmLogout()
@@ -169,6 +190,7 @@ export function AuthProvider({ children }) {
       value={{
         handleSignup,
         handleLogin,
+        handleGoogleLogin,
         handleLogout,
         user,
         isAuthenticated: !!user,

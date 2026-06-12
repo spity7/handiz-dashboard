@@ -34,7 +34,7 @@ const SignIn = () => {
                   <Col xs={12} md={8}>
                     <LoginForm />
 
-                    {/* <ThirdPartyAuth /> */}
+                    <ThirdPartyAuth />
                   </Col>
                 </Row>
               </div>

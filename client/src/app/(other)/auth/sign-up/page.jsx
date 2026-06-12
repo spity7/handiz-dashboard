@@ -33,7 +33,7 @@ const SignUp = () => {
                 <Row className="justify-content-center">
                   <Col xs={12} md={8}>
                     <SignUpForm />
-                    {/* <ThirdPartyAuth /> */}
+                    <ThirdPartyAuth mode="signup" />
                   </Col>
                 </Row>
               </div>
