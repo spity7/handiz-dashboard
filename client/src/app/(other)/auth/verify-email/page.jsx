@@ -1,12 +1,13 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
+import { buildAuthLink } from '@/utils/authRedirect'
 import styled from 'styled-components'
 
 const VerifyEmailCard = () => {
   const navigate = useNavigate()
 
   const handleLoginRedirect = () => {
-    navigate('/auth/sign-in')
+    navigate(buildAuthLink('/auth/sign-in'))
   }
 
   return (

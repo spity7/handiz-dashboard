@@ -4,7 +4,6 @@ import { useAtom } from 'jotai'
 import userAtom from '@/atoms/userAtom'
 import useShowModal from '@/hooks/useShowModal'
 import { API_BASE_URL } from '@/config/api'
-
 axios.defaults.withCredentials = true
 const BASE_URL = API_BASE_URL
 
@@ -140,7 +139,6 @@ export function AuthProvider({ children }) {
       const fresh = persistUser(data)
       setUser(fresh)
       setUserAtom(fresh)
-      window.location.href = '/'
     } catch (error) {
       const msg = error?.response?.data?.error || error.message || 'Login failed'
       showModal('Error', msg, 'error')
@@ -161,7 +159,6 @@ export function AuthProvider({ children }) {
       const fresh = persistUser(data)
       setUser(fresh)
       setUserAtom(fresh)
-      window.location.href = '/'
     } catch (error) {
       const msg = error?.response?.data?.error || error.message || 'Google sign in failed'
       showModal('Error', msg, 'error')

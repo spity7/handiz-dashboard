@@ -4,6 +4,7 @@ import { useAuthContext } from '@/context/useAuthContext'
 import { appRoutes, authRoutes } from '@/routes/index'
 import AdminLayout from '@/layouts/AdminLayout'
 import FallbackLoading from '@/components/FallbackLoading'
+import AuthenticatedAuthRedirect from '@/components/auth/AuthenticatedAuthRedirect'
 import { canAccessRoute } from '@/utils/routeAccess'
 
 const AppRouter = (props) => {
@@ -20,7 +21,9 @@ const AppRouter = (props) => {
         <Route
           key={idx + route.name}
           path={route.path}
-          element={isAuthenticated ? <Navigate to={route.redirectTo || '/'} replace /> : <AuthLayout {...props}>{route.element}</AuthLayout>}
+          element={
+            isAuthenticated ? <AuthenticatedAuthRedirect fallback={route.redirectTo || '/'} /> : <AuthLayout {...props}>{route.element}</AuthLayout>
+          }
         />
       ))}
 
@@ -39,7 +42,7 @@ const AppRouter = (props) => {
               <Navigate
                 to={{
                   pathname: '/auth/sign-in',
-                  search: 'redirectTo=' + route.path,
+                  search: `redirectTo=${encodeURIComponent(route.path)}`,
                 }}
               />
             )

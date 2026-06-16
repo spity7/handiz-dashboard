@@ -16,6 +16,7 @@ const generateTokenAndSetCookie = (userId, res) => {
     // Setting the token as a cookie in the response
     res.cookie("jwt", token, {
       httpOnly: true, // prevents client-side JS from accessing the cookie
+      path: "/",
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
       sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // CSRF protection
       secure: process.env.NODE_ENV === "production", // only set as secure cookie in production

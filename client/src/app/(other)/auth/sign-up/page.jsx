@@ -1,10 +1,14 @@
 import { Card, CardBody, Col, Row } from 'react-bootstrap'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
+import { buildAuthLink } from '@/utils/authRedirect'
 import LogoBox from '@/components/LogoBox'
 import PageMetaData from '@/components/PageTitle'
 import ThirdPartyAuth from '@/components/ThirdPartyAuth'
 import SignUpForm from './components/SignUpForm'
 const SignUp = () => {
+  const [searchParams] = useSearchParams()
+  const signInLink = buildAuthLink('/auth/sign-in', searchParams)
+
   return (
     <>
       <PageMetaData title="Sign Up" />
@@ -43,7 +47,7 @@ const SignUp = () => {
       </Card>
       <p className="text-white mb-0 text-center">
         I already have an account
-        <Link to="/auth/sign-in" className="text-white fw-bold ms-1">
+        <Link to={signInLink} className="text-white fw-bold ms-1">
           Sign In
         </Link>
       </p>
