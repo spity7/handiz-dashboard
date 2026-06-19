@@ -3,6 +3,7 @@ const {
   PROJECT_STATUS,
   PROJECT_STATUS_VALUES,
 } = require("../constants/projectStatus");
+const softDeletePlugin = require("../utils/softDeletePlugin");
 
 const projectSchema = new mongoose.Schema(
   {
@@ -136,5 +137,7 @@ const projectSchema = new mongoose.Schema(
     timestamps: true, // adds createdAt & updatedAt
   },
 );
+
+projectSchema.plugin(softDeletePlugin);
 
 module.exports = mongoose.model("Project", projectSchema);

@@ -377,11 +377,7 @@ exports.deleteEmployee = async (req, res) => {
         .json({ error: "Admin accounts cannot be deleted" });
     }
 
-    const deletedEmployee = await User.findByIdAndDelete(id);
-
-    if (!deletedEmployee) {
-      return res.status(404).json({ error: "Employee not found" });
-    }
+    const deletedEmployee = await target.softDelete();
 
     res.status(200).json({ message: "Employee deleted successfully" });
   } catch (error) {

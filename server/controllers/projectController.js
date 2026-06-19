@@ -493,44 +493,7 @@ exports.deleteProject = async (req, res) => {
     const project = req.project || (await Project.findById(req.params.id));
     if (!project) return res.status(404).json({ message: "Project not found" });
 
-    // Delete thumbnail from GCS
-    if (project.thumbnailUrl) {
-      await deleteImage(project.thumbnailUrl);
-    }
-
-    // Delete all gallery images from GCS (if any)
-    if (Array.isArray(project.gallery) && project.gallery.length > 0) {
-      await Promise.all(
-        project.gallery.map(async (imageUrl) => {
-          try {
-            await deleteImage(imageUrl);
-          } catch (err) {
-            console.warn("⚠️ Failed to delete gallery image:", err.message);
-          }
-        }),
-      );
-    }
-
-    // Delete images from Content Blocks
-    if (Array.isArray(project.contentBlocks)) {
-      await Promise.all(
-        project.contentBlocks.map(async (block) => {
-          if (block.type === "image" && block.content) {
-            try {
-              await deleteImage(block.content);
-            } catch (err) {
-              console.warn(
-                "⚠️ Failed to delete content block image:",
-                err.message,
-              );
-            }
-          }
-        }),
-      );
-    }
-
-    // Delete project from MongoDB
-    await project.deleteOne();
+    await project.softDelete();
 
     res.status(200).json({ message: "Project deleted successfully" });
   } catch (error) {

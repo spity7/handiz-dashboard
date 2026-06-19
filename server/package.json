@@ -5,7 +5,8 @@
   "scripts": {
     "start": "node app.js",
     "migrate:ai-prompt-categories": "node scripts/migrateAiToolCategoryRefs.js",
-    "migrate:project-thumbnails": "node scripts/migrateProjectThumbnails.js"
+    "migrate:project-thumbnails": "node scripts/migrateProjectThumbnails.js",
+    "migrate:soft-delete-indexes": "node scripts/migrateSoftDeleteIndexes.js"
   },
   "keywords": [],
   "author": "",

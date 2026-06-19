@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const validator = require("validator");
+const softDeletePlugin = require("../utils/softDeletePlugin");
 
 const userSchema = mongoose.Schema(
   {
@@ -17,13 +18,11 @@ const userSchema = mongoose.Schema(
     username: {
       type: String,
       required: true,
-      unique: true,
       trim: true,
     },
     email: {
       type: String,
       required: true,
-      unique: true,
       trim: true,
       validate: [validator.isEmail, "Please enter a valid email address."],
     },
@@ -36,8 +35,6 @@ const userSchema = mongoose.Schema(
     },
     googleId: {
       type: String,
-      unique: true,
-      sparse: true,
       default: null,
     },
     role: {
@@ -65,6 +62,27 @@ const userSchema = mongoose.Schema(
   },
   {
     timestamps: true,
+  },
+);
+
+userSchema.plugin(softDeletePlugin);
+
+userSchema.index(
+  { email: 1 },
+  { unique: true, partialFilterExpression: { deletedAt: null } },
+);
+userSchema.index(
+  { username: 1 },
+  { unique: true, partialFilterExpression: { deletedAt: null } },
+);
+userSchema.index(
+  { googleId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      deletedAt: null,
+      googleId: { $type: "string" },
+    },
   },
 );
 
