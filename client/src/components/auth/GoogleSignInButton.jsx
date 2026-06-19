@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { GoogleLogin, useGoogleOAuth } from '@react-oauth/google'
-import { Button, Spinner } from 'react-bootstrap'
+import { Spinner } from 'react-bootstrap'
 import { useAuthContext } from '@/context/useAuthContext'
 import useShowModal from '@/hooks/useShowModal'
 
 const GoogleLogo = () => (
-  <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" className="google-signin-btn__icon">
+  <svg aria-hidden="true" viewBox="0 0 24 24" width="22" height="22" className="google-signin-btn__icon">
     <path
       fill="#4285F4"
       d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -30,6 +30,23 @@ const GoogleSignInButton = ({ mode = 'signin' }) => {
   const { scriptLoadedSuccessfully } = useGoogleOAuth()
   const showModal = useShowModal()
   const [isLoading, setIsLoading] = useState(false)
+  const wrapperRef = useRef(null)
+  const [iframeWidth, setIframeWidth] = useState(0)
+
+  const actionLabel = mode === 'signup' ? 'Sign up with Google' : 'Sign in with Google'
+  const isReady = scriptLoadedSuccessfully && !isLoading
+
+  useEffect(() => {
+    const el = wrapperRef.current
+    if (!el) return
+
+    const updateWidth = () => setIframeWidth(el.offsetWidth)
+    updateWidth()
+
+    const observer = new ResizeObserver(updateWidth)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [isLoading, scriptLoadedSuccessfully, actionLabel])
 
   const onSuccess = async (credentialResponse) => {
     if (!credentialResponse?.credential) return
@@ -48,37 +65,39 @@ const GoogleSignInButton = ({ mode = 'signin' }) => {
   }
 
   return (
-    <div className="google-signin">
-      <div className="d-grid google-signin-btn-wrapper">
-        <Button
-          type="button"
-          variant="light"
-          className="google-signin-btn shadow-none"
-          disabled={isLoading || !scriptLoadedSuccessfully}
-          tabIndex={-1}
-          aria-hidden="true">
+    <div className={`google-signin${isReady ? '' : ' google-signin--pending'}`}>
+      <div ref={wrapperRef} className="google-signin-btn-wrapper">
+        <div
+          className={`google-signin-btn${isLoading ? ' is-loading' : ''}${!scriptLoadedSuccessfully ? ' is-pending' : ''}`}
+          aria-busy={isLoading || !scriptLoadedSuccessfully}
+          aria-disabled={!scriptLoadedSuccessfully}>
           {isLoading ? (
             <>
               <Spinner animation="border" size="sm" role="status" className="google-signin-btn__spinner" />
-              <span>Connecting...</span>
+              <span>Connecting to Google...</span>
+            </>
+          ) : !scriptLoadedSuccessfully ? (
+            <>
+              <span className="google-signin-btn__shimmer" aria-hidden="true" />
+              <span className="google-signin-btn__pending-text">Loading Google Sign-In...</span>
             </>
           ) : (
             <>
               <GoogleLogo />
-              <span>Continue with Google</span>
+              <span className="google-signin-btn__label">{actionLabel}</span>
             </>
           )}
-        </Button>
+        </div>
 
-        {!isLoading && scriptLoadedSuccessfully && (
-          <div className="google-signin-overlay" aria-label={mode === 'signup' ? 'Sign up with Google' : 'Sign in with Google'}>
+        {isReady && iframeWidth > 0 && (
+          <div className="google-signin-overlay" role="presentation">
             <GoogleLogin
               onSuccess={onSuccess}
               onError={onError}
               useOneTap={false}
               theme="outline"
               size="large"
-              width="100%"
+              width={iframeWidth}
               text={mode === 'signup' ? 'signup_with' : 'signin_with'}
               shape="rectangular"
             />

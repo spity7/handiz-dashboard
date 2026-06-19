@@ -1,10 +1,10 @@
-import { Card, CardBody, Col, Row } from 'react-bootstrap'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { buildAuthLink } from '@/utils/authRedirect'
-import LogoBox from '@/components/LogoBox'
 import PageMetaData from '@/components/PageTitle'
 import ThirdPartyAuth from '@/components/ThirdPartyAuth'
+import AuthPageShell from '@/components/auth/AuthPageShell'
 import SignUpForm from './components/SignUpForm'
+
 const SignUp = () => {
   const [searchParams] = useSearchParams()
   const signInLink = buildAuthLink('/auth/sign-in', searchParams)
@@ -13,45 +13,18 @@ const SignUp = () => {
     <>
       <PageMetaData title="Sign Up" />
 
-      <Card className="auth-card">
-        <CardBody className="p-0">
-          <Row className="align-items-center g-0">
-            <Col lg={6} className="d-none d-lg-inline-block border-end">
-              <div className="auth-page-sidebar">
-                <LogoBox
-                  textLogo={{
-                    height: 200,
-                    width: 450,
-                  }}
-                  squareLogo={{
-                    className: 'me-1',
-                  }}
-                  containerClassName="text-center auth-logo"
-                />
-              </div>
-            </Col>
-            <Col lg={6}>
-              <div className="p-4">
-                <h2 className="fw-bold text-center fs-18">Sign Up</h2>
-                {/* <p className="text-muted text-center mt-1 mb-4">New to our platform? Sign up now! It only takes a minute.</p> */}
-                <Row className="justify-content-center">
-                  <Col xs={12} md={8}>
-                    <SignUpForm />
-                    <ThirdPartyAuth mode="signup" />
-                  </Col>
-                </Row>
-              </div>
-            </Col>
-          </Row>
-        </CardBody>
-      </Card>
-      <p className="text-white mb-0 text-center">
-        I already have an account
-        <Link to={signInLink} className="text-white fw-bold ms-1">
-          Sign In
-        </Link>
-      </p>
+      <AuthPageShell
+        size="wide"
+        title="Create account"
+        subtitle="Join Handiz to get started. It only takes a minute."
+        footerText="Already have an account?"
+        footerLinkText="Sign in"
+        footerLinkTo={signInLink}>
+        <ThirdPartyAuth mode="signup" />
+        <SignUpForm />
+      </AuthPageShell>
     </>
   )
 }
+
 export default SignUp

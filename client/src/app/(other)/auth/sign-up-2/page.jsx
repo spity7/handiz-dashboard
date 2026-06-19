@@ -1,27 +1,32 @@
-import { Card, CardBody, Col } from 'react-bootstrap';
-import { Link } from 'react-router-dom';
-import LogoBox from '@/components/LogoBox';
-import PageMetaData from '@/components/PageTitle';
-import ThirdPartyAuth from '@/components/ThirdPartyAuth';
-import SignUpForm from './components/SignUpForm';
+import { Card, CardBody, Col } from 'react-bootstrap'
+import { Link } from 'react-router-dom'
+import LogoBox from '@/components/LogoBox'
+import PageMetaData from '@/components/PageTitle'
+import ThirdPartyAuth from '@/components/ThirdPartyAuth'
+import SignUpForm from './components/SignUpForm'
 const SignUp2 = () => {
-  return <>
+  return (
+    <>
       <PageMetaData title="Sign Up 2" />
 
       <Col xl={5} className="mx-auto">
         <Card className="auth-card">
           <CardBody className="px-3 py-5">
-            <LogoBox textLogo={{
-            height: 24,
-            width: 73
-          }} squareLogo={{
-            className: 'me-2'
-          }} containerClassName="mx-auto mb-4 text-center auth-logo" />
+            <LogoBox
+              textLogo={{
+                height: 24,
+                width: 73,
+              }}
+              squareLogo={{
+                className: 'me-2',
+              }}
+              containerClassName="mx-auto mb-4 text-center auth-logo"
+            />
             <h2 className="fw-bold text-center fs-18">Sign Up</h2>
             <p className="text-muted text-center mt-1 mb-4">New to our platform? Sign up now! It only takes a minute.</p>
             <div className="px-4">
+              <ThirdPartyAuth mode="signup" />
               <SignUpForm />
-              <ThirdPartyAuth />
             </div>
           </CardBody>
         </Card>
@@ -32,6 +37,7 @@ const SignUp2 = () => {
           </Link>
         </p>
       </Col>
-    </>;
-};
-export default SignUp2;
+    </>
+  )
+}
+export default SignUp2

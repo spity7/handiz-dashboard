@@ -6,10 +6,12 @@ const ThirdPartyAuth = ({ mode = 'signin' }) => {
     return null
   }
 
+  const dividerLabel = mode === 'signup' ? 'or sign up with email' : 'or sign in with email'
+
   return (
-    <div className="auth-divider mt-4">
-      <span className="auth-divider__label text-muted">or continue with</span>
+    <div className="auth-divider auth-divider--social-first mb-4">
       <GoogleSignInButton mode={mode} />
+      <span className="auth-divider__label">{dividerLabel}</span>
     </div>
   )
 }

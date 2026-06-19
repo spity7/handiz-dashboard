@@ -1,7 +1,9 @@
-import React from 'react'
+import { Button } from 'react-bootstrap'
 import { useNavigate } from 'react-router-dom'
 import { buildAuthLink } from '@/utils/authRedirect'
-import styled from 'styled-components'
+import IconifyIcon from '@/components/wrappers/IconifyIcon'
+import PageMetaData from '@/components/PageTitle'
+import AuthPageShell from '@/components/auth/AuthPageShell'
 
 const VerifyEmailCard = () => {
   const navigate = useNavigate()
@@ -11,49 +13,25 @@ const VerifyEmailCard = () => {
   }
 
   return (
-    <Container>
-      <Card>
-        <h2>We've sent you an email. Please verify to be able to login!</h2>
-        <LoginButton onClick={handleLoginRedirect}>Back to Login</LoginButton>
-      </Card>
-    </Container>
+    <>
+      <PageMetaData title="Verify Email" />
+
+      <AuthPageShell title="Check your inbox">
+        <div className="auth-verify-card">
+          <div className="auth-verify-card__icon" aria-hidden="true">
+            <IconifyIcon icon="bi:envelope-check" />
+          </div>
+          <h3 className="auth-verify-card__title">We sent you a verification email</h3>
+          <p className="auth-verify-card__text">
+            Open the link in your inbox to verify your account. Once verified, you can sign in and start using the dashboard.
+          </p>
+          <Button variant="primary" className="w-100" onClick={handleLoginRedirect}>
+            Back to sign in
+          </Button>
+        </div>
+      </AuthPageShell>
+    </>
   )
 }
-
-// Styled Components
-const Container = styled.div`
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-  background-color: #f0f0f0;
-`
-
-const Card = styled.div`
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-  background-color: #fff;
-  text-align: center;
-  max-width: 400px;
-  width: 90%;
-`
-
-const LoginButton = styled.button`
-  margin-top: 20px;
-  padding: 10px 20px;
-  border: none;
-  border-radius: 5px;
-  background-color: #2db4a0;
-  color: #ffffff;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: inherit;
-  transition: background-color 0.3s;
-
-  &:hover {
-    background-color: #009782;
-  }
-`
 
 export default VerifyEmailCard
