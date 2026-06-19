@@ -33,6 +33,11 @@ function softDeletePlugin(schema) {
     return this.save();
   };
 
+  schema.methods.restore = async function restore() {
+    this.deletedAt = null;
+    return this.save();
+  };
+
   schema.statics.findWithDeleted = function findWithDeleted(filter = {}) {
     return this.find(filter).setOptions({ includeDeleted: true });
   };

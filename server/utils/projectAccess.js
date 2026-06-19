@@ -29,6 +29,23 @@ const canWriteProject = (actor, project) => {
 };
 
 /**
+ * Restore soft-deleted projects — staff or project owner
+ */
+const canRestoreProject = (actor, project) => {
+  if (!actor || !project) return false;
+  if (actor.role === ROLES.ADMIN || actor.role === ROLES.EDITOR) return true;
+  return isOwner(actor, project);
+};
+
+/**
+ * Permanent delete — staff only
+ */
+const canPermanentlyDeleteProject = (actor) => {
+  if (!actor) return false;
+  return actor.role === ROLES.ADMIN || actor.role === ROLES.EDITOR;
+};
+
+/**
  * Publish / unpublish — Users cannot change status
  */
 const canPublishProject = (actor, project) => {
@@ -50,6 +67,8 @@ const getProjectListFilter = (actor) => {
 module.exports = {
   canReadProject,
   canWriteProject,
+  canRestoreProject,
+  canPermanentlyDeleteProject,
   canPublishProject,
   getProjectListFilter,
   isOwner,

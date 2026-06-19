@@ -142,6 +142,19 @@
   }
 }
 
+.project-row-deleted {
+  background-color: rgba(var(--#{$prefix}danger-rgb), 0.08) !important;
+
+  td {
+    border-top-color: rgba(var(--#{$prefix}danger-rgb), 0.14) !important;
+    border-bottom-color: rgba(var(--#{$prefix}danger-rgb), 0.14) !important;
+  }
+
+  .projects-list-col-title__heading {
+    color: var(--#{$prefix}secondary);
+  }
+}
+
 // Users page — current signed-in account row
 .users-table-avatar {
   width: 36px;
@@ -294,6 +307,14 @@
     font-weight: 400;
   }
 
+  .projects-table-filters {
+    .projects-table-filter {
+      min-width: 8.5rem;
+      max-width: 11rem;
+      flex: 1 1 8.5rem;
+    }
+  }
+
   th {
     vertical-align: top;
   }
@@ -316,6 +337,12 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .projects-list-deleted-badge {
+    font-size: 0.8125rem;
+    padding: 0.35em 0.65em;
+    letter-spacing: 0.02em;
   }
 }
 

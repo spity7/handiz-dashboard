@@ -4,9 +4,34 @@ const { ROLES } = require("../constants/permissions");
 const { PROJECT_STATUS } = require("../constants/projectStatus");
 const {
   canReadProject,
+  canRestoreProject,
+  canPermanentlyDeleteProject,
   getProjectListFilter,
 } = require("../utils/projectAccess");
 const notifyProjectPending = require("../utils/helpers/sendProjectPendingNotification");
+
+const collectProjectImageUrls = (project) => {
+  const urls = [];
+  if (project.thumbnailUrl) urls.push(project.thumbnailUrl);
+  if (project.gallery?.length) urls.push(...project.gallery);
+  (project.contentBlocks || [])
+    .filter((block) => block.type === "image" && block.content)
+    .forEach((block) => urls.push(block.content));
+  return [...new Set(urls)];
+};
+
+const deleteProjectImages = async (project) => {
+  const imageUrls = collectProjectImageUrls(project);
+  await Promise.all(
+    imageUrls.map(async (url) => {
+      try {
+        await deleteImage(url);
+      } catch (err) {
+        console.warn("Failed to delete project image:", url, err.message);
+      }
+    }),
+  );
+};
 
 exports.createProject = async (req, res) => {
   try {
@@ -183,7 +208,7 @@ exports.createProject = async (req, res) => {
 exports.getAllProjects = async (req, res) => {
   try {
     const filter = getProjectListFilter(req.user);
-    const projects = await Project.find(filter)
+    const projects = await Project.findWithDeleted(filter)
       .sort({ order: 1, createdAt: -1 })
       .populate("createdBy", "firstname lastname username email role");
     res.status(200).json({ projects });
@@ -499,6 +524,63 @@ exports.deleteProject = async (req, res) => {
   } catch (error) {
     console.error("Error deleting project:", error);
     res.status(500).json({ message: "Server error deleting project" });
+  }
+};
+
+exports.restoreProject = async (req, res) => {
+  try {
+    const project = await Project.findOneWithDeleted({ _id: req.params.id });
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+    if (!canRestoreProject(req.user, project)) {
+      return res
+        .status(403)
+        .json({ message: "Forbidden: cannot restore this project" });
+    }
+    if (!project.deletedAt) {
+      return res.status(400).json({ message: "Project is not deleted" });
+    }
+
+    await project.restore();
+
+    res.status(200).json({
+      message: "Project restored successfully",
+      project,
+    });
+  } catch (error) {
+    console.error("Error restoring project:", error);
+    res.status(500).json({ message: "Server error restoring project" });
+  }
+};
+
+exports.permanentlyDeleteProject = async (req, res) => {
+  try {
+    if (!canPermanentlyDeleteProject(req.user)) {
+      return res.status(403).json({
+        message: "Forbidden: cannot permanently delete this project",
+      });
+    }
+
+    const project = await Project.findOneWithDeleted({ _id: req.params.id });
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+    if (!project.deletedAt) {
+      return res.status(400).json({
+        message: "Project must be soft-deleted before permanent deletion",
+      });
+    }
+
+    await deleteProjectImages(project);
+    await Project.deleteOne({ _id: project._id });
+
+    res.status(200).json({ message: "Project permanently deleted" });
+  } catch (error) {
+    console.error("Error permanently deleting project:", error);
+    res
+      .status(500)
+      .json({ message: "Server error permanently deleting project" });
   }
 };
 

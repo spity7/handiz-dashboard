@@ -9,6 +9,8 @@ const {
   updateProject,
   deleteProject,
   deleteProjectImage,
+  restoreProject,
+  permanentlyDeleteProject,
   publishProject,
   unpublishProject,
 } = require("../controllers/projectController");
@@ -174,6 +176,14 @@ router.patch(
   loadProject,
   requireProjectPublish,
   unpublishProject,
+);
+
+router.patch("/projects/:id/restore", protectRoute, restoreProject);
+
+router.delete(
+  "/projects/:id/permanent",
+  protectRoute,
+  permanentlyDeleteProject,
 );
 
 router.delete(

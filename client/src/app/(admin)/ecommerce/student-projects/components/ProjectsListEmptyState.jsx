@@ -4,10 +4,25 @@ import { Badge, Button } from 'react-bootstrap'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
 import { ROLES } from '@/constants/roles'
 
-const ProjectsListEmptyState = ({ variant = 'empty', inTable = false, userRole, ownerFilter, statusFilter, ownerOptions = [], onClearFilters }) => {
+const VISIBILITY_LABELS = {
+  active: 'Active',
+  deleted: 'Deleted',
+  all: 'All',
+}
+
+const ProjectsListEmptyState = ({
+  variant = 'empty',
+  inTable = false,
+  userRole,
+  ownerFilter,
+  statusFilter,
+  visibilityFilter = 'all',
+  ownerOptions = [],
+  onClearFilters,
+}) => {
   const isFiltered = variant === 'filtered'
   const selectedOwner = ownerOptions.find((account) => account._id === ownerFilter)
-  const hasActiveFilters = Boolean(ownerFilter || statusFilter)
+  const hasActiveFilters = Boolean(ownerFilter || statusFilter || (visibilityFilter && visibilityFilter !== 'all'))
 
   const emptyCopy =
     userRole === ROLES.USER
@@ -45,6 +60,11 @@ const ProjectsListEmptyState = ({ variant = 'empty', inTable = false, userRole, 
               {statusFilter && (
                 <Badge bg="soft-secondary" className="projects-list-empty__filter-badge">
                   Status: {statusFilter}
+                </Badge>
+              )}
+              {visibilityFilter && visibilityFilter !== 'all' && (
+                <Badge bg="soft-danger" className="projects-list-empty__filter-badge">
+                  Visibility: {VISIBILITY_LABELS[visibilityFilter] || visibilityFilter}
                 </Badge>
               )}
             </div>

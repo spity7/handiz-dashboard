@@ -83,6 +83,16 @@ export const GlobalProvider = ({ children }) => {
     return response.data
   }
 
+  const restoreProject = async (id) => {
+    const response = await axiosInstance.patch(`/projects/${id}/restore`)
+    return response.data
+  }
+
+  const permanentlyDeleteProject = async (id) => {
+    const response = await axiosInstance.delete(`/projects/${id}/permanent`)
+    return response.data
+  }
+
   const publishProject = async (id) => {
     const response = await axiosInstance.patch(`/projects/${id}/publish`)
     return response.data
@@ -422,6 +432,8 @@ export const GlobalProvider = ({ children }) => {
         getProjectById,
         updateProject,
         deleteProject,
+        restoreProject,
+        permanentlyDeleteProject,
         publishProject,
         unpublishProject,
         deleteProjectGalleryImage,
