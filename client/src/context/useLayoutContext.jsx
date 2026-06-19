@@ -24,7 +24,7 @@ const LayoutProvider = ({ children }) => {
     topbarTheme: queryParams['topbar_theme'] ? queryParams['topbar_theme'] : 'light',
     menu: {
       theme: queryParams['menu_theme'] ? queryParams['menu_theme'] : 'light',
-      size: queryParams['menu_size'] ? queryParams['menu_size'] : 'sm-hover-active',
+      size: queryParams['menu_size'] ? queryParams['menu_size'] : 'default',
     },
   }
   const [settings, setSettings] = useLocalStorage('__REBACK_NEXT_CONFIG__', INIT_STATE, override)

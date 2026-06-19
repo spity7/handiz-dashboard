@@ -23,5 +23,8 @@ export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localho
 
 export const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
 
+/** Public Handiz marketing site (handiz.org). */
+export const HANDIZ_WEBSITE_URL = import.meta.env.VITE_HANDIZ_WEBSITE_URL || 'https://handiz.org'
+
 /** Origins allowed for post-login redirects back to the public Handiz site. */
 export const ALLOWED_RETURN_ORIGINS = resolveAllowedReturnOrigins()

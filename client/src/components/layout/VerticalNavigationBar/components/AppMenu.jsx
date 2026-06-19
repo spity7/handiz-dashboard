@@ -18,10 +18,10 @@ const MenuItemWithChildren = ({
 }) => {
   const routeWantsOpen = itemSubmenuShouldOpen(item, pathname, matchingMenuItem, menuItems, activeMenuItems)
 
-  const [open, setOpen] = useState(routeWantsOpen)
+  const [open, setOpen] = useState(true)
 
   useEffect(() => {
-    setOpen(routeWantsOpen)
+    if (routeWantsOpen) setOpen(true)
   }, [routeWantsOpen])
 
   const toggleMenuItem = (e) => {
