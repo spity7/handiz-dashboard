@@ -1,7 +1,8 @@
-import { useRef, useState } from 'react'
-import { GoogleLogin } from '@react-oauth/google'
+import { useState } from 'react'
+import { GoogleLogin, useGoogleOAuth } from '@react-oauth/google'
 import { Button, Spinner } from 'react-bootstrap'
 import { useAuthContext } from '@/context/useAuthContext'
+import useShowModal from '@/hooks/useShowModal'
 
 const GoogleLogo = () => (
   <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" className="google-signin-btn__icon">
@@ -26,13 +27,9 @@ const GoogleLogo = () => (
 
 const GoogleSignInButton = ({ mode = 'signin' }) => {
   const { handleGoogleLogin } = useAuthContext()
+  const { scriptLoadedSuccessfully } = useGoogleOAuth()
+  const showModal = useShowModal()
   const [isLoading, setIsLoading] = useState(false)
-  const googleLoginRef = useRef(null)
-
-  const triggerGoogleLogin = () => {
-    const googleBtn = googleLoginRef.current?.querySelector('div[role="button"]')
-    googleBtn?.click()
-  }
 
   const onSuccess = async (credentialResponse) => {
     if (!credentialResponse?.credential) return
@@ -45,16 +42,21 @@ const GoogleSignInButton = ({ mode = 'signin' }) => {
     }
   }
 
+  const onError = () => {
+    setIsLoading(false)
+    showModal('Error', 'Google sign in failed. Check that this site is listed in Google Cloud Console under Authorized JavaScript origins.', 'error')
+  }
+
   return (
     <div className="google-signin">
-      <div className="d-grid">
+      <div className="d-grid google-signin-btn-wrapper">
         <Button
           type="button"
           variant="light"
           className="google-signin-btn shadow-none"
-          onClick={triggerGoogleLogin}
-          disabled={isLoading}
-          aria-label={mode === 'signup' ? 'Sign up with Google' : 'Sign in with Google'}>
+          disabled={isLoading || !scriptLoadedSuccessfully}
+          tabIndex={-1}
+          aria-hidden="true">
           {isLoading ? (
             <>
               <Spinner animation="border" size="sm" role="status" className="google-signin-btn__spinner" />
@@ -67,18 +69,21 @@ const GoogleSignInButton = ({ mode = 'signin' }) => {
             </>
           )}
         </Button>
-      </div>
 
-      <div ref={googleLoginRef} className="google-signin-hidden" aria-hidden="true">
-        <GoogleLogin
-          onSuccess={onSuccess}
-          onError={() => setIsLoading(false)}
-          useOneTap={false}
-          theme="outline"
-          size="large"
-          text={mode === 'signup' ? 'signup_with' : 'signin_with'}
-          shape="rectangular"
-        />
+        {!isLoading && scriptLoadedSuccessfully && (
+          <div className="google-signin-overlay" aria-label={mode === 'signup' ? 'Sign up with Google' : 'Sign in with Google'}>
+            <GoogleLogin
+              onSuccess={onSuccess}
+              onError={onError}
+              useOneTap={false}
+              theme="outline"
+              size="large"
+              width="100%"
+              text={mode === 'signup' ? 'signup_with' : 'signin_with'}
+              shape="rectangular"
+            />
+          </div>
+        )}
       </div>
     </div>
   )

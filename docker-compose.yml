@@ -1,9 +1,13 @@
-version: '3.8'
+version: "3.8"
 
 services:
   client:
     build:
       context: ./client
+      args:
+        VITE_API_BASE_URL: https://api.handiz.org/api/v1/
+        VITE_GOOGLE_CLIENT_ID: 974512491943-cn69krek1s1ektd5q4qeg2g4ao3ssvbr.apps.googleusercontent.com
+        VITE_ALLOWED_RETURN_ORIGINS: https://handiz.org,https://www.handiz.org
     ports:
       - "3016:80"
     restart: always
