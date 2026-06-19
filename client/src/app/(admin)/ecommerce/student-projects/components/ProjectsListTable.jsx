@@ -39,14 +39,14 @@ const TableHeaderFilter = ({ label, value, onChange, children }) => (
   </Form.Select>
 )
 
-const ProjectsListTable = ({ projects, onRefresh, highlightProjectId, onClearHighlight }) => {
+const ProjectsListTable = ({ projects, onRefresh, highlightProjectId, onClearHighlight, initialOwnerFilter = ALL_FILTER }) => {
   const { user } = useAuthContext()
   const { deleteProject, restoreProject, permanentlyDeleteProject, publishProject, unpublishProject } = useGlobalContext()
   const confirmAction = useConfirmAction()
   const tablePageSize = 10
   const [activeHighlightId, setActiveHighlightId] = useState(highlightProjectId)
   const [isDismissing, setIsDismissing] = useState(false)
-  const [ownerFilter, setOwnerFilter] = useState(ALL_FILTER)
+  const [ownerFilter, setOwnerFilter] = useState(initialOwnerFilter || ALL_FILTER)
   const [statusFilter, setStatusFilter] = useState(ALL_FILTER)
   const [visibilityFilter, setVisibilityFilter] = useState(VISIBILITY_ALL)
   const showAdminColumns = user?.role === ROLES.ADMIN || user?.role === ROLES.EDITOR
@@ -89,6 +89,10 @@ const ProjectsListTable = ({ projects, onRefresh, highlightProjectId, onClearHig
       setIsDismissing(false)
     }
   }, [highlightProjectId])
+
+  useEffect(() => {
+    setOwnerFilter(initialOwnerFilter || ALL_FILTER)
+  }, [initialOwnerFilter])
 
   useEffect(() => {
     if (!activeHighlightId || !projects.length) return

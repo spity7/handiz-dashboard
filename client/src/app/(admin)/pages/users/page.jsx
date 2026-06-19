@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import clsx from 'clsx'
 import { Alert, Badge, Button, Card, CardBody, Col, Form, Modal, Row } from 'react-bootstrap'
 import Swal from 'sweetalert2'
@@ -135,6 +136,20 @@ const UsersPage = () => {
       {
         header: 'Role',
         cell: ({ row: { original: e } }) => <Badge bg={roleBadgeVariant(e.role)}>{e.role}</Badge>,
+      },
+      {
+        header: 'Nb projects',
+        cell: ({ row: { original: e } }) => {
+          const count = e.projectCount ?? 0
+          if (count === 0) {
+            return <span className="users-table-project-count--empty">0</span>
+          }
+          return (
+            <Link to={`/ecommerce/student-projects?owner=${e._id}`} className="users-table-project-count">
+              {count}
+            </Link>
+          )
+        },
       },
       {
         header: 'Actions',

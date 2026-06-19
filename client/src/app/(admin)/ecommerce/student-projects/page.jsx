@@ -11,6 +11,7 @@ const StudentProjects = () => {
   const { getAllProjects } = useGlobalContext()
   const [searchParams, setSearchParams] = useSearchParams()
   const highlightProjectId = searchParams.get('project')
+  const ownerFilter = searchParams.get('owner') || ''
 
   const clearHighlightFromUrl = () => {
     if (!searchParams.has('project')) return
@@ -54,6 +55,7 @@ const StudentProjects = () => {
                 onRefresh={fetchProjects}
                 highlightProjectId={highlightProjectId}
                 onClearHighlight={clearHighlightFromUrl}
+                initialOwnerFilter={ownerFilter}
               />
             </div>
           </Card>

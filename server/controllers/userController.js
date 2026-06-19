@@ -1,4 +1,5 @@
 const User = require("../models/userModel.js");
+const Project = require("../models/projectModel.js");
 const { ROLES } = require("../constants/permissions");
 const generateTokenAndSetCookie = require("../utils/helpers/generateTokenAndSetCookie.js");
 const isPasswordComplex = require("../utils/helpers/isPasswordComplex.js");
@@ -234,13 +235,33 @@ exports.getAllEmployees = async (req, res) => {
       .select("-password")
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
-      .limit(Number(limit));
+      .limit(Number(limit))
+      .lean();
 
     const total = await User.countDocuments(query);
 
-    res
-      .status(200)
-      .json({ employees, total, page: Number(page), limit: Number(limit) });
+    const employeeIds = employees.map((employee) => employee._id);
+    const projectCounts = employeeIds.length
+      ? await Project.aggregate([
+          { $match: { createdBy: { $in: employeeIds } } },
+          { $group: { _id: "$createdBy", count: { $sum: 1 } } },
+        ])
+      : [];
+    const countByUserId = new Map(
+      projectCounts.map(({ _id, count }) => [String(_id), count]),
+    );
+
+    const employeesWithCounts = employees.map((employee) => ({
+      ...employee,
+      projectCount: countByUserId.get(String(employee._id)) || 0,
+    }));
+
+    res.status(200).json({
+      employees: employeesWithCounts,
+      total,
+      page: Number(page),
+      limit: Number(limit),
+    });
   } catch (error) {
     res.status(500).json({ error: "Server Error" });
   }

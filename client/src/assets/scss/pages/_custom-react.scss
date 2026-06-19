@@ -200,6 +200,22 @@
   border-left: 3px solid var(--#{$prefix}primary);
 }
 
+.users-table-project-count {
+  font-weight: 500;
+  color: var(--#{$prefix}primary);
+  text-decoration: none;
+
+  &:hover,
+  &:focus-visible {
+    color: var(--#{$prefix}primary);
+    text-decoration: underline;
+  }
+}
+
+.users-table-project-count--empty {
+  color: var(--#{$prefix}secondary-color);
+}
+
 // Topbar notifications dropdown
 .dropdown-notifications {
   width: min(420px, calc(100vw - 2rem));
