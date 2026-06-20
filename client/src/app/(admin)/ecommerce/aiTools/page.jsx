@@ -1,27 +1,18 @@
-import { useEffect, useState } from 'react'
+import { useCallback } from 'react'
 import { Card, CardBody, Col, Row } from 'react-bootstrap'
 import { Link } from 'react-router-dom'
 import PageBreadcrumb from '@/components/layout/PageBreadcrumb'
 import PageMetaData from '@/components/PageTitle'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
+import ProjectsListTableSkeleton from '@/components/skeletons/ProjectsListTableSkeleton'
 import { useGlobalContext } from '@/context/useGlobalContext'
+import useFetchList from '@/hooks/useFetchList'
 import AiToolsListTable from './components/AiToolsListTable'
 
 const AiTools = () => {
   const { getAllAiTools } = useGlobalContext()
-  const [aiToolsList, setAiToolsList] = useState([])
-
-  useEffect(() => {
-    const fetchAiTools = async () => {
-      try {
-        const data = await getAllAiTools()
-        setAiToolsList(data)
-      } catch (error) {
-        console.error('Error fetching aiTools:', error)
-      }
-    }
-    fetchAiTools()
-  }, [getAllAiTools])
+  const fetchAiTools = useCallback(async () => getAllAiTools(), [getAllAiTools])
+  const { items: aiToolsList, loading, refresh } = useFetchList(fetchAiTools)
 
   return (
     <>
@@ -32,12 +23,6 @@ const AiTools = () => {
           <Card>
             <CardBody>
               <div className="d-flex flex-wrap justify-content-between gap-3">
-                {/* <div className="search-bar">
-                  <span>
-                    <IconifyIcon icon="bx:search-alt" className="mb-1" />
-                  </span>
-                  <input type="search" className="form-control" id="search" placeholder="Search ..." />
-                </div> */}
                 <div className="d-flex flex-wrap gap-2">
                   <Link to="/ecommerce/aiTools/categories" className="btn btn-soft-primary d-flex align-items-center">
                     <IconifyIcon icon="bx:category" className="me-1" />
@@ -52,7 +37,13 @@ const AiTools = () => {
             </CardBody>
 
             <div>
-              {aiToolsList.length > 0 ? <AiToolsListTable aiTools={aiToolsList} /> : <div className="text-center p-4">No AI Prompts found</div>}
+              {loading ? (
+                <ProjectsListTableSkeleton variant="media-meta-order" />
+              ) : aiToolsList.length > 0 ? (
+                <AiToolsListTable aiTools={aiToolsList} onRefresh={refresh} />
+              ) : (
+                <div className="text-center p-4">No AI Prompts found</div>
+              )}
             </div>
           </Card>
         </Col>

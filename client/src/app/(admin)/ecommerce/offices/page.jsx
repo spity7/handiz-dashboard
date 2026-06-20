@@ -1,27 +1,18 @@
-import { useEffect, useState } from 'react'
+import { useCallback } from 'react'
 import { Card, CardBody, Col, Row } from 'react-bootstrap'
 import { Link } from 'react-router-dom'
 import PageBreadcrumb from '@/components/layout/PageBreadcrumb'
 import PageMetaData from '@/components/PageTitle'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
+import ProjectsListTableSkeleton from '@/components/skeletons/ProjectsListTableSkeleton'
 import { useGlobalContext } from '@/context/useGlobalContext'
+import useFetchList from '@/hooks/useFetchList'
 import OfficesListTable from './components/OfficesListTable'
 
 const Offices = () => {
   const { getAllOffices } = useGlobalContext()
-  const [OfficesList, setOfficesList] = useState([])
-
-  useEffect(() => {
-    const fetchOffices = async () => {
-      try {
-        const data = await getAllOffices()
-        setOfficesList(data)
-      } catch (error) {
-        console.error('Error fetching offices:', error)
-      }
-    }
-    fetchOffices()
-  }, [getAllOffices])
+  const fetchOffices = useCallback(async () => getAllOffices(), [getAllOffices])
+  const { items: officesList, loading, refresh } = useFetchList(fetchOffices)
 
   return (
     <>
@@ -32,12 +23,6 @@ const Offices = () => {
           <Card>
             <CardBody>
               <div className="d-flex flex-wrap justify-content-between gap-3">
-                {/* <div className="search-bar">
-                  <span>
-                    <IconifyIcon icon="bx:search-alt" className="mb-1" />
-                  </span>
-                  <input type="search" className="form-control" id="search" placeholder="Search ..." />
-                </div> */}
                 <div>
                   <Link to="/ecommerce/offices/create" className="btn btn-primary d-flex align-items-center">
                     <IconifyIcon icon="bx:plus" className="me-1" />
@@ -46,7 +31,15 @@ const Offices = () => {
                 </div>
               </div>
             </CardBody>
-            <div>{OfficesList.length > 0 ? <OfficesListTable offices={OfficesList} /> : <div className="text-center p-4">No Offices Found</div>}</div>
+            <div>
+              {loading ? (
+                <ProjectsListTableSkeleton variant="media-order" />
+              ) : officesList.length > 0 ? (
+                <OfficesListTable offices={officesList} onRefresh={refresh} />
+              ) : (
+                <div className="text-center p-4">No Offices Found</div>
+              )}
+            </div>
           </Card>
         </Col>
       </Row>

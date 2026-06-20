@@ -1,12 +1,12 @@
-import clsx from 'clsx'
 import { Link } from 'react-router-dom'
 import ReactTable from '@/components/Table'
+import ProjectsListTableSkeleton from '@/components/skeletons/ProjectsListTableSkeleton'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
 import { useGlobalContext } from '@/context/useGlobalContext'
 import Swal from 'sweetalert2'
 
-const ProjectsListTable = ({ projects }) => {
-  const { deleteProject } = useGlobalContext() // ✅ hook inside component
+const ProjectsListTable = ({ projects, isLoading = false, onRefresh }) => {
+  const { deleteProject } = useGlobalContext()
 
   const handleDelete = async (id) => {
     const result = await Swal.fire({
@@ -21,12 +21,16 @@ const ProjectsListTable = ({ projects }) => {
       try {
         await deleteProject(id)
         Swal.fire('Deleted!', 'Project has been deleted.', 'success')
-        // Optionally refresh table data from parent component
-        window.location.reload()
+        if (onRefresh) await onRefresh()
+        else window.location.reload()
       } catch (error) {
         Swal.fire('Error', error?.response?.data?.message || 'Delete failed', 'error')
       }
     }
+  }
+
+  if (isLoading) {
+    return <ProjectsListTableSkeleton variant="vertex" />
   }
 
   const columns = [
@@ -79,6 +83,24 @@ const ProjectsListTable = ({ projects }) => {
   ]
 
   const pageSizeList = [5, 10, 20, 50]
+
+  const emptyState =
+    projects.length === 0 ? (
+      <div className="projects-list-empty projects-list-empty--in-table">
+        <div className="projects-list-empty__icon projects-list-empty__icon--empty">
+          <IconifyIcon icon="bx:folder-open" className="fs-32" />
+        </div>
+        <h5 className="projects-list-empty__title">No projects yet</h5>
+        <p className="projects-list-empty__description">Create your first Vertex project to get started.</p>
+        <div className="projects-list-empty__actions">
+          <Link to="/ecommerce/projects/create" className="btn btn-primary">
+            <IconifyIcon icon="bx:plus" className="me-1" />
+            Create project
+          </Link>
+        </div>
+      </div>
+    ) : null
+
   return (
     <ReactTable
       columns={columns}
@@ -88,6 +110,7 @@ const ProjectsListTable = ({ projects }) => {
       tableClass="text-nowrap mb-0"
       theadClass="bg-light bg-opacity-50"
       showPagination
+      emptyState={emptyState}
     />
   )
 }

@@ -596,3 +596,203 @@
     margin-top: 1.5rem;
   }
 }
+
+.projects-list-skeleton {
+  &__thumb {
+    width: 50px;
+    height: 50px;
+  }
+
+  &__filter {
+    display: inline-block;
+    width: 10rem;
+    height: 1.875rem;
+  }
+
+  &__badge {
+    display: inline-block;
+    width: 5.5rem;
+    height: 1.5rem;
+  }
+
+  &__order {
+    display: inline-block;
+    width: 2rem;
+    height: 1rem;
+  }
+
+  &__action {
+    display: inline-block;
+    width: 2rem;
+    height: 2rem;
+  }
+
+  &__pagination-label {
+    display: inline-block;
+    width: 8rem;
+    height: 1rem;
+  }
+
+  &__page-btn {
+    display: inline-block;
+    width: 2rem;
+    height: 2rem;
+  }
+
+  tbody tr {
+    pointer-events: none;
+  }
+}
+
+.projects-field-table-skeleton {
+  &__name {
+    display: inline-block;
+    height: 1rem;
+    min-width: 6rem;
+  }
+
+  &__badge {
+    display: inline-block;
+    width: 5.5rem;
+    height: 1.35rem;
+  }
+
+  &__action {
+    display: inline-block;
+    width: 2rem;
+    height: 2rem;
+  }
+
+  tbody tr {
+    pointer-events: none;
+  }
+}
+
+.project-form-skeleton {
+  &__label {
+    display: inline-block;
+    width: 7rem;
+    height: 0.875rem;
+  }
+
+  &__input {
+    width: 100%;
+    height: 2.375rem;
+  }
+
+  &__editor {
+    width: 100%;
+    height: 10rem;
+  }
+
+  &__dropzone {
+    width: 100%;
+    height: 8rem;
+  }
+
+  &__button {
+    display: inline-block;
+    width: 9rem;
+    height: 2.375rem;
+  }
+
+  &__link {
+    display: inline-block;
+    width: 4.5rem;
+    height: 0.875rem;
+  }
+
+  &__checkbox {
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+  }
+
+  &__checkbox-label {
+    display: inline-block;
+    height: 0.875rem;
+    min-width: 4rem;
+  }
+}
+
+.project-detail-skeleton {
+  &__hero {
+    width: 100%;
+    min-height: 18rem;
+  }
+
+  &__thumb {
+    display: inline-block;
+    width: 4.5rem;
+    height: 4.5rem;
+  }
+
+  &__title {
+    display: block;
+    width: 55%;
+    height: 2rem;
+  }
+
+  &__chip {
+    display: inline-block;
+    width: 5.5rem;
+    height: 1.75rem;
+  }
+}
+
+.users-table-skeleton {
+  &__avatar {
+    display: inline-block;
+    width: 2.5rem;
+    height: 2.5rem;
+    flex-shrink: 0;
+  }
+
+  &__badge {
+    display: inline-block;
+    width: 4.5rem;
+    height: 1.5rem;
+  }
+
+  &__projects {
+    display: inline-block;
+    width: 5.5rem;
+    height: 1.75rem;
+  }
+
+  &__action {
+    display: inline-block;
+    width: 7rem;
+    height: 2rem;
+  }
+
+  tbody tr {
+    pointer-events: none;
+  }
+}
+
+.content-blocks-form-skeleton {
+  &__label {
+    display: inline-block;
+    width: 8rem;
+    height: 1rem;
+  }
+
+  &__editor {
+    width: 100%;
+    height: 8rem;
+  }
+
+  &__line {
+    display: block;
+    width: 100%;
+    height: 1rem;
+  }
+
+  &__button {
+    display: inline-block;
+    width: 9rem;
+    height: 2.375rem;
+  }
+}

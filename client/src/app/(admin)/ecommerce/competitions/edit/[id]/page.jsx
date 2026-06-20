@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Card, CardBody, Col, Row, Button, Spinner } from 'react-bootstrap'
+import { Card, CardBody, Col, Row, Button } from 'react-bootstrap'
 import PageMetaData from '@/components/PageTitle'
 import PageBreadcrumb from '@/components/layout/PageBreadcrumb'
+import ProjectFormSkeleton from '@/components/skeletons/ProjectFormSkeleton'
 import { useGlobalContext } from '@/context/useGlobalContext'
 import ReactQuill from 'react-quill'
 import DropzoneFormInput from '@/components/form/DropzoneFormInput'
@@ -106,12 +107,7 @@ const EditCompetition = () => {
     setState((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]))
   }
 
-  if (!competition)
-    return (
-      <div className="text-center mt-5">
-        <Spinner animation="border" /> <p>Loading...</p>
-      </div>
-    )
+  if (!competition) return <ProjectFormSkeleton variant="vertex" title="Edit Competition" subName="Handiz" />
 
   return (
     <>

@@ -11,6 +11,7 @@ import { renameKeys } from '@/utils/rename-object-keys'
 import 'react-quill/dist/quill.snow.css'
 import { useGlobalContext } from '@/context/useGlobalContext'
 import DropzoneFormInput from '@/components/form/DropzoneFormInput'
+import ProjectFormSkeleton from '@/components/skeletons/ProjectFormSkeleton'
 
 const generalFormSchema = yup.object({
   name: yup.string().required('Project name is required'),
@@ -32,19 +33,24 @@ const GeneralDetailsForm = () => {
   const [thumbnailFile, setThumbnailFile] = useState(null)
   const [galleryFiles, setGalleryFiles] = useState([])
   const [projectCategories, setProjectCategories] = useState([])
+  const [categoriesLoading, setCategoriesLoading] = useState(true)
   const [resetDropzones, setResetDropzones] = useState(false)
 
   useEffect(() => {
     const fetchCategories = async () => {
-      const data = await getAllProjectCategories()
-      if (!data) return
-      const categoryOptions = data.map((category) =>
-        renameKeys(category, {
-          id: 'value',
-          name: 'label',
-        }),
-      )
-      setProjectCategories(categoryOptions)
+      try {
+        const data = await getAllProjectCategories()
+        if (!data) return
+        const categoryOptions = data.map((category) =>
+          renameKeys(category, {
+            id: 'value',
+            name: 'label',
+          }),
+        )
+        setProjectCategories(categoryOptions)
+      } finally {
+        setCategoriesLoading(false)
+      }
     }
     fetchCategories()
   }, [])
@@ -116,6 +122,10 @@ const GeneralDetailsForm = () => {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (categoriesLoading) {
+    return <ProjectFormSkeleton variant="vertex" showLayout={false} />
   }
 
   return (

@@ -17,6 +17,8 @@ import { ROLES } from '@/constants/roles'
 import DropzoneFormInput from '@/components/form/DropzoneFormInput'
 import ComponentContainerCard from '@/components/ComponentContainerCard'
 import StudentProjectFieldManageLink from '../../components/StudentProjectFieldManageLink'
+import ProjectFormSkeleton from '@/components/skeletons/ProjectFormSkeleton'
+import CheckboxGroupSkeleton from '@/components/skeletons/CheckboxGroupSkeleton'
 import { sortOthersLast } from '@/utils/sortOthersLast'
 
 const generalFormSchema = yup.object({
@@ -338,6 +340,12 @@ const GeneralDetailsForm = () => {
   const toggleCheckboxValue = (value, field) => {
     const exists = field.value.includes(value)
     return exists ? field.onChange(field.value.filter((v) => v !== value)) : field.onChange([...field.value, value])
+  }
+
+  const metadataLoading = conceptsLoading || typesLoading || categoriesLoading || yearsLoading || locationsLoading || universitiesLoading
+
+  if (metadataLoading) {
+    return <ProjectFormSkeleton variant="student" showLayout={false} />
   }
 
   return (

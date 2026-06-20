@@ -9,6 +9,7 @@ import 'react-quill/dist/quill.snow.css'
 import { useGlobalContext } from '@/context/useGlobalContext'
 import DropzoneFormInput from '@/components/form/DropzoneFormInput'
 import ComponentContainerCard from '@/components/ComponentContainerCard'
+import ProjectFormSkeleton from '@/components/skeletons/ProjectFormSkeleton'
 import { sortOthersLast } from '@/utils/sortOthersLast'
 import { Link } from 'react-router-dom'
 
@@ -111,6 +112,10 @@ const GeneralDetailsForm = () => {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (categoriesLoading) {
+    return <ProjectFormSkeleton variant="vertex" showLayout={false} />
   }
 
   return (

@@ -1,14 +1,15 @@
-import { useEffect, useState } from 'react'
 import { Card, CardBody, Col, Row } from 'react-bootstrap'
 import { Link, useSearchParams } from 'react-router-dom'
 import PageBreadcrumb from '@/components/layout/PageBreadcrumb'
 import PageMetaData from '@/components/PageTitle'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
 import { useGlobalContext } from '@/context/useGlobalContext'
+import useProjectsList from '@/hooks/useProjectsList'
 import ProjectsListTable from './components/ProjectsListTable'
 
 const StudentProjects = () => {
   const { getAllProjects } = useGlobalContext()
+  const { projects, loading, refresh } = useProjectsList(getAllProjects)
   const [searchParams, setSearchParams] = useSearchParams()
   const highlightProjectId = searchParams.get('project')
   const ownerFilter = searchParams.get('owner') || ''
@@ -19,20 +20,6 @@ const StudentProjects = () => {
     next.delete('project')
     setSearchParams(next, { replace: true })
   }
-  const [studentProjectsList, setStudentProjectsList] = useState([])
-
-  const fetchProjects = async () => {
-    try {
-      const data = await getAllProjects()
-      setStudentProjectsList(data)
-    } catch (error) {
-      console.error('Error fetching projects:', error)
-    }
-  }
-
-  useEffect(() => {
-    fetchProjects()
-  }, [getAllProjects])
 
   return (
     <>
@@ -51,8 +38,9 @@ const StudentProjects = () => {
             </CardBody>
             <div>
               <ProjectsListTable
-                projects={studentProjectsList}
-                onRefresh={fetchProjects}
+                projects={projects}
+                isLoading={loading}
+                onRefresh={refresh}
                 highlightProjectId={highlightProjectId}
                 onClearHighlight={clearHighlightFromUrl}
                 initialOwnerFilter={ownerFilter}

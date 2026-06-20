@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Card, CardBody, Col, Row, Button, Spinner } from 'react-bootstrap'
+import { Card, CardBody, Col, Row, Button } from 'react-bootstrap'
 import PageMetaData from '@/components/PageTitle'
 import PageBreadcrumb from '@/components/layout/PageBreadcrumb'
+import ProjectFormSkeleton from '@/components/skeletons/ProjectFormSkeleton'
+import CheckboxGroupSkeleton from '@/components/skeletons/CheckboxGroupSkeleton'
 import { useGlobalContext } from '@/context/useGlobalContext'
 import { useAuthContext } from '@/context/useAuthContext'
 import useConfirmAction from '@/hooks/useConfirmAction'
@@ -363,12 +365,7 @@ const EditProject = () => {
     setState((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]))
   }
 
-  if (!project)
-    return (
-      <div className="text-center mt-5">
-        <Spinner animation="border" /> <p>Loading...</p>
-      </div>
-    )
+  if (!project) return <ProjectFormSkeleton variant="student" title="Edit Project" subName="Handiz" />
 
   return (
     <>
@@ -420,7 +417,7 @@ const EditProject = () => {
                       <StudentProjectFieldManageLink to="/ecommerce/student-projects/concepts" title="Manage concepts" />
                     </div>
                     {conceptsLoading ? (
-                      <p className="text-muted mb-0 small">Loading concepts...</p>
+                      <CheckboxGroupSkeleton />
                     ) : concepts.length === 0 ? (
                       <p className="text-muted mb-0 small">No concepts available</p>
                     ) : (
@@ -446,7 +443,7 @@ const EditProject = () => {
                       <StudentProjectFieldManageLink to="/ecommerce/student-projects/types" title="Manage types" />
                     </div>
                     {typesLoading ? (
-                      <p className="text-muted mb-0 small">Loading types...</p>
+                      <CheckboxGroupSkeleton />
                     ) : types.length === 0 ? (
                       <p className="text-muted mb-0 small">No types available</p>
                     ) : (
@@ -468,7 +465,7 @@ const EditProject = () => {
                       <StudentProjectFieldManageLink to="/ecommerce/student-projects/categories" title="Manage categories" />
                     </div>
                     {categoriesLoading ? (
-                      <p className="text-muted mb-0 small">Loading categories...</p>
+                      <CheckboxGroupSkeleton />
                     ) : categories.length === 0 ? (
                       <p className="text-muted mb-0 small">No categories available</p>
                     ) : (
@@ -494,7 +491,7 @@ const EditProject = () => {
                       <StudentProjectFieldManageLink to="/ecommerce/student-projects/years" title="Manage years" />
                     </div>
                     {yearsLoading ? (
-                      <p className="text-muted mb-0 small">Loading years...</p>
+                      <CheckboxGroupSkeleton />
                     ) : years.length === 0 ? (
                       <p className="text-muted mb-0 small">No years available</p>
                     ) : (
@@ -518,7 +515,7 @@ const EditProject = () => {
                       <StudentProjectFieldManageLink to="/ecommerce/student-projects/locations" title="Manage locations" />
                     </div>
                     {locationsLoading ? (
-                      <p className="text-muted mb-0 small">Loading locations...</p>
+                      <CheckboxGroupSkeleton />
                     ) : locations.length === 0 ? (
                       <p className="text-muted mb-0 small">No locations available</p>
                     ) : (
@@ -544,7 +541,7 @@ const EditProject = () => {
                       <StudentProjectFieldManageLink to="/ecommerce/student-projects/universities" title="Manage universities" />
                     </div>
                     {universitiesLoading ? (
-                      <p className="text-muted mb-0 small">Loading universities...</p>
+                      <CheckboxGroupSkeleton />
                     ) : universities.length === 0 ? (
                       <p className="text-muted mb-0 small">No universities available</p>
                     ) : (

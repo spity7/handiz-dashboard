@@ -1,27 +1,15 @@
-import { useEffect, useState } from 'react'
 import { Card, CardBody, Col, Row } from 'react-bootstrap'
 import { Link } from 'react-router-dom'
 import PageBreadcrumb from '@/components/layout/PageBreadcrumb'
 import PageMetaData from '@/components/PageTitle'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
 import { useGlobalContext } from '@/context/useGlobalContext'
+import useProjectsList from '@/hooks/useProjectsList'
 import ProjectsListTable from './components/ProjectsListTable'
 
 const Projects = () => {
   const { getAllProjects } = useGlobalContext()
-  const [projectsList, setProjectsList] = useState([])
-
-  useEffect(() => {
-    const fetchProjects = async () => {
-      try {
-        const data = await getAllProjects()
-        setProjectsList(data)
-      } catch (error) {
-        console.error('Error fetching projects:', error)
-      }
-    }
-    fetchProjects()
-  }, [getAllProjects])
+  const { projects, loading, refresh } = useProjectsList(getAllProjects)
 
   return (
     <>
@@ -47,7 +35,7 @@ const Projects = () => {
               </div>
             </CardBody>
             <div>
-              {projectsList.length > 0 ? <ProjectsListTable projects={projectsList} /> : <div className="text-center p-4">No projects found</div>}
+              <ProjectsListTable projects={projects} isLoading={loading} onRefresh={refresh} />
             </div>
           </Card>
         </Col>

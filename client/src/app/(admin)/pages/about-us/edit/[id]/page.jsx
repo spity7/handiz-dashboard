@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Button, Card, CardBody, Col, Row, Spinner } from 'react-bootstrap'
+import { Button, Card, CardBody, Col, Row } from 'react-bootstrap'
 import PageBreadcrumb from '@/components/layout/PageBreadcrumb'
 import PageMetaData from '@/components/PageTitle'
+import ContentBlocksFormSkeleton from '@/components/skeletons/ContentBlocksFormSkeleton'
 import { useGlobalContext } from '@/context/useGlobalContext'
 import DynamicContentBlocksEditor from '../../components/DynamicContentBlocksEditor'
 import useDynamicContentBlocks from '../../hooks/useDynamicContentBlocks'
@@ -46,11 +47,7 @@ const EditAboutUs = () => {
   }
 
   if (fetching) {
-    return (
-      <div className="text-center p-5">
-        <Spinner animation="border" />
-      </div>
-    )
+    return <ContentBlocksFormSkeleton title="Edit About Us" subName="Pages" />
   }
 
   return (

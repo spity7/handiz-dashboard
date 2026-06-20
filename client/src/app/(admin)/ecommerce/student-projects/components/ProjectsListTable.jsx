@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { Badge, Form } from 'react-bootstrap'
 import Swal from 'sweetalert2'
 import ReactTable from '@/components/Table'
+import ProjectsListTableSkeleton from '@/components/skeletons/ProjectsListTableSkeleton'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
 import { useGlobalContext } from '@/context/useGlobalContext'
 import { useAuthContext } from '@/context/useAuthContext'
@@ -39,7 +40,7 @@ const TableHeaderFilter = ({ label, value, onChange, children }) => (
   </Form.Select>
 )
 
-const ProjectsListTable = ({ projects, onRefresh, highlightProjectId, onClearHighlight, initialOwnerFilter = ALL_FILTER }) => {
+const ProjectsListTable = ({ projects, isLoading = false, onRefresh, highlightProjectId, onClearHighlight, initialOwnerFilter = ALL_FILTER }) => {
   const { user } = useAuthContext()
   const { deleteProject, restoreProject, permanentlyDeleteProject, publishProject, unpublishProject } = useGlobalContext()
   const confirmAction = useConfirmAction()
@@ -406,6 +407,10 @@ const ProjectsListTable = ({ projects, onRefresh, highlightProjectId, onClearHig
   ]
 
   const pageSizeList = [5, 10, 20, 50]
+
+  if (isLoading) {
+    return <ProjectsListTableSkeleton variant="student" showAdminColumns={showAdminColumns} />
+  }
 
   const isFilteredEmpty = filteredProjects.length === 0 && projects.length > 0
   const isFullyEmpty = projects.length === 0

@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Card, CardBody, Col, Row, Button, Spinner } from 'react-bootstrap'
+import { Card, CardBody, Col, Row, Button } from 'react-bootstrap'
 import PageMetaData from '@/components/PageTitle'
 import PageBreadcrumb from '@/components/layout/PageBreadcrumb'
+import ProjectFormSkeleton from '@/components/skeletons/ProjectFormSkeleton'
 import { useGlobalContext } from '@/context/useGlobalContext'
 import ReactQuill from 'react-quill'
 import DropzoneFormInput from '@/components/form/DropzoneFormInput'
@@ -28,20 +29,25 @@ const EditProject = () => {
   const [galleryFiles, setGalleryFiles] = useState([])
   const [existingGallery, setExistingGallery] = useState([])
   const [projectCategories, setProjectCategories] = useState([])
+  const [categoriesLoading, setCategoriesLoading] = useState(true)
   const [loading, setLoading] = useState(false)
 
   // ✅ Fetch categories
   useEffect(() => {
     const fetchCategories = async () => {
-      const data = await getAllProjectCategories()
-      if (!data) return
-      const options = data.map((category) =>
-        renameKeys(category, {
-          id: 'value',
-          name: 'label',
-        }),
-      )
-      setProjectCategories(options)
+      try {
+        const data = await getAllProjectCategories()
+        if (!data) return
+        const options = data.map((category) =>
+          renameKeys(category, {
+            id: 'value',
+            name: 'label',
+          }),
+        )
+        setProjectCategories(options)
+      } finally {
+        setCategoriesLoading(false)
+      }
     }
     fetchCategories()
   }, [])
@@ -125,12 +131,7 @@ const EditProject = () => {
     }
   }
 
-  if (!project)
-    return (
-      <div className="text-center mt-5">
-        <Spinner animation="border" /> <p>Loading...</p>
-      </div>
-    )
+  if (!project || categoriesLoading) return <ProjectFormSkeleton variant="vertex" title="Edit Project" subName="Vertex" />
 
   return (
     <>
@@ -166,11 +167,7 @@ const EditProject = () => {
                 {/* ✅ Replace input with dropdown */}
                 <div className="mb-3">
                   <label className="form-label">Category</label>
-                  {projectCategories.length > 0 ? (
-                    <SelectFormInput name="category" options={projectCategories} value={category} onChange={(val) => setCategory(val)} />
-                  ) : (
-                    <p>Loading categories...</p>
-                  )}
+                  <SelectFormInput name="category" options={projectCategories} value={category} onChange={(val) => setCategory(val)} />
                 </div>
 
                 <div className="mb-3">

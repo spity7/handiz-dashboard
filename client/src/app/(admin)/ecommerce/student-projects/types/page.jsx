@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import PageBreadcrumb from '@/components/layout/PageBreadcrumb'
 import PageMetaData from '@/components/PageTitle'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
+import StudentProjectFieldTableSkeleton from '@/components/skeletons/StudentProjectFieldTableSkeleton'
 import { useGlobalContext } from '@/context/useGlobalContext'
 import Swal from 'sweetalert2'
 
@@ -156,7 +157,7 @@ const StudentProjectTypesPage = () => {
               </Form>
 
               {loading ? (
-                <p className="text-muted mb-0">Loading…</p>
+                <StudentProjectFieldTableSkeleton />
               ) : types.length === 0 ? (
                 <p className="text-muted mb-0">No types yet. Add one above to use in Student Projects.</p>
               ) : (

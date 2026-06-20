@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { Card, CardBody, Col, Row, Button, Spinner, Form } from 'react-bootstrap'
+import { Card, CardBody, Col, Row, Button, Form } from 'react-bootstrap'
 import PageMetaData from '@/components/PageTitle'
 import PageBreadcrumb from '@/components/layout/PageBreadcrumb'
+import ProjectFormSkeleton from '@/components/skeletons/ProjectFormSkeleton'
 import { useGlobalContext } from '@/context/useGlobalContext'
 import ReactQuill from 'react-quill'
 import 'react-quill/dist/quill.snow.css'
@@ -123,12 +124,7 @@ const EditAiTool = () => {
     }
   }
 
-  if (!aiTool)
-    return (
-      <div className="text-center mt-5">
-        <Spinner animation="border" /> <p>Loading...</p>
-      </div>
-    )
+  if (!aiTool || categoriesLoading) return <ProjectFormSkeleton variant="vertex" title="Edit AI Prompt" subName="Handiz" />
 
   return (
     <>

@@ -6,6 +6,7 @@ import Swal from 'sweetalert2'
 import PageBreadcrumb from '@/components/layout/PageBreadcrumb'
 import PageMetaData from '@/components/PageTitle'
 import ReactTable from '@/components/Table'
+import UsersTableSkeleton from '@/components/skeletons/UsersTableSkeleton'
 import { useAuthContext } from '@/context/useAuthContext'
 import { useGlobalContext } from '@/context/useGlobalContext'
 import useConfirmAction from '@/hooks/useConfirmAction'
@@ -239,7 +240,7 @@ const UsersPage = () => {
           <Card>
             <CardBody>
               {loading ? (
-                <p className="text-muted">Loading...</p>
+                <UsersTableSkeleton />
               ) : (
                 <>
                   {currentUserId && sortedEmployees.some((emp) => isCurrentAccount(emp)) && (
