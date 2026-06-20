@@ -449,19 +449,32 @@
     color: var(--#{$prefix}warning);
   }
 
-  &--request {
-    background-color: rgba(var(--#{$prefix}info-rgb), 0.15);
-    color: var(--#{$prefix}info);
-  }
-
-  &--decided {
+  &--published {
     background-color: rgba(var(--#{$prefix}success-rgb), 0.15);
     color: var(--#{$prefix}success);
+  }
+
+  &--unpublished {
+    background-color: rgba(var(--#{$prefix}danger-rgb), 0.12);
+    color: var(--#{$prefix}danger);
   }
 
   &--default {
     background-color: rgba(var(--#{$prefix}primary-rgb), 0.12);
     color: var(--#{$prefix}primary);
+  }
+}
+
+.notification-list {
+  button.notification-item {
+    display: block;
+    background: none;
+    cursor: pointer;
+
+    &:hover,
+    &:focus {
+      background-color: rgba(var(--#{$prefix}primary-rgb), 0.05);
+    }
   }
 }
 

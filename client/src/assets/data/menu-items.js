@@ -175,6 +175,13 @@ export const MENU_ITEMS = [
     url: '/pages/users',
     roles: ['Admin'],
   },
+  {
+    key: 'pages-notifications',
+    icon: 'iconamoon:notification-duotone',
+    label: 'Notifications',
+    url: '/pages/notifications',
+    roles: ['Admin', 'Editor', 'User'],
+  },
 
   //   {
   //     key: 'general',

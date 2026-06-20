@@ -8,7 +8,8 @@ const AuthenticatedAuthRedirect = ({ fallback = '/' }) => {
 
   useEffect(() => {
     captureAuthRedirectFromSearch(searchParams)
-    redirectAfterAuth(fallback)
+    const timer = setTimeout(() => redirectAfterAuth(fallback), 1200)
+    return () => clearTimeout(timer)
   }, [fallback, searchParams])
 
   return <FallbackLoading />

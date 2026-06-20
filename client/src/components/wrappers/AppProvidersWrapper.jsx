@@ -1,10 +1,10 @@
 import { useEffect } from 'react'
 import { GoogleOAuthProvider } from '@react-oauth/google'
 import { ToastContainer } from 'react-toastify'
+import 'react-toastify/dist/ReactToastify.css'
 import { DEFAULT_PAGE_TITLE } from '@/context/constants'
 import { AuthProvider } from '@/context/useAuthContext'
 import { LayoutProvider } from '@/context/useLayoutContext'
-import { NotificationProvider } from '@/context/useNotificationContext'
 import { HelmetProvider } from 'react-helmet-async'
 import { GlobalProvider } from '@/context/useGlobalContext'
 import { GOOGLE_CLIENT_ID } from '@/config/api'
@@ -23,10 +23,8 @@ const AppProvidersWrapper = ({ children }) => {
     <AuthProvider>
       <GlobalProvider>
         <LayoutProvider>
-          <NotificationProvider>
-            {children}
-            <ToastContainer theme="colored" />
-          </NotificationProvider>
+          {children}
+          <ToastContainer theme="colored" position="top-end" autoClose={3000} />
         </LayoutProvider>
       </GlobalProvider>
     </AuthProvider>

@@ -9,6 +9,10 @@ const {
   getProjectListFilter,
 } = require("../utils/projectAccess");
 const notifyProjectPending = require("../utils/helpers/sendProjectPendingNotification");
+const {
+  notifyProjectPublished,
+  notifyProjectUnpublished,
+} = require("../utils/helpers/notificationService");
 const { CREATED_BY_POPULATE } = require("../utils/createdByPopulate");
 
 const collectProjectImageUrls = (project) => {
@@ -471,7 +475,7 @@ exports.updateProject = async (req, res) => {
     );
 
     if (userEdited) {
-      await notifyProjectPending(updatedProject, req.user);
+      await notifyProjectPending(updatedProject, req.user, true);
     }
 
     res.status(200).json({
@@ -494,6 +498,7 @@ exports.publishProject = async (req, res) => {
     project.publishedAt = new Date();
     project.publishedBy = req.user._id;
     await project.save();
+    await notifyProjectPublished(project);
     res.status(200).json({ message: "Project published", project });
   } catch (error) {
     res.status(500).json({ message: "Server error publishing project" });
@@ -507,6 +512,7 @@ exports.unpublishProject = async (req, res) => {
     project.publishedAt = null;
     project.publishedBy = null;
     await project.save();
+    await notifyProjectUnpublished(project);
     res.status(200).json({ message: "Project unpublished", project });
   } catch (error) {
     res.status(500).json({ message: "Server error unpublishing project" });

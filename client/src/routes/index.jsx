@@ -66,6 +66,7 @@ const AboutUs = lazy(() => import('@/app/(admin)/pages/about-us/page'))
 const AboutUsCreate = lazy(() => import('@/app/(admin)/pages/about-us/create/page'))
 const AboutUsEdit = lazy(() => import('@/app/(admin)/pages/about-us/edit/[id]/page'))
 const UsersPage = lazy(() => import('@/app/(admin)/pages/users/page'))
+const NotificationsPage = lazy(() => import('@/app/(admin)/pages/notifications/page'))
 const UnauthorizedPage = lazy(() => import('@/app/(admin)/pages/unauthorized/page'))
 const OurTeam = lazy(() => import('@/app/(admin)/pages/our-team/page'))
 const TimelinePage = lazy(() => import('@/app/(admin)/pages/timeline/page'))
@@ -436,6 +437,11 @@ const customRoutes = [
     name: 'Users',
     path: '/pages/users',
     element: <UsersPage />,
+  },
+  {
+    name: 'Notifications',
+    path: '/pages/notifications',
+    element: <NotificationsPage />,
   },
   {
     name: 'Unauthorized',

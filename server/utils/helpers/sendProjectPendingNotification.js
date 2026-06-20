@@ -1,8 +1,8 @@
 const nodemailer = require("nodemailer");
 const User = require("../../models/userModel");
-const Notification = require("../../models/notificationModel");
 const { ROLES } = require("../../constants/permissions");
 const logger = require("../../config/logger");
+const { upsertUnreadNotification } = require("./notificationService");
 
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
@@ -17,7 +17,24 @@ const transporter = nodemailer.createTransport({
 
 const DASHBOARD_URL = process.env.DASHBOARD_URL;
 
-const notifyProjectPending = async (project, submittedBy) => {
+const buildNotificationContent = (project, submittedBy, isUpdate) => {
+  const submitter = submittedBy?.firstname || "A user";
+  const projectTitle = project.title;
+
+  if (isUpdate) {
+    return {
+      title: "Student project updated — pending review",
+      message: `${submitter} updated "${projectTitle}" and it needs review again.`,
+    };
+  }
+
+  return {
+    title: "New student project pending review",
+    message: `${submitter} submitted "${projectTitle}" for review.`,
+  };
+};
+
+const notifyProjectPending = async (project, submittedBy, isUpdate = false) => {
   const reviewers = await User.find({
     role: { $in: [ROLES.ADMIN, ROLES.EDITOR] },
     isVerified: true,
@@ -25,28 +42,39 @@ const notifyProjectPending = async (project, submittedBy) => {
 
   if (!reviewers.length) return;
 
-  const title = "New student project pending review";
-  const message = `${submittedBy?.firstname || "A user"} submitted "${project.title}" for review.`;
+  const { title, message } = buildNotificationContent(
+    project,
+    submittedBy,
+    isUpdate,
+  );
   const link = `/ecommerce/student-projects?project=${project._id}`;
+  const emailRecipients = [];
 
-  await Notification.insertMany(
-    reviewers.map((r) => ({
-      recipientId: r._id,
-      type: "project_pending",
-      title,
-      message,
-      link,
-      relatedProjectId: project._id,
-    })),
+  await Promise.all(
+    reviewers.map(async (reviewer) => {
+      const { created } = await upsertUnreadNotification({
+        recipientId: reviewer._id,
+        type: "project_pending",
+        title,
+        message,
+        link,
+        relatedProjectId: project._id,
+      });
+
+      if (created && reviewer.email) {
+        emailRecipients.push(reviewer.email);
+      }
+    }),
   );
 
-  const emails = reviewers.map((r) => r.email).filter(Boolean);
-  if (!emails.length || !process.env.EMAIL_USER) return;
+  if (!emailRecipients.length || !process.env.EMAIL_USER || !DASHBOARD_URL) {
+    return;
+  }
 
   try {
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
-      to: emails.join(","),
+      bcc: emailRecipients.join(","),
       subject: title,
       html: `
         <p>${message}</p>

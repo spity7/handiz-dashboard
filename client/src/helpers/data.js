@@ -9,7 +9,7 @@ import {
   ordersData,
   sellersData,
 } from '@/assets/data/products'
-import { activityStreamData, appsData, notificationsData } from '@/assets/data/topbar'
+import { activityStreamData, appsData } from '@/assets/data/topbar'
 import { sleep } from '@/utils/promise'
 import { dataTableRecords, pricingData, projectsData, timelineData, transactionsData } from '@/assets/data/other'
 import {
@@ -37,9 +37,6 @@ const getUserForAllComments = (commentsData) => {
 }
 export const getTopbarIntegratedApps = () => {
   return appsData
-}
-export const getNotifications = () => {
-  return notificationsData
 }
 export const getActivityStream = async () => {
   await sleep()

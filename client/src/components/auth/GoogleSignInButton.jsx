@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { GoogleLogin, useGoogleOAuth } from '@react-oauth/google'
+import { toast } from 'react-toastify'
 import { Spinner } from 'react-bootstrap'
 import { useAuthContext } from '@/context/useAuthContext'
-import useShowModal from '@/hooks/useShowModal'
 
 const GoogleLogo = () => (
   <svg aria-hidden="true" viewBox="0 0 24 24" width="22" height="22" className="google-signin-btn__icon">
@@ -28,7 +28,6 @@ const GoogleLogo = () => (
 const GoogleSignInButton = ({ mode = 'signin' }) => {
   const { handleGoogleLogin } = useAuthContext()
   const { scriptLoadedSuccessfully } = useGoogleOAuth()
-  const showModal = useShowModal()
   const [isLoading, setIsLoading] = useState(false)
   const wrapperRef = useRef(null)
   const [iframeWidth, setIframeWidth] = useState(0)
@@ -61,7 +60,7 @@ const GoogleSignInButton = ({ mode = 'signin' }) => {
 
   const onError = () => {
     setIsLoading(false)
-    showModal('Error', 'Google sign in failed. Check that this site is listed in Google Cloud Console under Authorized JavaScript origins.', 'error')
+    toast.error('Google sign in failed. Check that this site is listed in Google Cloud Console under Authorized JavaScript origins.')
   }
 
   return (

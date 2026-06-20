@@ -10,7 +10,7 @@ const notificationSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["project_pending", "user_action_request", "user_action_decided"],
+      enum: ["project_pending", "project_published", "project_unpublished"],
       required: true,
     },
     title: { type: String, required: true },
@@ -20,10 +20,18 @@ const notificationSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Project",
       default: null,
+      index: true,
     },
     isRead: { type: Boolean, default: false },
   },
   { timestamps: true },
 );
+
+notificationSchema.index({
+  recipientId: 1,
+  type: 1,
+  relatedProjectId: 1,
+  isRead: 1,
+});
 
 module.exports = mongoose.model("Notification", notificationSchema);

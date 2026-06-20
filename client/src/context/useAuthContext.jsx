@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import axios from 'axios'
+import { toast } from 'react-toastify'
 import { useAtom } from 'jotai'
 import userAtom from '@/atoms/userAtom'
 import useShowModal from '@/hooks/useShowModal'
@@ -128,7 +129,7 @@ export function AuthProvider({ children }) {
       const data = res.data
 
       if (!data.isVerified) {
-        showModal('Error', 'Please verify your email before logging in.', 'error')
+        toast.error('Please verify your email before logging in.')
         return
       }
 
@@ -136,12 +137,15 @@ export function AuthProvider({ children }) {
         localStorage.removeItem('signup-status')
       }
 
+      toast.success('Successfully logged in. Redirecting...')
+
       const fresh = persistUser(data)
       setUser(fresh)
       setUserAtom(fresh)
     } catch (error) {
-      const msg = error?.response?.data?.error || error.message || 'Login failed'
-      showModal('Error', msg, 'error')
+      const msg = error?.response?.data?.error || error?.message || 'Login failed. Please try again.'
+      toast.error(msg)
+      throw error
     }
   }
 
@@ -156,12 +160,15 @@ export function AuthProvider({ children }) {
         localStorage.removeItem('signup-status')
       }
 
+      toast.success('Successfully signed in with Google. Redirecting...')
+
       const fresh = persistUser(data)
       setUser(fresh)
       setUserAtom(fresh)
     } catch (error) {
-      const msg = error?.response?.data?.error || error.message || 'Google sign in failed'
-      showModal('Error', msg, 'error')
+      const msg = error?.response?.data?.error || error?.message || 'Google sign in failed. Please try again.'
+      toast.error(msg)
+      throw error
     }
   }
 
