@@ -9,7 +9,7 @@ async function generateUniqueUsername(base) {
   let username = sanitized;
   let counter = 1;
 
-  while (await User.findOne({ username })) {
+  while (await User.findOneWithDeleted({ username })) {
     username = `${sanitized}${counter}`;
     counter += 1;
   }

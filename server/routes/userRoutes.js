@@ -12,6 +12,7 @@ const {
   exportFilteredEmployeesToCSV,
   updateEmployee,
   deleteEmployee,
+  restoreEmployee,
   getUserById,
   updateProfile,
   contactUs,
@@ -60,6 +61,12 @@ router.delete(
   protectRoute,
   authorizePermission("users:manage"),
   deleteEmployee,
+);
+router.patch(
+  "/restore-employee/:id",
+  protectRoute,
+  authorizePermission("users:manage"),
+  restoreEmployee,
 );
 
 router.get("/roles", protectRoute, authorizePermission("users:read"), getRoles);

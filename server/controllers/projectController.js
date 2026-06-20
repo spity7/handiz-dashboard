@@ -9,6 +9,7 @@ const {
   getProjectListFilter,
 } = require("../utils/projectAccess");
 const notifyProjectPending = require("../utils/helpers/sendProjectPendingNotification");
+const { CREATED_BY_POPULATE } = require("../utils/createdByPopulate");
 
 const collectProjectImageUrls = (project) => {
   const urls = [];
@@ -210,7 +211,7 @@ exports.getAllProjects = async (req, res) => {
     const filter = getProjectListFilter(req.user);
     const projects = await Project.findWithDeleted(filter)
       .sort({ order: 1, createdAt: -1 })
-      .populate("createdBy", "firstname lastname username email role");
+      .populate(CREATED_BY_POPULATE);
     res.status(200).json({ projects });
   } catch (error) {
     console.error("Error fetching projects:", error);
@@ -244,8 +245,7 @@ exports.getProjectsList = async (req, res) => {
 exports.getProjectById = async (req, res) => {
   try {
     const project = await Project.findById(req.params.id).populate(
-      "createdBy",
-      "firstname lastname username email role",
+      CREATED_BY_POPULATE,
     );
     if (!project) return res.status(404).json({ message: "Project not found" });
 

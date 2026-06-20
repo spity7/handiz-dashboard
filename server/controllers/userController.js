@@ -36,13 +36,12 @@ exports.signupUser = async (req, res) => {
     }
 
     // Search for the email in the database
-    const userEmail = await User.findOne({ email });
+    const userEmail = await User.findOneWithDeleted({ email });
     if (userEmail) {
       return res.status(400).json({ error: "Email already taken" });
     }
 
-    // Search for the username in the database
-    const userUsername = await User.findOne({ username });
+    const userUsername = await User.findOneWithDeleted({ username });
     if (userUsername) {
       return res.status(400).json({ error: "Username already taken" });
     }
@@ -106,8 +105,8 @@ exports.loginUser = async (req, res) => {
   try {
     const { emailOrUsername, password } = req.body;
 
-    // search for user via username or email
-    const user = await User.findOne({
+    // search for user via username or email (include soft-deleted to return a clear error)
+    const user = await User.findOneWithDeleted({
       $or: [{ email: emailOrUsername }, { username: emailOrUsername }],
     });
 
@@ -116,6 +115,13 @@ exports.loginUser = async (req, res) => {
       return res.status(400).json({
         error: "Invalid credentials. Try again!",
         errorcode: "USER_NOT_FOUND",
+      });
+    }
+
+    if (user.deletedAt) {
+      return res.status(403).json({
+        error: "This account has been deactivated. Contact an administrator.",
+        errorcode: "ACCOUNT_DEACTIVATED",
       });
     }
 
@@ -231,14 +237,14 @@ exports.getAllEmployees = async (req, res) => {
       query.role = { $in: rolesArray };
     }
 
-    const employees = await User.find(query)
+    const employees = await User.findWithDeleted(query)
       .select("-password")
-      .sort({ createdAt: -1 })
+      .sort({ deletedAt: 1, createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(Number(limit))
       .lean();
 
-    const total = await User.countDocuments(query);
+    const total = await User.findWithDeleted(query).countDocuments();
 
     const employeeIds = employees.map((employee) => employee._id);
     const projectCounts = employeeIds.length
@@ -407,6 +413,30 @@ exports.deleteEmployee = async (req, res) => {
   }
 };
 
+exports.restoreEmployee = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const target = await User.findOneWithDeleted({ _id: id });
+    if (!target) {
+      return res.status(404).json({ error: "Employee not found" });
+    }
+    if (!target.deletedAt) {
+      return res.status(400).json({ error: "Account is not deleted" });
+    }
+
+    const restoredEmployee = await target.restore();
+
+    res.status(200).json({
+      message: "Employee restored successfully",
+      employee: restoredEmployee,
+    });
+  } catch (error) {
+    logger.error("Error restoring employee:", error);
+    res.status(500).json({ error: "Server Error" });
+  }
+};
+
 // Get user details by ID
 exports.getUserById = async (req, res) => {
   try {
@@ -446,7 +476,10 @@ exports.updateProfile = async (req, res) => {
     }
 
     // Check if the new username is already taken by another user
-    const usernameTaken = await User.findOne({ username, _id: { $ne: id } });
+    const usernameTaken = await User.findOneWithDeleted({
+      username,
+      _id: { $ne: id },
+    });
 
     if (usernameTaken) {
       return res.status(400).json({ error: "Username already taken" });

@@ -63,6 +63,7 @@ const ProjectsListTable = ({ projects, onRefresh, highlightProjectId, onClearHig
           _id: id,
           username: owner.username || 'Unknown',
           email: owner.email || '',
+          deletedAt: owner.deletedAt,
         })
       }
     })
@@ -137,7 +138,7 @@ const ProjectsListTable = ({ projects, onRefresh, highlightProjectId, onClearHig
   const handleDelete = async (project) => {
     const staffDeleteCopy = showAdminColumns
       ? 'This will soft-delete the project. It will be hidden from handiz.org and can be restored from the Deleted filter.'
-      : 'This will remove your project from the dashboard and public site. You can restore it later from the Deleted filter.'
+      : 'This will remove your project from the dashboard and public site. Contact an admin or editor if you need it restored.'
 
     await confirmAction({
       title: 'Delete project?',
@@ -248,6 +249,7 @@ const ProjectsListTable = ({ projects, onRefresh, highlightProjectId, onClearHig
         {ownerOptions.map((account) => (
           <option key={account._id} value={account._id}>
             {account.username}
+            {account.deletedAt ? ' (Deleted)' : ''}
             {account.email ? ` (${account.email})` : ''}
           </option>
         ))}
@@ -259,11 +261,19 @@ const ProjectsListTable = ({ projects, onRefresh, highlightProjectId, onClearHig
       },
     }) => {
       if (!createdBy) {
-        return <span className="text-muted fst-italic">Deleted account</span>
+        return <span className="text-muted fst-italic">Unknown account</span>
       }
+      const ownerDeleted = Boolean(createdBy.deletedAt)
       return (
         <div>
-          <div className="fw-medium">{createdBy.username}</div>
+          <div className="fw-medium">
+            {createdBy.username}
+            {ownerDeleted && (
+              <Badge bg="danger" className="ms-2 projects-list-deleted-badge">
+                Deleted
+              </Badge>
+            )}
+          </div>
           {createdBy.email && <div className="fs-13 text-muted">{createdBy.email}</div>}
         </div>
       )

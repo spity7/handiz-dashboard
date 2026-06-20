@@ -44,10 +44,26 @@ exports.googleAuth = async (req, res) => {
       return res.status(400).json({ error: "Google email is not verified" });
     }
 
-    let user = await User.findOne({ googleId });
+    let user = await User.findOneWithDeleted({ googleId });
+
+    if (user?.deletedAt) {
+      return res.status(403).json({
+        error: "This account has been deactivated. Contact an administrator.",
+        errorcode: "ACCOUNT_DEACTIVATED",
+      });
+    }
 
     if (!user) {
-      user = await User.findOne({ email });
+      const existingByEmail = await User.findOneWithDeleted({ email });
+
+      if (existingByEmail?.deletedAt) {
+        return res.status(403).json({
+          error: "This account has been deactivated. Contact an administrator.",
+          errorcode: "ACCOUNT_DEACTIVATED",
+        });
+      }
+
+      user = existingByEmail;
 
       if (user) {
         if (user.googleId && user.googleId !== googleId) {

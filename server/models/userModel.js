@@ -67,22 +67,13 @@ const userSchema = mongoose.Schema(
 
 userSchema.plugin(softDeletePlugin);
 
-userSchema.index(
-  { email: 1 },
-  { unique: true, partialFilterExpression: { deletedAt: null } },
-);
-userSchema.index(
-  { username: 1 },
-  { unique: true, partialFilterExpression: { deletedAt: null } },
-);
+userSchema.index({ email: 1 }, { unique: true });
+userSchema.index({ username: 1 }, { unique: true });
 userSchema.index(
   { googleId: 1 },
   {
     unique: true,
-    partialFilterExpression: {
-      deletedAt: null,
-      googleId: { $type: "string" },
-    },
+    partialFilterExpression: { googleId: { $type: "string" } },
   },
 );
 

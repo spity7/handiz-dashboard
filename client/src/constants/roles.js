@@ -28,10 +28,9 @@ export const canWriteProject = (user, project) => {
   return false
 }
 
-export const canRestoreProject = (user, project) => {
-  if (!user || !project) return false
-  if (user.role === ROLES.ADMIN || user.role === ROLES.EDITOR) return true
-  return isOwner(user, project)
+export const canRestoreProject = (user) => {
+  if (!user) return false
+  return user.role === ROLES.ADMIN || user.role === ROLES.EDITOR
 }
 
 export const canPermanentlyDeleteProject = (user) => {

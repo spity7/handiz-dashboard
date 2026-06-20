@@ -118,6 +118,11 @@ export const GlobalProvider = ({ children }) => {
     return response.data
   }
 
+  const restoreEmployee = async (id) => {
+    const response = await axiosInstance.patch(`/restore-employee/${id}`)
+    return response.data
+  }
+
   const getNotifications = async (params = {}) => {
     const response = await axiosInstance.get('/notifications', { params })
     return response.data
@@ -440,6 +445,7 @@ export const GlobalProvider = ({ children }) => {
         getEmployees,
         updateEmployee,
         deleteEmployee,
+        restoreEmployee,
         getNotifications,
         getUnreadNotificationCount,
         markNotificationRead,

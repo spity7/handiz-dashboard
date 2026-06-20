@@ -29,12 +29,11 @@ const canWriteProject = (actor, project) => {
 };
 
 /**
- * Restore soft-deleted projects — staff or project owner
+ * Restore soft-deleted projects — staff only
  */
-const canRestoreProject = (actor, project) => {
-  if (!actor || !project) return false;
-  if (actor.role === ROLES.ADMIN || actor.role === ROLES.EDITOR) return true;
-  return isOwner(actor, project);
+const canRestoreProject = (actor) => {
+  if (!actor) return false;
+  return actor.role === ROLES.ADMIN || actor.role === ROLES.EDITOR;
 };
 
 /**

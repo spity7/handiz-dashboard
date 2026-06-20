@@ -174,6 +174,32 @@
     color: var(--#{$prefix}primary);
     box-shadow: 0 0 0 2px rgba(var(--#{$prefix}primary-rgb), 0.22);
   }
+
+  &--deleted {
+    background-color: rgba(var(--#{$prefix}danger-rgb), 0.1);
+    color: var(--#{$prefix}danger);
+  }
+}
+
+.users-table-deleted-badge {
+  font-size: 0.65rem;
+  vertical-align: middle;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.users-table-deleted-row {
+  background-color: rgba(var(--#{$prefix}danger-rgb), 0.04) !important;
+
+  td {
+    border-top-color: rgba(var(--#{$prefix}danger-rgb), 0.1) !important;
+    border-bottom-color: rgba(var(--#{$prefix}danger-rgb), 0.1) !important;
+    color: var(--#{$prefix}secondary-color);
+  }
+
+  td:first-child {
+    box-shadow: inset 3px 0 0 rgba(var(--#{$prefix}danger-rgb), 0.45);
+  }
 }
 
 .users-table-you-badge {
@@ -201,19 +227,152 @@
 }
 
 .users-table-project-count {
-  font-weight: 500;
-  color: var(--#{$prefix}primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 1.875rem;
+  padding: 0.2rem 0.55rem 0.2rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1;
   text-decoration: none;
+  color: var(--#{$prefix}primary);
+  background-color: rgba(var(--#{$prefix}primary-rgb), 0.08);
+  border: 1px solid rgba(var(--#{$prefix}primary-rgb), 0.18);
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+
+  &__icon {
+    font-size: 1rem;
+    flex-shrink: 0;
+    opacity: 0.9;
+  }
+
+  &__value {
+    min-width: 0.75rem;
+    text-align: center;
+  }
+
+  &__label {
+    font-weight: 500;
+  }
+
+  &__arrow {
+    font-size: 0.95rem;
+    margin-left: -0.1rem;
+    opacity: 0.55;
+    transition:
+      opacity 0.15s ease,
+      transform 0.15s ease;
+  }
 
   &:hover,
   &:focus-visible {
     color: var(--#{$prefix}primary);
-    text-decoration: underline;
+    text-decoration: none;
+    background-color: rgba(var(--#{$prefix}primary-rgb), 0.14);
+    border-color: rgba(var(--#{$prefix}primary-rgb), 0.3);
+    box-shadow: 0 2px 8px rgba(var(--#{$prefix}primary-rgb), 0.12);
+    transform: translateY(-1px);
+
+    .users-table-project-count__arrow {
+      opacity: 1;
+      transform: translateX(1px);
+    }
+  }
+
+  &--empty {
+    gap: 0.3rem;
+    min-height: 0;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background-color: transparent;
+    box-shadow: none;
+    color: var(--#{$prefix}secondary-color);
+    cursor: default;
+    font-weight: 500;
+    transition: none;
+
+    .users-table-project-count__icon {
+      opacity: 0.5;
+    }
+
+    &:hover,
+    &:focus-visible {
+      color: var(--#{$prefix}secondary-color);
+      background-color: transparent;
+      border: none;
+      box-shadow: none;
+      transform: none;
+    }
+  }
+
+  &--deleted-owner {
+    color: var(--#{$prefix}danger);
+    background-color: rgba(var(--#{$prefix}danger-rgb), 0.07);
+    border-color: rgba(var(--#{$prefix}danger-rgb), 0.18);
+
+    &:hover,
+    &:focus-visible {
+      color: var(--#{$prefix}danger);
+      background-color: rgba(var(--#{$prefix}danger-rgb), 0.12);
+      border-color: rgba(var(--#{$prefix}danger-rgb), 0.28);
+      box-shadow: 0 2px 8px rgba(var(--#{$prefix}danger-rgb), 0.1);
+    }
   }
 }
 
-.users-table-project-count--empty {
-  color: var(--#{$prefix}secondary-color);
+.users-table-action-btn {
+  font-weight: 500;
+  min-width: 7.25rem;
+  border-width: 1px;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+
+  &--current {
+    --#{$prefix}btn-color: var(--#{$prefix}primary);
+    --#{$prefix}btn-bg: rgba(var(--#{$prefix}primary-rgb), 0.1);
+    --#{$prefix}btn-border-color: rgba(var(--#{$prefix}primary-rgb), 0.22);
+    --#{$prefix}btn-hover-color: var(--#{$prefix}primary);
+    --#{$prefix}btn-hover-bg: rgba(var(--#{$prefix}primary-rgb), 0.16);
+    --#{$prefix}btn-hover-border-color: rgba(var(--#{$prefix}primary-rgb), 0.34);
+    --#{$prefix}btn-active-color: var(--#{$prefix}primary);
+    --#{$prefix}btn-active-bg: rgba(var(--#{$prefix}primary-rgb), 0.2);
+    --#{$prefix}btn-active-border-color: rgba(var(--#{$prefix}primary-rgb), 0.38);
+  }
+
+  &--deleted {
+    --#{$prefix}btn-color: var(--#{$prefix}danger);
+    --#{$prefix}btn-bg: rgba(var(--#{$prefix}danger-rgb), 0.08);
+    --#{$prefix}btn-border-color: rgba(var(--#{$prefix}danger-rgb), 0.2);
+    --#{$prefix}btn-hover-color: var(--#{$prefix}danger);
+    --#{$prefix}btn-hover-bg: rgba(var(--#{$prefix}danger-rgb), 0.14);
+    --#{$prefix}btn-hover-border-color: rgba(var(--#{$prefix}danger-rgb), 0.32);
+    --#{$prefix}btn-active-color: var(--#{$prefix}danger);
+    --#{$prefix}btn-active-bg: rgba(var(--#{$prefix}danger-rgb), 0.18);
+    --#{$prefix}btn-active-border-color: rgba(var(--#{$prefix}danger-rgb), 0.36);
+  }
+
+  &--manage {
+    --#{$prefix}btn-color: var(--#{$prefix}primary);
+    --#{$prefix}btn-bg: rgba(var(--#{$prefix}primary-rgb), 0.14);
+    --#{$prefix}btn-border-color: rgba(var(--#{$prefix}primary-rgb), 0.24);
+    --#{$prefix}btn-hover-color: #fff;
+    --#{$prefix}btn-hover-bg: var(--#{$prefix}primary);
+    --#{$prefix}btn-hover-border-color: var(--#{$prefix}primary);
+    --#{$prefix}btn-active-color: #fff;
+    --#{$prefix}btn-active-bg: var(--#{$prefix}primary);
+    --#{$prefix}btn-active-border-color: var(--#{$prefix}primary);
+  }
 }
 
 // Topbar notifications dropdown
