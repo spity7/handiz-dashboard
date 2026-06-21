@@ -28,7 +28,7 @@ const AccountPage = () => {
   const { control, handleSubmit, reset } = useForm({
     resolver: yupResolver(accountSchema),
     defaultValues: {
-      mobileCountryCode: '',
+      mobileCountryCode: '+961',
       mobileNumber: '',
       instagramUrl: '',
     },
@@ -38,7 +38,7 @@ const AccountPage = () => {
     if (!user) return
     const mobile = splitMobileFields(user)
     reset({
-      mobileCountryCode: mobile.mobileCountryCode,
+      mobileCountryCode: mobile.mobileCountryCode || '+961',
       mobileNumber: mobile.mobileNumber,
       instagramUrl: user.instagramUrl || '',
     })
@@ -104,7 +104,7 @@ const AccountPage = () => {
                         <TextFormInput control={control} name="mobileCountryCode" label="Code" placeholder="+961" />
                       </Col>
                       <Col sm={8}>
-                        <TextFormInput control={control} name="mobileNumber" label="Number" placeholder="70123456" />
+                        <TextFormInput control={control} name="mobileNumber" label="Number" placeholder="Enter your mobile number" type="number" />
                       </Col>
                     </Row>
                     <Form.Text className="text-muted">Country code (e.g. 961) and local number (4–12 digits).</Form.Text>

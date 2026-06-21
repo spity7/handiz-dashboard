@@ -25,7 +25,7 @@ const UserContactButtons = ({ user, whatsappMessage, className, emptyLabel = 'â€
   const whatsappTooltip = whatsappMessage ? `WhatsApp about ${name}'s project` : `WhatsApp ${name}`
 
   return (
-    <div className={clsx('user-contact-buttons d-flex gap-1', className)}>
+    <div className={clsx('user-contact-buttons d-flex', className)}>
       {whatsappUrl && (
         <ContactButton
           href={whatsappUrl}
@@ -41,7 +41,7 @@ const UserContactButtons = ({ user, whatsappMessage, className, emptyLabel = 'â€
           className="user-contact-buttons__btn user-contact-buttons__btn--instagram"
           tooltip={user?.username ? `Instagram Â· @${user.username}` : 'Open Instagram profile'}
           ariaLabel={`Open Instagram for ${name}`}
-          icon="bxl:instagram-alt"
+          icon="lucide:instagram"
         />
       )}
     </div>

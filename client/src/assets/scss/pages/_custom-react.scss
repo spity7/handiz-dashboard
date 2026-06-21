@@ -228,16 +228,7 @@
 
 .user-contact-buttons {
   --user-contact-btn-size: 2rem;
-  --instagram-brand: #e1306c;
-  --instagram-gradient: linear-gradient(
-    45deg,
-    #f09433 0%,
-    #e6683c 25%,
-    #dc2743 50%,
-    #cc2366 75%,
-    #bc1888 100%
-  );
-  --whatsapp-brand: #25d366;
+  gap: 0;
 
   &__btn {
     display: inline-flex;
@@ -248,19 +239,22 @@
     padding: 0;
     border-radius: 0.45rem;
     border: 1px solid transparent;
+    background-color: transparent;
+    color: #7D8A9B;
     text-decoration: none;
     line-height: 1;
     transition:
       color 0.15s ease,
-      background-color 0.15s ease,
-      border-color 0.15s ease,
-      box-shadow 0.15s ease,
-      transform 0.15s ease,
-      filter 0.15s ease;
+      opacity 0.15s ease,
+      transform 0.15s ease;
 
     &:hover,
     &:focus-visible {
+      color: #fff;
+      background-color: transparent;
+      border-color: transparent;
       transform: translateY(-1px);
+      opacity: 0.85;
     }
 
     &:focus-visible {
@@ -270,39 +264,13 @@
   }
 
   &__icon {
-    font-size: 1.125rem;
+    font-size: 1.5rem;
     flex-shrink: 0;
+    color: #7D8A9B;
   }
 
-  &__btn--whatsapp {
-    color: #fff;
-    background-color: var(--whatsapp-brand);
-    border-color: var(--whatsapp-brand);
-    box-shadow: 0 2px 6px rgba(37, 211, 102, 0.28);
-
-    &:hover,
-    &:focus-visible {
-      color: #fff;
-      background-color: #1ebe57;
-      border-color: #1ebe57;
-      box-shadow: 0 4px 12px rgba(37, 211, 102, 0.42);
-    }
-  }
-
-  &__btn--instagram {
-    color: #fff;
-    background: var(--instagram-gradient);
-    border-color: transparent;
-    box-shadow: 0 2px 8px rgba(225, 48, 108, 0.3);
-
-    &:hover,
-    &:focus-visible {
-      color: #fff;
-      background: var(--instagram-gradient);
-      border-color: transparent;
-      box-shadow: 0 4px 14px rgba(225, 48, 108, 0.45);
-      filter: brightness(1.06);
-    }
+  &__btn--instagram &__icon {
+    font-size: 1.25rem;
   }
 }
 
@@ -832,6 +800,270 @@
     width: 5.5rem;
     height: 1.75rem;
   }
+}
+
+.student-project-detail {
+  &__toolbar {
+    border-bottom: 1px solid var(--#{$prefix}border-color);
+    padding-bottom: 1rem;
+  }
+
+  &__hero {
+    margin-bottom: 1.25rem;
+  }
+
+  &__thumbnail {
+    display: block;
+    width: 100%;
+    max-height: 28rem;
+    object-fit: contain;
+    border-radius: 0.5rem;
+    background-color: var(--#{$prefix}secondary-bg);
+
+    &--empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 14rem;
+    }
+  }
+
+  &__status-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+
+  &__title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+  }
+
+  &__owner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+    margin-bottom: 1.25rem;
+    border: 1px solid var(--#{$prefix}border-color);
+    border-radius: 0.5rem;
+    background-color: var(--#{$prefix}secondary-bg);
+  }
+
+  &__meta {
+    display: grid;
+    gap: 0.85rem;
+    margin-bottom: 1.5rem;
+  }
+
+  &__meta-row {
+    display: grid;
+    grid-template-columns: 1.5rem minmax(5.5rem, auto) 1fr;
+    gap: 0.5rem 0.75rem;
+    align-items: start;
+  }
+
+  &__meta-icon {
+    font-size: 1.25rem;
+    color: var(--#{$prefix}secondary-color);
+    margin-top: 0.1rem;
+  }
+
+  &__meta-label {
+    color: var(--#{$prefix}secondary-color);
+  }
+
+  &__meta-value {
+    font-weight: 600;
+    word-break: break-word;
+  }
+
+  &__section-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin-bottom: 0.85rem;
+  }
+
+  &__description {
+    margin-bottom: 1.5rem;
+    line-height: 1.7;
+
+    p:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  &__blocks {
+    margin-bottom: 1.5rem;
+  }
+
+  &__block-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+  }
+
+  &__block-text {
+    margin-bottom: 1rem;
+    line-height: 1.7;
+  }
+
+  &__block-quote {
+    margin: 0 0 1rem;
+    padding: 1rem 1.25rem;
+    border-left: 3px solid var(--#{$prefix}primary);
+    background-color: var(--#{$prefix}secondary-bg);
+    border-radius: 0 0.375rem 0.375rem 0;
+
+    p {
+      margin: 0;
+      font-size: 1.05rem;
+      font-style: italic;
+    }
+  }
+
+  &__block-image {
+    margin-bottom: 1rem;
+
+    img {
+      width: 100%;
+      max-height: 28rem;
+      object-fit: contain;
+      border-radius: 0.5rem;
+    }
+  }
+
+  &__gallery {
+    margin-bottom: 1.5rem;
+  }
+
+  &__gallery-thumb {
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: 1px solid var(--#{$prefix}border-color);
+    border-radius: 0.5rem;
+    overflow: hidden;
+    background: var(--#{$prefix}secondary-bg);
+    cursor: pointer;
+    transition: box-shadow 0.2s ease;
+
+    &:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    img {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      object-fit: cover;
+      display: block;
+    }
+  }
+
+  &__gallery-modal-image {
+    width: 100%;
+    max-height: 80vh;
+    object-fit: contain;
+    display: block;
+    background: #000;
+  }
+
+  &__gallery-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 2.5rem;
+    height: 2.5rem;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.9);
+    color: #333;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 2;
+
+    &--prev {
+      left: 0.75rem;
+    }
+
+    &--next {
+      right: 0.75rem;
+    }
+  }
+
+  &__tags {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--#{$prefix}border-color);
+  }
+
+  &__tags-label {
+    font-weight: 600;
+  }
+}
+
+.student-project-resources {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.85rem;
+  margin-bottom: 1.5rem;
+
+  &__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    min-height: 2.75rem;
+    padding: 0.65rem 1.25rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    font-size: 0.95rem;
+    line-height: 1.25;
+    text-decoration: none;
+    border: 2px solid transparent;
+    transition:
+      filter 0.2s ease,
+      transform 0.15s ease,
+      box-shadow 0.2s ease;
+
+    &:hover {
+      filter: brightness(1.06);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    }
+
+    &--map {
+      color: #0d47a1;
+      background-color: #e3f2fd;
+      border-color: #1976d2;
+    }
+
+    &--thesis {
+      color: #5d4037;
+      background-color: #efebe9;
+      border-color: #6d4c41;
+    }
+
+    &--file {
+      color: #4a148c;
+      background-color: #f3e5f5;
+      border-color: #7b1fa2;
+    }
+  }
+}
+
+.projects-list-col-title__heading a:hover {
+  color: var(--#{$prefix}primary) !important;
 }
 
 .users-table-skeleton {

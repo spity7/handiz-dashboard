@@ -328,7 +328,7 @@ const ProjectsListTable = ({ projects, isLoading = false, onRefresh, highlightPr
       meta: { className: 'projects-list-col-title' },
       cell: ({
         row: {
-          original: { thumbnailUrl, title, type },
+          original: { thumbnailUrl, title, type, _id },
         },
       }) => (
         <div className="d-flex align-items-center projects-list-col-title__content">
@@ -342,7 +342,11 @@ const ProjectsListTable = ({ projects, isLoading = false, onRefresh, highlightPr
             )}
           </div>
           <div className="flex-grow-1 min-w-0">
-            <h5 className="mt-0 mb-1 projects-list-col-title__heading">{title}</h5>
+            <h5 className="mt-0 mb-1 projects-list-col-title__heading">
+              <Link to={`/ecommerce/student-projects/${_id}`} className="text-reset text-decoration-none">
+                {title}
+              </Link>
+            </h5>
             <span className="fs-13 text-muted projects-list-col-title__type" dangerouslySetInnerHTML={{ __html: type }} />
           </div>
         </div>
@@ -368,6 +372,13 @@ const ProjectsListTable = ({ projects, isLoading = false, onRefresh, highlightPr
         const isFocusedProject = activeHighlightId && String(project._id) === String(activeHighlightId)
         return (
           <div className="d-flex gap-2 flex-wrap">
+            <Link
+              to={`/ecommerce/student-projects/${project._id}`}
+              className="btn btn-sm btn-soft-primary"
+              title="View Project"
+              onClick={() => isFocusedProject && clearHighlight()}>
+              <IconifyIcon icon="bx:show" className="fs-18" />
+            </Link>
             {showWrite && (
               <Link
                 to={
