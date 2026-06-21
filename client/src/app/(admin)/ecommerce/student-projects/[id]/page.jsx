@@ -11,6 +11,7 @@ import { useAuthContext } from '@/context/useAuthContext'
 import useConfirmAction from '@/hooks/useConfirmAction'
 import { canPublishProject, canWriteProject, PROJECT_STATUS, ROLES, statusBadgeVariant } from '@/constants/roles'
 import { isProfileComplete } from '@/utils/profileComplete'
+import { downloadProjectImagesZip, getProjectDownloadableImages } from '@/utils/downloadProjectImage'
 import { getStudentProjectPublicUrl } from '@/utils/studentProjectContact'
 import StudentProjectDetailView from './components/StudentProjectDetailView'
 
@@ -23,6 +24,7 @@ const StudentProjectDetail = () => {
 
   const [project, setProject] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [downloadingAll, setDownloadingAll] = useState(false)
   const profileComplete = isProfileComplete(user)
   const showAdminColumns = user?.role === ROLES.ADMIN || user?.role === ROLES.EDITOR
   const publicUrl = project ? getStudentProjectPublicUrl(project) : null
@@ -148,6 +150,21 @@ const StudentProjectDetail = () => {
   const editTarget = profileComplete
     ? `/ecommerce/student-projects/edit/${project._id}`
     : { pathname: '/pages/account', state: { from: `/ecommerce/student-projects/edit/${project._id}` } }
+  const downloadableImages = getProjectDownloadableImages(project)
+
+  const handleDownloadAll = async () => {
+    if (!downloadableImages.length || downloadingAll) return
+
+    setDownloadingAll(true)
+    try {
+      await downloadProjectImagesZip(project._id, project.title)
+      await Swal.fire('Downloaded', 'All project images saved as a ZIP file.', 'success')
+    } catch {
+      Swal.fire('Error', 'Some images could not be downloaded.', 'error')
+    } finally {
+      setDownloadingAll(false)
+    }
+  }
 
   return (
     <>
@@ -158,10 +175,23 @@ const StudentProjectDetail = () => {
           <Card>
             <CardBody>
               <div className="student-project-detail__toolbar d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
-                <Link to="/ecommerce/student-projects" className="btn btn-soft-secondary btn-sm d-inline-flex align-items-center">
-                  <IconifyIcon icon="bx:arrow-back" className="me-1" />
-                  Back to list
-                </Link>
+                <div className="d-flex flex-wrap gap-2 align-items-center">
+                  <Link to="/ecommerce/student-projects" className="btn btn-soft-secondary btn-sm d-inline-flex align-items-center">
+                    <IconifyIcon icon="bx:arrow-back" className="me-1" />
+                    Back to list
+                  </Link>
+                  {downloadableImages.length > 0 && (
+                    <Button
+                      variant="soft-primary"
+                      size="sm"
+                      className="d-inline-flex align-items-center"
+                      onClick={handleDownloadAll}
+                      disabled={downloadingAll}>
+                      <IconifyIcon icon="bx:download" className="me-1" />
+                      {downloadingAll ? 'Downloading…' : 'Download All'}
+                    </Button>
+                  )}
+                </div>
 
                 <div className="d-flex flex-wrap gap-2 align-items-center">
                   {project.status && !deleted && (

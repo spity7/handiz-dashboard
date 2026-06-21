@@ -1,5 +1,11 @@
 const Project = require("../models/projectModel");
-const { uploadImage, uploadThumbnail, deleteImage } = require("../utils/gcs");
+const archiver = require("archiver");
+const {
+  uploadProjectImage,
+  uploadThumbnail,
+  deleteImage,
+  downloadImage,
+} = require("../utils/gcs");
 const { ROLES } = require("../constants/permissions");
 const { PROJECT_STATUS } = require("../constants/projectStatus");
 const {
@@ -14,15 +20,34 @@ const {
   notifyProjectUnpublished,
 } = require("../utils/helpers/notificationService");
 const { CREATED_BY_POPULATE } = require("../utils/createdByPopulate");
+const {
+  buildProjectImagesZipName,
+  collectProjectDownloadableImages,
+  findProjectImageByLabel,
+} = require("../utils/projectImageDownload");
 
-const collectProjectImageUrls = (project) => {
-  const urls = [];
-  if (project.thumbnailUrl) urls.push(project.thumbnailUrl);
-  if (project.gallery?.length) urls.push(...project.gallery);
-  (project.contentBlocks || [])
-    .filter((block) => block.type === "image" && block.content)
-    .forEach((block) => urls.push(block.content));
-  return [...new Set(urls)];
+const collectProjectImageUrls = (project) => [
+  ...new Set(
+    collectProjectDownloadableImages(project).map((image) => image.url),
+  ),
+];
+
+const assertCanAccessProjectImages = (req, project) => {
+  if (!req.user) {
+    if (project.status !== PROJECT_STATUS.PUBLISHED) {
+      return { status: 404, message: "Project not found" };
+    }
+    return null;
+  }
+
+  if (!canReadProject(req.user, project)) {
+    return {
+      status: 403,
+      message: "Forbidden: cannot access this project",
+    };
+  }
+
+  return null;
 };
 
 const deleteProjectImages = async (project) => {
@@ -83,34 +108,6 @@ exports.createProject = async (req, res) => {
       return res.status(400).json({ message: "Thumbnail image is required." });
     }
 
-    const thumbnailUrl = await uploadThumbnail(
-      thumbnailFile.buffer,
-      thumbnailFile.originalname,
-    );
-
-    // Upload gallery (optional)
-    let galleryUrls = [];
-
-    if (galleryFiles.length > 0) {
-      try {
-        galleryUrls = await Promise.all(
-          galleryFiles.map(async (file) => {
-            const fileName = `projects/gallery/${Date.now()}_${
-              file.originalname
-            }`;
-            return await uploadImage(file.buffer, fileName, file.mimetype);
-          }),
-        );
-      } catch (err) {
-        console.error("Error uploading one of the gallery images:", err);
-        return res.status(500).json({
-          message: "Failed to upload gallery images",
-          error: err.message,
-        });
-      }
-    }
-
-    // Process Content Blocks
     let parsedContentBlocks = [];
     if (contentBlocks) {
       try {
@@ -120,23 +117,45 @@ exports.createProject = async (req, res) => {
       }
     }
 
-    // Upload block images and map to contentBlocks
-    if (parsedContentBlocks.length > 0 && blockImageFiles.length > 0) {
-      // We assume the frontend sends images in the same order as the 'image' blocks appear
-      // OR we can rely on a fileIndex property in the block.
-      // Let's implement the fileIndex strategy for robustness if possible, or a queue.
+    const uploadStamp = Date.now();
 
-      // Strategy: Create a queue of files. Iterate blocks. If block.type === 'image' && !block.content (or special flag), pop file.
-      let imageFileIndex = 0;
+    let thumbnailUrl;
+    let galleryUrls = [];
+    let uploadedBlockImages = [];
 
-      // First, upload all block images in parallel to get their URLs
-      const uploadedBlockImages = await Promise.all(
-        blockImageFiles.map(async (file) => {
-          const fileName = `projects/blocks/${Date.now()}_${file.originalname}`;
-          return await uploadImage(file.buffer, fileName, file.mimetype);
-        }),
-      );
+    try {
+      [thumbnailUrl, galleryUrls, uploadedBlockImages] = await Promise.all([
+        uploadThumbnail(thumbnailFile.buffer, thumbnailFile.originalname),
+        galleryFiles.length > 0
+          ? Promise.all(
+              galleryFiles.map((file, index) =>
+                uploadProjectImage(file.buffer, file.originalname, "gallery", {
+                  stamp: uploadStamp,
+                  index,
+                }),
+              ),
+            )
+          : Promise.resolve([]),
+        blockImageFiles.length > 0
+          ? Promise.all(
+              blockImageFiles.map((file, index) =>
+                uploadProjectImage(file.buffer, file.originalname, "blocks", {
+                  stamp: uploadStamp,
+                  index,
+                }),
+              ),
+            )
+          : Promise.resolve([]),
+      ]);
+    } catch (err) {
+      console.error("Error uploading project images:", err);
+      return res.status(500).json({
+        message: "Failed to upload project images",
+        error: err.message,
+      });
+    }
 
+    if (parsedContentBlocks.length > 0 && uploadedBlockImages.length > 0) {
       parsedContentBlocks = parsedContentBlocks.map((block) => {
         if (
           block.type === "image" &&
@@ -194,7 +213,12 @@ exports.createProject = async (req, res) => {
     });
 
     if (initialStatus === PROJECT_STATUS.PENDING) {
-      await notifyProjectPending(newProject, req.user);
+      notifyProjectPending(newProject, req.user).catch((err) => {
+        console.error(
+          "Failed to send project pending notification:",
+          err.message,
+        );
+      });
     }
 
     res.status(201).json({
@@ -353,13 +377,14 @@ exports.updateProject = async (req, res) => {
     if (parsedContentBlocks.length > 0) {
       // Upload NEW block images
       if (blockImageFiles.length > 0) {
+        const uploadStamp = Date.now();
         const uploadedBlockImages = await Promise.all(
-          blockImageFiles.map(async (file) => {
-            const fileName = `projects/blocks/${Date.now()}_${
-              file.originalname
-            }`;
-            return await uploadImage(file.buffer, fileName, file.mimetype);
-          }),
+          blockImageFiles.map((file, index) =>
+            uploadProjectImage(file.buffer, file.originalname, "blocks", {
+              stamp: uploadStamp,
+              index,
+            }),
+          ),
         );
 
         let imageIndex = 0;
@@ -436,13 +461,14 @@ exports.updateProject = async (req, res) => {
     let newGalleryUrls = [];
     if (galleryFiles.length > 0) {
       try {
+        const uploadStamp = Date.now();
         newGalleryUrls = await Promise.all(
-          galleryFiles.map(async (file) => {
-            const fileName = `projects/gallery/${Date.now()}_${
-              file.originalname
-            }`;
-            return await uploadImage(file.buffer, fileName, file.mimetype);
-          }),
+          galleryFiles.map((file, index) =>
+            uploadProjectImage(file.buffer, file.originalname, "gallery", {
+              stamp: uploadStamp,
+              index,
+            }),
+          ),
         );
       } catch (err) {
         console.error("Error uploading gallery images:", err);
@@ -475,7 +501,12 @@ exports.updateProject = async (req, res) => {
     );
 
     if (userEdited) {
-      await notifyProjectPending(updatedProject, req.user, true);
+      notifyProjectPending(updatedProject, req.user, true).catch((err) => {
+        console.error(
+          "Failed to send project pending notification:",
+          err.message,
+        );
+      });
     }
 
     res.status(200).json({
@@ -627,5 +658,112 @@ exports.deleteProjectImage = async (req, res) => {
       message: "Server error deleting gallery image",
       error: error.message,
     });
+  }
+};
+
+exports.downloadProjectImagesZip = async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id);
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    const accessError = assertCanAccessProjectImages(req, project);
+    if (accessError) {
+      return res
+        .status(accessError.status)
+        .json({ message: accessError.message });
+    }
+
+    const images = collectProjectDownloadableImages(project);
+    if (!images.length) {
+      return res.status(404).json({ message: "No images to download" });
+    }
+
+    const downloadedImages = (
+      await Promise.all(
+        images.map(async (image) => {
+          try {
+            const buffer = await downloadImage(image.url);
+            return { ...image, buffer };
+          } catch (err) {
+            console.warn(
+              "Failed to download image for ZIP:",
+              image.url,
+              err.message,
+            );
+            return null;
+          }
+        }),
+      )
+    ).filter(Boolean);
+
+    if (!downloadedImages.length) {
+      return res
+        .status(500)
+        .json({ message: "Failed to download project images" });
+    }
+
+    const zipName = buildProjectImagesZipName(project.title);
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader("Content-Disposition", `attachment; filename="${zipName}"`);
+
+    const archive = archiver("zip", { zlib: { level: 6 } });
+    archive.on("error", (err) => {
+      console.error("ZIP archive error:", err);
+      if (!res.headersSent) {
+        res.status(500).json({ message: "Failed to create image archive" });
+      }
+    });
+
+    archive.pipe(res);
+
+    for (const image of downloadedImages) {
+      archive.append(image.buffer, { name: image.filename });
+    }
+
+    await archive.finalize();
+  } catch (error) {
+    console.error("Error downloading project images:", error);
+    if (!res.headersSent) {
+      res.status(500).json({ message: "Server error downloading images" });
+    }
+  }
+};
+
+exports.downloadProjectImageFile = async (req, res) => {
+  try {
+    const { label } = req.query;
+    if (!label) {
+      return res.status(400).json({ message: "Image label is required" });
+    }
+
+    const project = await Project.findById(req.params.id);
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    const accessError = assertCanAccessProjectImages(req, project);
+    if (accessError) {
+      return res
+        .status(accessError.status)
+        .json({ message: accessError.message });
+    }
+
+    const image = findProjectImageByLabel(project, label);
+    if (!image) {
+      return res.status(404).json({ message: "Image not found" });
+    }
+
+    const buffer = await downloadImage(image.url);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${image.filename}"`,
+    );
+    res.setHeader("Content-Type", "application/octet-stream");
+    res.send(buffer);
+  } catch (error) {
+    console.error("Error downloading project image:", error);
+    res.status(500).json({ message: "Server error downloading image" });
   }
 };

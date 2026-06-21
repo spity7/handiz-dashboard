@@ -6,6 +6,7 @@
     "start": "node app.js",
     "migrate:ai-prompt-categories": "node scripts/migrateAiToolCategoryRefs.js",
     "migrate:project-thumbnails": "node scripts/migrateProjectThumbnails.js",
+    "migrate:project-images": "node scripts/migrateProjectImages.js",
     "migrate:soft-delete-indexes": "node scripts/migrateSoftDeleteIndexes.js"
   },
   "keywords": [],
@@ -14,6 +15,7 @@
   "description": "",
   "dependencies": {
     "@google-cloud/storage": "^7.17.2",
+    "archiver": "^5.3.2",
     "bcryptjs": "^3.0.2",
     "body-parser": "^2.2.0",
     "compression": "^1.8.1",

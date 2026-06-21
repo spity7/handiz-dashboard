@@ -812,6 +812,49 @@
     margin-bottom: 1.25rem;
   }
 
+  &__image-wrap {
+    position: relative;
+  }
+
+  &__image-download {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border: none;
+    border-radius: 0.375rem;
+    background: rgba(255, 255, 255, 0.92);
+    color: var(--#{$prefix}body-color);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+
+    &:hover {
+      background: var(--#{$prefix}primary);
+      color: #fff;
+    }
+
+    &--modal {
+      top: 0.75rem;
+      right: 0.75rem;
+      width: 2.5rem;
+      height: 2.5rem;
+      border-radius: 50%;
+      color: #333;
+
+      &:hover {
+        background: #fff;
+        color: #333;
+      }
+    }
+  }
+
   &__thumbnail {
     display: block;
     width: 100%;
@@ -939,6 +982,10 @@
 
   &__gallery {
     margin-bottom: 1.5rem;
+  }
+
+  &__gallery-item {
+    position: relative;
   }
 
   &__gallery-thumb {

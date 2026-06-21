@@ -4,6 +4,7 @@ import UserContactButtons from '@/components/users/UserContactButtons'
 import { ROLES, statusBadgeVariant } from '@/constants/roles'
 import { buildStudentProjectWhatsAppMessage } from '@/utils/studentProjectContact'
 import StudentProjectGallery from './StudentProjectGallery'
+import StudentProjectImageDownload from './StudentProjectImageDownload'
 
 const joinValues = (values) => (Array.isArray(values) && values.length ? values.join(', ') : '—')
 
@@ -22,7 +23,7 @@ const ResourceLink = ({ href, icon, label, variant }) => (
   </a>
 )
 
-const ContentBlocks = ({ blocks = [] }) => {
+const ContentBlocks = ({ blocks = [], projectId }) => {
   if (!blocks.length) return null
 
   return (
@@ -49,8 +50,9 @@ const ContentBlocks = ({ blocks = [] }) => {
             )
           case 'image':
             return (
-              <div key={index} className="student-project-detail__block-image">
+              <div key={index} className="student-project-detail__block-image student-project-detail__image-wrap">
                 <img src={block.content} alt="Project content" />
+                <StudentProjectImageDownload projectId={projectId} label={`content_${index + 1}`} ariaLabel={`Download content image ${index + 1}`} />
               </div>
             )
           default:
@@ -69,9 +71,12 @@ const StudentProjectDetailView = ({ project, user }) => {
 
   return (
     <div className="student-project-detail">
-      <div className="student-project-detail__hero">
+      <div className="student-project-detail__hero student-project-detail__image-wrap">
         {project.thumbnailUrl ? (
-          <img src={project.thumbnailUrl} alt={project.title} className="student-project-detail__thumbnail" />
+          <>
+            <img src={project.thumbnailUrl} alt={project.title} className="student-project-detail__thumbnail" />
+            <StudentProjectImageDownload projectId={project._id} label="thumbnail" ariaLabel="Download thumbnail" />
+          </>
         ) : (
           <div className="student-project-detail__thumbnail student-project-detail__thumbnail--empty">
             <IconifyIcon icon="bx:image" className="text-muted fs-1" />
@@ -146,9 +151,9 @@ const StudentProjectDetailView = ({ project, user }) => {
 
       {project.description && <div className="student-project-detail__description" dangerouslySetInnerHTML={{ __html: project.description }} />}
 
-      <ContentBlocks blocks={project.contentBlocks} />
+      <ContentBlocks blocks={project.contentBlocks} projectId={project._id} />
 
-      <StudentProjectGallery images={project.gallery} />
+      <StudentProjectGallery images={project.gallery} projectId={project._id} />
 
       {project.concept?.length > 0 && (
         <div className="student-project-detail__tags">

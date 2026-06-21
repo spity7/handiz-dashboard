@@ -1,6 +1,6 @@
 const { Storage } = require("@google-cloud/storage");
 const path = require("path");
-const { optimizeThumbnail } = require("./imageProcessing");
+const { optimizeImage } = require("./imageProcessing");
 require("dotenv-safe").config();
 
 const keyPath =
@@ -14,7 +14,6 @@ const bucket = storage.bucket(bucketName);
 async function uploadImage(fileBuffer, fileName, mimeType) {
   const file = bucket.file(fileName);
 
-  // Save the file (no ACL manipulation)
   await file.save(fileBuffer, {
     metadata: {
       contentType: mimeType,
@@ -22,23 +21,43 @@ async function uploadImage(fileBuffer, fileName, mimeType) {
     resumable: false,
   });
 
-  // Return public URL:
   return `https://storage.googleapis.com/${bucketName}/${encodeURIComponent(
     fileName,
   )}`;
 }
 
-function thumbnailFileName(originalName, extension) {
-  const safeBase = path
-    .parse(originalName || "thumbnail")
+function safeBaseName(originalName, fallback = "image") {
+  return path
+    .parse(originalName || fallback)
     .name.replace(/[^a-zA-Z0-9._-]/g, "_");
-  return `projects/thumbnails/${Date.now()}_${safeBase}${extension}`;
+}
+
+function projectImageFileName(folder, originalName, extension, stamp, index) {
+  const base = safeBaseName(originalName);
+  const prefix =
+    index !== undefined && index !== null ? `${stamp}_${index}` : String(stamp);
+  return `projects/${folder}/${prefix}_${base}${extension}`;
+}
+
+async function uploadProjectImage(
+  fileBuffer,
+  originalName,
+  folder,
+  { stamp = Date.now(), index } = {},
+) {
+  const { buffer, mimeType, extension } = await optimizeImage(fileBuffer);
+  const fileName = projectImageFileName(
+    folder,
+    originalName,
+    extension,
+    stamp,
+    index,
+  );
+  return uploadImage(buffer, fileName, mimeType);
 }
 
 async function uploadThumbnail(fileBuffer, originalName) {
-  const { buffer, mimeType, extension } = await optimizeThumbnail(fileBuffer);
-  const fileName = thumbnailFileName(originalName, extension);
-  return uploadImage(buffer, fileName, mimeType);
+  return uploadProjectImage(fileBuffer, originalName, "thumbnails");
 }
 
 function getFileNameFromUrl(fileUrl) {
@@ -61,19 +80,18 @@ async function downloadImage(fileUrl) {
 async function deleteImage(fileUrl) {
   if (!fileUrl) return;
   try {
-    // Extract filename from public URL
     const fileName = decodeURIComponent(fileUrl.split(`/${bucketName}/`)[1]);
     const file = bucket.file(fileName);
     await file.delete();
     console.log(`Deleted old file: ${fileName}`);
   } catch (err) {
-    // Don’t fail if file doesn’t exist
     console.warn("Failed to delete old GCS file:", err.message);
   }
 }
 
 module.exports = {
   uploadImage,
+  uploadProjectImage,
   uploadThumbnail,
   downloadImage,
   getFileNameFromUrl,

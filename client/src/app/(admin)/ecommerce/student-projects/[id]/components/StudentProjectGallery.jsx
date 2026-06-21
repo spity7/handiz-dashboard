@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { Modal } from 'react-bootstrap'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
+import StudentProjectImageDownload from './StudentProjectImageDownload'
 
-const StudentProjectGallery = ({ images = [] }) => {
+const StudentProjectGallery = ({ images = [], projectId }) => {
   const [activeIndex, setActiveIndex] = useState(-1)
 
   if (!images.length) return null
@@ -17,13 +18,16 @@ const StudentProjectGallery = ({ images = [] }) => {
       <div className="row g-3">
         {images.map((imageUrl, index) => (
           <div key={imageUrl + index} className="col-6 col-md-4 col-lg-3">
-            <button
-              type="button"
-              className="student-project-detail__gallery-thumb"
-              onClick={() => setActiveIndex(index)}
-              aria-label={`Open gallery image ${index + 1}`}>
-              <img src={imageUrl} alt={`Gallery ${index + 1}`} />
-            </button>
+            <div className="student-project-detail__gallery-item">
+              <button
+                type="button"
+                className="student-project-detail__gallery-thumb"
+                onClick={() => setActiveIndex(index)}
+                aria-label={`Open gallery image ${index + 1}`}>
+                <img src={imageUrl} alt={`Gallery ${index + 1}`} />
+              </button>
+              <StudentProjectImageDownload projectId={projectId} label={`gallery_${index + 1}`} ariaLabel={`Download gallery image ${index + 1}`} />
+            </div>
           </div>
         ))}
       </div>
@@ -32,6 +36,14 @@ const StudentProjectGallery = ({ images = [] }) => {
         <Modal.Body className="p-0 position-relative">
           {activeIndex >= 0 && (
             <img src={images[activeIndex]} alt={`Gallery ${activeIndex + 1}`} className="student-project-detail__gallery-modal-image" />
+          )}
+          {activeIndex >= 0 && (
+            <StudentProjectImageDownload
+              projectId={projectId}
+              label={`gallery_${activeIndex + 1}`}
+              ariaLabel={`Download gallery image ${activeIndex + 1}`}
+              className="student-project-detail__image-download--modal"
+            />
           )}
           {images.length > 1 && (
             <>

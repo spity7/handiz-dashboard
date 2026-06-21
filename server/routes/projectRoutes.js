@@ -13,6 +13,8 @@ const {
   permanentlyDeleteProject,
   publishProject,
   unpublishProject,
+  downloadProjectImagesZip,
+  downloadProjectImageFile,
 } = require("../controllers/projectController");
 const {
   listConcepts,
@@ -150,6 +152,10 @@ router.get(
 );
 
 router.get("/projects/:id", optionalAuth, getProjectById);
+
+router.get("/projects/:id/images/zip", optionalAuth, downloadProjectImagesZip);
+
+router.get("/projects/:id/images/file", optionalAuth, downloadProjectImageFile);
 
 router.put(
   "/projects/:id",
