@@ -14,6 +14,7 @@ const ProjectsListEmptyState = ({
   variant = 'empty',
   inTable = false,
   userRole,
+  profileComplete = true,
   ownerFilter,
   statusFilter,
   visibilityFilter = 'all',
@@ -83,7 +84,13 @@ const ProjectsListEmptyState = ({
           <p className="projects-list-empty__description">{emptyCopy.description}</p>
 
           <div className="projects-list-empty__actions">
-            <Link to="/ecommerce/student-projects/create" className="btn btn-primary">
+            <Link
+              to={
+                profileComplete
+                  ? '/ecommerce/student-projects/create'
+                  : { pathname: '/pages/account', state: { from: '/ecommerce/student-projects/create' } }
+              }
+              className="btn btn-primary">
               <IconifyIcon icon="bx:plus" className="me-1" />
               {emptyCopy.actionLabel}
             </Link>

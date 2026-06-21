@@ -19,6 +19,9 @@ import {
   statusBadgeVariant,
 } from '@/constants/roles'
 import ProjectsListEmptyState from './ProjectsListEmptyState'
+import { isProfileComplete } from '@/utils/profileComplete'
+import UserContactButtons from '@/components/users/UserContactButtons'
+import { buildStudentProjectWhatsAppMessage } from '@/utils/studentProjectContact'
 
 const FOCUS_DISMISS_MS = 450
 const ALL_FILTER = ''
@@ -51,6 +54,7 @@ const ProjectsListTable = ({ projects, isLoading = false, onRefresh, highlightPr
   const [statusFilter, setStatusFilter] = useState(ALL_FILTER)
   const [visibilityFilter, setVisibilityFilter] = useState(VISIBILITY_ALL)
   const showAdminColumns = user?.role === ROLES.ADMIN || user?.role === ROLES.EDITOR
+  const profileComplete = isProfileComplete(user)
 
   const ownerOptions = useMemo(() => {
     const byId = new Map()
@@ -256,26 +260,28 @@ const ProjectsListTable = ({ projects, isLoading = false, onRefresh, highlightPr
         ))}
       </TableHeaderFilter>
     ),
-    cell: ({
-      row: {
-        original: { createdBy },
-      },
-    }) => {
+    cell: ({ row: { original: project } }) => {
+      const { createdBy } = project
       if (!createdBy) {
         return <span className="text-muted fst-italic">Unknown account</span>
       }
       const ownerDeleted = Boolean(createdBy.deletedAt)
       return (
         <div>
-          <div className="fw-medium">
-            {createdBy.username}
-            {ownerDeleted && (
-              <Badge bg="danger" className="ms-2 projects-list-deleted-badge">
-                Deleted
-              </Badge>
-            )}
+          <div className="d-flex align-items-center gap-2 flex-wrap">
+            <div className="min-w-0">
+              <div className="fw-medium">
+                {createdBy.username}
+                {ownerDeleted && (
+                  <Badge bg="danger" className="ms-2 projects-list-deleted-badge">
+                    Deleted
+                  </Badge>
+                )}
+              </div>
+              {createdBy.email && <div className="fs-13 text-muted">{createdBy.email}</div>}
+            </div>
+            <UserContactButtons user={createdBy} whatsappMessage={buildStudentProjectWhatsAppMessage(project)} />
           </div>
-          {createdBy.email && <div className="fs-13 text-muted">{createdBy.email}</div>}
         </div>
       )
     },
@@ -364,9 +370,13 @@ const ProjectsListTable = ({ projects, isLoading = false, onRefresh, highlightPr
           <div className="d-flex gap-2 flex-wrap">
             {showWrite && (
               <Link
-                to={`/ecommerce/student-projects/edit/${project._id}`}
+                to={
+                  profileComplete
+                    ? `/ecommerce/student-projects/edit/${project._id}`
+                    : { pathname: '/pages/account', state: { from: `/ecommerce/student-projects/edit/${project._id}` } }
+                }
                 className="btn btn-sm btn-soft-secondary"
-                title="Edit Project"
+                title={profileComplete ? 'Edit Project' : 'Verify your account to edit projects'}
                 onClick={() => isFocusedProject && clearHighlight()}>
                 <IconifyIcon icon="bx:edit" className="fs-18" />
               </Link>
@@ -421,6 +431,7 @@ const ProjectsListTable = ({ projects, isLoading = false, onRefresh, highlightPr
         variant={isFilteredEmpty ? 'filtered' : 'empty'}
         inTable
         userRole={user?.role}
+        profileComplete={profileComplete}
         ownerFilter={ownerFilter}
         statusFilter={statusFilter}
         visibilityFilter={visibilityFilter}

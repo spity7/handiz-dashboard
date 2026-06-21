@@ -71,6 +71,10 @@ const ProfileDropdown = () => {
       </DropdownToggle>
       <DropdownMenu>
         <DropdownHeader as="h6">Welcome {user?.firstname || user?.username || 'Guest'}!</DropdownHeader>
+        <DropdownItem as={Link} to="/pages/account">
+          <IconifyIcon icon="bx:user-circle" className="text-muted fs-18 align-middle me-1" />
+          <span className="align-middle">Account</span>
+        </DropdownItem>
         {/* <DropdownItem as={Link} to="/pages/profile">
           <IconifyIcon icon="bx:user-circle" className="text-muted fs-18 align-middle me-1" />
           <span className="align-middle">Profile</span>

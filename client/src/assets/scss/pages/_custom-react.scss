@@ -226,6 +226,86 @@
   border-left: 3px solid var(--#{$prefix}primary);
 }
 
+.user-contact-buttons {
+  --user-contact-btn-size: 2rem;
+  --instagram-brand: #e1306c;
+  --instagram-gradient: linear-gradient(
+    45deg,
+    #f09433 0%,
+    #e6683c 25%,
+    #dc2743 50%,
+    #cc2366 75%,
+    #bc1888 100%
+  );
+  --whatsapp-brand: #25d366;
+
+  &__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--user-contact-btn-size);
+    height: var(--user-contact-btn-size);
+    padding: 0;
+    border-radius: 0.45rem;
+    border: 1px solid transparent;
+    text-decoration: none;
+    line-height: 1;
+    transition:
+      color 0.15s ease,
+      background-color 0.15s ease,
+      border-color 0.15s ease,
+      box-shadow 0.15s ease,
+      transform 0.15s ease,
+      filter 0.15s ease;
+
+    &:hover,
+    &:focus-visible {
+      transform: translateY(-1px);
+    }
+
+    &:focus-visible {
+      outline: 0;
+      box-shadow: 0 0 0 0.2rem rgba(var(--#{$prefix}primary-rgb), 0.2);
+    }
+  }
+
+  &__icon {
+    font-size: 1.125rem;
+    flex-shrink: 0;
+  }
+
+  &__btn--whatsapp {
+    color: #fff;
+    background-color: var(--whatsapp-brand);
+    border-color: var(--whatsapp-brand);
+    box-shadow: 0 2px 6px rgba(37, 211, 102, 0.28);
+
+    &:hover,
+    &:focus-visible {
+      color: #fff;
+      background-color: #1ebe57;
+      border-color: #1ebe57;
+      box-shadow: 0 4px 12px rgba(37, 211, 102, 0.42);
+    }
+  }
+
+  &__btn--instagram {
+    color: #fff;
+    background: var(--instagram-gradient);
+    border-color: transparent;
+    box-shadow: 0 2px 8px rgba(225, 48, 108, 0.3);
+
+    &:hover,
+    &:focus-visible {
+      color: #fff;
+      background: var(--instagram-gradient);
+      border-color: transparent;
+      box-shadow: 0 4px 14px rgba(225, 48, 108, 0.45);
+      filter: brightness(1.06);
+    }
+  }
+}
+
 .users-table-project-count {
   display: inline-flex;
   align-items: center;

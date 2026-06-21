@@ -59,6 +59,7 @@ const {
   requireProjectWrite,
   requireProjectPublish,
 } = require("../middlewares/canAccessProject");
+const requireProfileComplete = require("../middlewares/requireProfileComplete");
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -132,6 +133,7 @@ router.post(
   "/projects",
   protectRoute,
   authorizePermission("studentProjects:create"),
+  requireProfileComplete,
   upload.fields([
     { name: "thumbnail", maxCount: 1 },
     { name: "gallery", maxCount: 30 },
@@ -154,6 +156,7 @@ router.put(
   protectRoute,
   loadProject,
   requireProjectWrite,
+  requireProfileComplete,
   upload.fields([
     { name: "thumbnail", maxCount: 1 },
     { name: "gallery", maxCount: 30 },

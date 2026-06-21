@@ -8,6 +8,15 @@ const { Parser } = require("json2csv");
 const moment = require("moment");
 const logger = require("../config/logger.js");
 const nodemailer = require("nodemailer");
+const {
+  normalizeMobileCountryCode,
+  normalizeLocalMobileNumber,
+  isValidMobileCountryCode,
+  isValidLocalMobileNumber,
+  normalizeInstagramUrl,
+  isValidInstagramUrl,
+  formatUserAuthResponse,
+} = require("../utils/userProfile");
 
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
@@ -150,15 +159,7 @@ exports.loginUser = async (req, res) => {
     logger.debug(`User ${emailOrUsername} logged in successfully.`);
 
     // Return the user data
-    res.status(200).json({
-      _id: user._id,
-      firstname: user.firstname,
-      lastname: user.lastname,
-      email: user.email,
-      username: user.username,
-      role: user.role,
-      isVerified: user.isVerified,
-    });
+    res.status(200).json(formatUserAuthResponse(user));
   } catch (error) {
     logger.error("Error in loginUser: ", error.message);
     res.status(500).json({ error: "An error occurred. Please try again." });
@@ -171,15 +172,7 @@ exports.getMe = async (req, res) => {
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
-    res.status(200).json({
-      _id: user._id,
-      firstname: user.firstname,
-      lastname: user.lastname,
-      email: user.email,
-      username: user.username,
-      role: user.role,
-      isVerified: user.isVerified,
-    });
+    res.status(200).json(formatUserAuthResponse(user));
   } catch (error) {
     res.status(500).json({ error: "Server error" });
   }
@@ -461,7 +454,14 @@ exports.getUserById = async (req, res) => {
 exports.updateProfile = async (req, res) => {
   try {
     const { id } = req.params;
-    const { firstname, lastname, username } = req.body;
+    const {
+      firstname,
+      lastname,
+      username,
+      mobileCountryCode,
+      mobileNumber,
+      instagramUrl,
+    } = req.body;
 
     if (req.user.role !== ROLES.ADMIN && String(req.user._id) !== String(id)) {
       return res
@@ -475,27 +475,85 @@ exports.updateProfile = async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    // Check if the new username is already taken by another user
-    const usernameTaken = await User.findOneWithDeleted({
-      username,
-      _id: { $ne: id },
-    });
+    const updates = {};
 
-    if (usernameTaken) {
-      return res.status(400).json({ error: "Username already taken" });
+    if (firstname !== undefined) updates.firstname = firstname;
+    if (lastname !== undefined) updates.lastname = lastname;
+
+    if (username !== undefined) {
+      const usernameTaken = await User.findOneWithDeleted({
+        username,
+        _id: { $ne: id },
+      });
+
+      if (usernameTaken) {
+        return res.status(400).json({ error: "Username already taken" });
+      }
+
+      updates.username = username;
     }
 
-    const updatedUser = await User.findByIdAndUpdate(
-      id,
-      { firstname, lastname, username },
-      { new: true, runValidators: true },
-    );
+    if (mobileCountryCode !== undefined || mobileNumber !== undefined) {
+      if (mobileCountryCode === undefined || mobileNumber === undefined) {
+        return res.status(400).json({
+          error: "Both mobile country code and mobile number are required.",
+        });
+      }
+
+      const normalizedCode = normalizeMobileCountryCode(mobileCountryCode);
+      const normalizedNumber = normalizeLocalMobileNumber(mobileNumber);
+
+      if (!normalizedCode) {
+        return res
+          .status(400)
+          .json({ error: "Mobile country code cannot be empty" });
+      }
+      if (!normalizedNumber) {
+        return res.status(400).json({ error: "Mobile number cannot be empty" });
+      }
+      if (!isValidMobileCountryCode(mobileCountryCode)) {
+        return res.status(400).json({
+          error: "Please enter a valid country code (e.g. 961 or +961).",
+        });
+      }
+      if (!isValidLocalMobileNumber(mobileNumber)) {
+        return res.status(400).json({
+          error: "Please enter a valid mobile number (4–12 digits).",
+        });
+      }
+
+      updates.mobileCountryCode = normalizedCode;
+      updates.mobileNumber = normalizedNumber;
+    }
+
+    if (instagramUrl !== undefined) {
+      const trimmedInstagram = String(instagramUrl).trim();
+      if (!trimmedInstagram) {
+        return res.status(400).json({ error: "Instagram URL cannot be empty" });
+      }
+      if (!isValidInstagramUrl(trimmedInstagram)) {
+        return res.status(400).json({
+          error:
+            "Please enter a valid Instagram URL or username (e.g. @handle or https://instagram.com/handle).",
+        });
+      }
+      updates.instagramUrl = normalizeInstagramUrl(trimmedInstagram);
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: "No profile fields to update" });
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(id, updates, {
+      new: true,
+      runValidators: true,
+    }).select("-password");
 
     if (!updatedUser) {
       return res.status(404).json({ error: "User not found" });
     }
 
-    res.status(200).json(updatedUser);
+    res.status(200).json(formatUserAuthResponse(updatedUser));
   } catch (error) {
     res.status(500).json({ error: "Server Error" });
   }

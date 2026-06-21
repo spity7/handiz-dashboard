@@ -59,6 +59,21 @@ const userSchema = mongoose.Schema(
       type: Date,
       default: null,
     },
+    mobileCountryCode: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    mobileNumber: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    instagramUrl: {
+      type: String,
+      default: null,
+      trim: true,
+    },
   },
   {
     timestamps: true,

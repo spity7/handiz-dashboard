@@ -5,6 +5,7 @@ const { ROLES } = require("../constants/permissions");
 const generateTokenAndSetCookie = require("../utils/helpers/generateTokenAndSetCookie.js");
 const generateUniqueUsername = require("../utils/helpers/generateUniqueUsername.js");
 const logger = require("../config/logger.js");
+const { formatUserAuthResponse } = require("../utils/userProfile");
 
 const getGoogleClient = () => {
   if (!process.env.GOOGLE_CLIENT_ID) {
@@ -95,15 +96,7 @@ exports.googleAuth = async (req, res) => {
 
     logger.debug(`User ${email} logged in with Google.`);
 
-    res.status(200).json({
-      _id: user._id,
-      firstname: user.firstname,
-      lastname: user.lastname,
-      email: user.email,
-      username: user.username,
-      role: user.role,
-      isVerified: user.isVerified,
-    });
+    res.status(200).json(formatUserAuthResponse(user));
   } catch (error) {
     logger.error("Error in googleAuth: ", error.message);
     res.status(401).json({ error: "Google authentication failed" });

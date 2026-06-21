@@ -14,6 +14,7 @@ import ReactQuill from 'react-quill'
 import DropzoneFormInput from '@/components/form/DropzoneFormInput'
 import SelectFormInput from '@/components/form/SelectFormInput'
 import StudentProjectFieldManageLink from '../../components/StudentProjectFieldManageLink'
+import RequireProfileComplete from '@/components/auth/RequireProfileComplete'
 import { sortOthersLast } from '@/utils/sortOthersLast'
 import { renameKeys } from '@/utils/rename-object-keys'
 import 'react-quill/dist/quill.snow.css'
@@ -365,10 +366,16 @@ const EditProject = () => {
     setState((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]))
   }
 
-  if (!project) return <ProjectFormSkeleton variant="student" title="Edit Project" subName="Handiz" />
+  if (!project) {
+    return (
+      <RequireProfileComplete>
+        <ProjectFormSkeleton variant="student" title="Edit Project" subName="Handiz" />
+      </RequireProfileComplete>
+    )
+  }
 
   return (
-    <>
+    <RequireProfileComplete>
       <PageMetaData title="Edit Project" />
       <PageBreadcrumb title="Edit Project" subName="Handiz" />
       <Row>
@@ -782,7 +789,7 @@ const EditProject = () => {
           </Card>
         </Col>
       </Row>
-    </>
+    </RequireProfileComplete>
   )
 }
 

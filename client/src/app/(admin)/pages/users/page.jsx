@@ -12,6 +12,8 @@ import { useGlobalContext } from '@/context/useGlobalContext'
 import useConfirmAction from '@/hooks/useConfirmAction'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
 import { ROLES } from '@/constants/roles'
+import { splitMobileFields } from '@/utils/profileComplete'
+import UserContactButtons from '@/components/users/UserContactButtons'
 
 const sameId = (a, b) => a != null && b != null && String(a) === String(b)
 
@@ -201,6 +203,10 @@ const UsersPage = () => {
         cell: ({ row: { original: e } }) => <UserProjectCountCell user={e} />,
       },
       {
+        header: 'Contact',
+        cell: ({ row: { original: e } }) => <UserContactButtons user={e} />,
+      },
+      {
         header: 'Actions',
         cell: ({ row: { original: e } }) => {
           const isYou = isCurrentAccount(e)
@@ -268,7 +274,7 @@ const UsersPage = () => {
         </Col>
       </Row>
 
-      <Modal show={!!editUser} onHide={() => setEditUser(null)} centered>
+      <Modal show={!!editUser} onHide={() => setEditUser(null)} centered size="lg">
         <Modal.Header closeButton>
           <Modal.Title>{isDeletedUser ? 'Deleted account' : isEditingSelf ? 'Your account' : 'Manage user role'}</Modal.Title>
         </Modal.Header>
@@ -318,6 +324,24 @@ const UsersPage = () => {
                 <Form.Group>
                   <Form.Label>Email</Form.Label>
                   <Form.Control value={editUser?.email ?? ''} readOnly plaintext={isEditingSelf} />
+                </Form.Group>
+              </Col>
+              <Col sm={4}>
+                <Form.Group>
+                  <Form.Label>Mobile code</Form.Label>
+                  <Form.Control value={splitMobileFields(editUser).mobileCountryCode || '—'} readOnly plaintext />
+                </Form.Group>
+              </Col>
+              <Col sm={8}>
+                <Form.Group>
+                  <Form.Label>Mobile number</Form.Label>
+                  <Form.Control value={splitMobileFields(editUser).mobileNumber || '—'} readOnly plaintext />
+                </Form.Group>
+              </Col>
+              <Col sm={6}>
+                <Form.Group>
+                  <Form.Label>Instagram</Form.Label>
+                  <Form.Control value={editUser?.instagramUrl ?? '—'} readOnly plaintext />
                 </Form.Group>
               </Col>
               <Col xs={12}>

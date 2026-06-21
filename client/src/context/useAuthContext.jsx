@@ -172,6 +172,14 @@ export function AuthProvider({ children }) {
     }
   }
 
+  const updateProfile = async (id, payload) => {
+    const res = await axios.put(`${BASE_URL}user/${id}`, payload)
+    const fresh = persistUser(res.data)
+    setUser(fresh)
+    setUserAtom(fresh)
+    return fresh
+  }
+
   const handleLogout = async () => {
     try {
       await confirmLogout()
@@ -196,6 +204,7 @@ export function AuthProvider({ children }) {
         handleLogin,
         handleGoogleLogin,
         handleLogout,
+        updateProfile,
         user,
         isAuthenticated: !!user,
         loading,
