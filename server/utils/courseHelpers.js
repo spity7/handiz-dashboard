@@ -6,6 +6,7 @@ const LessonProgress = require("../models/lessonProgressModel");
 const Certificate = require("../models/certificateModel");
 const Quiz = require("../models/quizModel");
 const QuizAttempt = require("../models/quizAttemptModel");
+const Notification = require("../models/notificationModel");
 const { ENROLLMENT_STATUS } = require("../constants/enrollmentStatus");
 const { COURSE_STATUS } = require("../constants/courseStatus");
 const {
@@ -64,6 +65,76 @@ const generateUniqueSlug = async (
 const entityBelongsToCourse = (entity, courseId) =>
   Boolean(entity && String(entity.courseId) === String(courseId));
 
+const extractContentBlockImageUrls = (blocks) =>
+  (blocks || [])
+    .filter((block) => block.type === "image" && block.content)
+    .map((block) => block.content);
+
+const deleteGcsUrls = async (urls) => {
+  const unique = [...new Set((urls || []).filter(Boolean))];
+  await Promise.all(
+    unique.map(async (url) => {
+      try {
+        await deleteImage(url);
+      } catch (err) {
+        console.warn("Failed to delete GCS file:", url, err.message);
+      }
+    }),
+  );
+};
+
+const deleteRemovedContentBlockImages = async (oldBlocks, newBlocks) => {
+  const oldUrls = extractContentBlockImageUrls(oldBlocks);
+  const newUrls = extractContentBlockImageUrls(newBlocks);
+  const toDelete = oldUrls.filter((url) => !newUrls.includes(url));
+  await deleteGcsUrls(toDelete);
+};
+
+const deleteRemovedResourceUrls = async (oldResources, newResources) => {
+  const oldUrls = (oldResources || [])
+    .map((resource) => resource?.url)
+    .filter(Boolean);
+  const newUrls = (newResources || [])
+    .map((resource) => resource?.url)
+    .filter(Boolean);
+  const toDelete = oldUrls.filter((url) => !newUrls.includes(url));
+  await deleteGcsUrls(toDelete);
+};
+
+const deleteLessonContentBlockImages = async (lesson) => {
+  await deleteGcsUrls(extractContentBlockImageUrls(lesson?.contentBlocks));
+};
+
+const collectLessonGcsUploadUrls = (lessonData) => {
+  const urls = [
+    ...extractContentBlockImageUrls(lessonData?.contentBlocks),
+    ...(lessonData?.resources || [])
+      .map((resource) => resource?.url)
+      .filter(Boolean),
+  ];
+  return [...new Set(urls.filter(Boolean))];
+};
+
+const rollbackLessonGcsUploads = async ({
+  gcsVideoPath,
+  gcsUrls,
+  vdoCipherVideoId,
+}) => {
+  if (gcsVideoPath) await deleteGcsFile(gcsVideoPath);
+  await deleteGcsUrls(gcsUrls);
+  if (vdoCipherVideoId) {
+    try {
+      await deleteVdocipherVideo(vdoCipherVideoId);
+    } catch (err) {
+      console.warn(
+        "Failed to roll back VdoCipher video:",
+        vdoCipherVideoId,
+        err.message,
+      );
+    }
+  }
+};
+
 const deleteLessonResourceFiles = async (lesson) => {
   const resources = lesson.resources || [];
   await Promise.all(
@@ -103,6 +174,7 @@ const cleanupLessonMedia = async (lesson) => {
     }
   }
   await deleteLessonResourceFiles(lesson);
+  await deleteLessonContentBlockImages(lesson);
 };
 
 const cleanupLessonQuizOnly = async (lessonId) => {
@@ -166,6 +238,20 @@ const permanentlyDeleteCourseContent = async (course) => {
   }
   await CourseModule.deleteMany({ courseId: course._id });
   await Quiz.deleteMany({ courseId: course._id });
+
+  const enrollments = await Enrollment.find({ courseId: course._id }).select(
+    "_id",
+  );
+  const enrollmentIds = enrollments.map((enrollment) => enrollment._id);
+
+  if (enrollmentIds.length > 0) {
+    await LessonProgress.deleteMany({ enrollmentId: { $in: enrollmentIds } });
+    await QuizAttempt.deleteMany({ enrollmentId: { $in: enrollmentIds } });
+  }
+
+  await Certificate.deleteMany({ courseId: course._id });
+  await Enrollment.deleteMany({ courseId: course._id });
+  await Notification.deleteMany({ relatedCourseId: course._id });
 
   if (course.thumbnailUrl) {
     try {
@@ -427,6 +513,12 @@ module.exports = {
   slugify,
   generateUniqueSlug,
   entityBelongsToCourse,
+  deleteRemovedContentBlockImages,
+  deleteRemovedResourceUrls,
+  deleteLessonContentBlockImages,
+  deleteLessonResourceFiles,
+  collectLessonGcsUploadUrls,
+  rollbackLessonGcsUploads,
   cleanupLessonMedia,
   cleanupLessonQuizOnly,
   cleanupLessonRelatedData,

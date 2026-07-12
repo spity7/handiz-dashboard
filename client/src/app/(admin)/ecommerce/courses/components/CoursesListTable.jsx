@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { useCallback, useMemo, useState } from 'react'
-import { Badge, Button, Form } from 'react-bootstrap'
+import { Badge, Button, Form, Spinner } from 'react-bootstrap'
 import { Link } from 'react-router-dom'
 import Swal from 'sweetalert2'
 import ReactTable from '@/components/Table'
@@ -23,6 +23,18 @@ const PRICING_FILTER = {
   ON_SALE: 'on_sale',
   FREE_OFFER_EXPIRED: 'free_offer_expired',
   DISCOUNT_EXPIRED: 'discount_expired',
+}
+
+const COURSE_ACTION = {
+  REMOVE: 'remove',
+  RESTORE: 'restore',
+  PERMANENT_DELETE: 'permanent-delete',
+}
+
+const COURSE_ACTION_LABELS = {
+  [COURSE_ACTION.REMOVE]: 'Removing course…',
+  [COURSE_ACTION.RESTORE]: 'Restoring course…',
+  [COURSE_ACTION.PERMANENT_DELETE]: 'Deleting course permanently…',
 }
 
 const apiErrorMessage = (error, fallback) => {
@@ -158,8 +170,9 @@ const TableHeaderFilter = ({ label, value, onChange, children }) => (
   </Form.Select>
 )
 
-const CoursesListTable = ({ courses, onRefresh }) => {
+const CoursesListTable = ({ courses, onRefresh, refreshing = false }) => {
   const { deleteCourse, restoreCourse, permanentlyDeleteCourse } = useGlobalContext()
+  const [courseAction, setCourseAction] = useState(null)
   const [courseSearch, setCourseSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState(ALL_FILTER)
   const [pricingFilter, setPricingFilter] = useState(ALL_FILTER)
@@ -206,6 +219,24 @@ const CoursesListTable = ({ courses, onRefresh }) => {
     )
   }, [courses, courseSearch, statusFilter, pricingFilter, lessonsOperator, lessonsValue, enrollmentsOperator, enrollmentsValue])
 
+  const isTableBusy = Boolean(courseAction) || refreshing
+
+  const runCourseAction = useCallback(
+    async ({ id, type, action, successTitle, successMessage, errorMessage }) => {
+      setCourseAction({ id, type })
+      try {
+        await action(id)
+        await onRefresh()
+        await Swal.fire(successTitle, successMessage, 'success')
+      } catch (error) {
+        Swal.fire('Error', apiErrorMessage(error, errorMessage), 'error')
+      } finally {
+        setCourseAction(null)
+      }
+    },
+    [onRefresh],
+  )
+
   const handleRemove = useCallback(
     async (id, title) => {
       const result = await Swal.fire({
@@ -218,15 +249,16 @@ const CoursesListTable = ({ courses, onRefresh }) => {
       })
       if (!result.isConfirmed) return
 
-      try {
-        await deleteCourse(id)
-        await Swal.fire('Removed', 'Course removed from catalog successfully.', 'success')
-        onRefresh()
-      } catch (error) {
-        Swal.fire('Error', apiErrorMessage(error, 'Failed to remove course'), 'error')
-      }
+      await runCourseAction({
+        id,
+        type: COURSE_ACTION.REMOVE,
+        action: deleteCourse,
+        successTitle: 'Removed',
+        successMessage: 'Course removed from catalog successfully.',
+        errorMessage: 'Failed to remove course',
+      })
     },
-    [deleteCourse, onRefresh],
+    [deleteCourse, runCourseAction],
   )
 
   const handleRestore = useCallback(
@@ -241,15 +273,16 @@ const CoursesListTable = ({ courses, onRefresh }) => {
       })
       if (!result.isConfirmed) return
 
-      try {
-        await restoreCourse(id)
-        await Swal.fire('Restored', 'Course has been restored.', 'success')
-        onRefresh()
-      } catch (error) {
-        Swal.fire('Error', apiErrorMessage(error, 'Failed to restore course'), 'error')
-      }
+      await runCourseAction({
+        id,
+        type: COURSE_ACTION.RESTORE,
+        action: restoreCourse,
+        successTitle: 'Restored',
+        successMessage: 'Course has been restored.',
+        errorMessage: 'Failed to restore course',
+      })
     },
-    [restoreCourse, onRefresh],
+    [restoreCourse, runCourseAction],
   )
 
   const handlePermanentDelete = useCallback(
@@ -265,16 +298,19 @@ const CoursesListTable = ({ courses, onRefresh }) => {
       })
       if (!result.isConfirmed) return
 
-      try {
-        await permanentlyDeleteCourse(id)
-        await Swal.fire('Deleted', 'Course has been permanently deleted.', 'success')
-        onRefresh()
-      } catch (error) {
-        Swal.fire('Error', apiErrorMessage(error, 'Permanent delete failed'), 'error')
-      }
+      await runCourseAction({
+        id,
+        type: COURSE_ACTION.PERMANENT_DELETE,
+        action: permanentlyDeleteCourse,
+        successTitle: 'Deleted',
+        successMessage: 'Course has been permanently deleted.',
+        errorMessage: 'Permanent delete failed',
+      })
     },
-    [permanentlyDeleteCourse, onRefresh],
+    [permanentlyDeleteCourse, runCourseAction],
   )
+
+  const isCourseActioning = useCallback((courseId, type) => courseAction?.id === courseId && courseAction?.type === type, [courseAction])
 
   const columns = useMemo(
     () => [
@@ -422,21 +458,51 @@ const CoursesListTable = ({ courses, onRefresh }) => {
             <div className="d-flex gap-1 flex-wrap">
               {!deleted && (
                 <>
-                  <Link to={`/ecommerce/courses/edit/${course._id}`} className="btn btn-sm btn-soft-primary" title="Edit course">
+                  <Link
+                    to={`/ecommerce/courses/edit/${course._id}`}
+                    className={clsx('btn btn-sm btn-soft-primary', isTableBusy && 'disabled pe-none opacity-50')}
+                    title="Edit course"
+                    aria-disabled={isTableBusy}
+                    tabIndex={isTableBusy ? -1 : undefined}
+                    onClick={(e) => {
+                      if (isTableBusy) e.preventDefault()
+                    }}>
                     <IconifyIcon icon="bx:edit" />
                   </Link>
-                  <Button variant="soft-danger" size="sm" title="Remove from catalog" onClick={() => handleRemove(course._id, course.title)}>
-                    <IconifyIcon icon="bx:trash" />
+                  <Button
+                    variant="soft-danger"
+                    size="sm"
+                    title="Remove from catalog"
+                    className={isCourseActioning(course._id, COURSE_ACTION.REMOVE) ? 'course-action-btn--loading' : ''}
+                    disabled={isTableBusy}
+                    onClick={() => handleRemove(course._id, course.title)}>
+                    {isCourseActioning(course._id, COURSE_ACTION.REMOVE) ? <Spinner animation="border" size="sm" /> : <IconifyIcon icon="bx:trash" />}
                   </Button>
                 </>
               )}
               {deleted && (
                 <>
-                  <Button variant="soft-primary" size="sm" title="Restore course" onClick={() => handleRestore(course._id, course.title)}>
-                    <IconifyIcon icon="bx:undo" />
+                  <Button
+                    variant="soft-primary"
+                    size="sm"
+                    title="Restore course"
+                    className={isCourseActioning(course._id, COURSE_ACTION.RESTORE) ? 'course-action-btn--loading' : ''}
+                    disabled={isTableBusy}
+                    onClick={() => handleRestore(course._id, course.title)}>
+                    {isCourseActioning(course._id, COURSE_ACTION.RESTORE) ? <Spinner animation="border" size="sm" /> : <IconifyIcon icon="bx:undo" />}
                   </Button>
-                  <Button variant="soft-danger" size="sm" title="Delete permanently" onClick={() => handlePermanentDelete(course._id, course.title)}>
-                    <IconifyIcon icon="bx:x" />
+                  <Button
+                    variant="soft-danger"
+                    size="sm"
+                    title="Delete permanently"
+                    className={isCourseActioning(course._id, COURSE_ACTION.PERMANENT_DELETE) ? 'course-action-btn--loading' : ''}
+                    disabled={isTableBusy}
+                    onClick={() => handlePermanentDelete(course._id, course.title)}>
+                    {isCourseActioning(course._id, COURSE_ACTION.PERMANENT_DELETE) ? (
+                      <Spinner animation="border" size="sm" />
+                    ) : (
+                      <IconifyIcon icon="bx:x" />
+                    )}
                   </Button>
                 </>
               )}
@@ -460,6 +526,8 @@ const CoursesListTable = ({ courses, onRefresh }) => {
       handleRemove,
       handleRestore,
       handlePermanentDelete,
+      isCourseActioning,
+      isTableBusy,
     ],
   )
 
@@ -484,16 +552,24 @@ const CoursesListTable = ({ courses, onRefresh }) => {
     ) : null
 
   return (
-    <ReactTable
-      columns={columns}
-      data={filteredCourses}
-      rowsPerPageList={pageSizeList}
-      pageSize={10}
-      tableClass={clsx('text-nowrap mb-0 courses-list-table align-middle')}
-      theadClass="bg-light bg-opacity-50"
-      showPagination
-      emptyState={emptyState}
-    />
+    <div className={clsx('courses-list-table-wrap', isTableBusy && 'courses-list-table-wrap--loading')}>
+      {isTableBusy && (
+        <div className="course-panel-loading" role="status" aria-live="polite">
+          <Spinner animation="border" size="sm" />
+          <span>{courseAction ? COURSE_ACTION_LABELS[courseAction.type] || 'Processing course…' : 'Refreshing courses…'}</span>
+        </div>
+      )}
+      <ReactTable
+        columns={columns}
+        data={filteredCourses}
+        rowsPerPageList={pageSizeList}
+        pageSize={10}
+        tableClass={clsx('text-nowrap mb-0 courses-list-table align-middle')}
+        theadClass="bg-light bg-opacity-50"
+        showPagination
+        emptyState={emptyState}
+      />
+    </div>
   )
 }
 

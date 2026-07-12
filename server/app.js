@@ -49,9 +49,11 @@ app.use(
     origin: [
       "http://localhost:5173",
       "http://localhost:3000",
+      "http://localhost:3001",
       "http://localhost:3017",
       "http://localhost:5016",
       "https://handiz.org",
+      "https://learn.handiz.org",
       "https://dashboard.handiz.org",
       "https://api.handiz.org",
     ],

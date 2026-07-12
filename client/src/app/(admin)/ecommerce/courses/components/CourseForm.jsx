@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Button, Card, Col, Form, InputGroup, Row } from 'react-bootstrap'
+import { Button, Card, Col, Form, InputGroup, Row, Spinner } from 'react-bootstrap'
 import { useNavigate } from 'react-router-dom'
 import Swal from 'sweetalert2'
 import ThumbnailDropzoneInput from '@/components/form/ThumbnailDropzoneInput'
@@ -27,7 +27,7 @@ const apiErrorMessage = (error, fallback) => {
   return fallback
 }
 
-const CourseForm = ({ course = null, onSaved }) => {
+const CourseForm = ({ course = null, onSaved, disabled = false }) => {
   const { createCourse, updateCourse } = useGlobalContext()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
@@ -579,8 +579,17 @@ const CourseForm = ({ course = null, onSaved }) => {
         </Card.Body>
       </Card>
 
-      <Button type="submit" disabled={loading}>
-        {loading ? 'Saving...' : course ? 'Update Course' : 'Create Course'}
+      <Button type="submit" disabled={loading || disabled}>
+        {loading ? (
+          <>
+            <Spinner animation="border" size="sm" className="me-2" />
+            Saving…
+          </>
+        ) : course ? (
+          'Update Course'
+        ) : (
+          'Create Course'
+        )}
       </Button>
     </form>
   )

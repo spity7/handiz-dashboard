@@ -27,6 +27,12 @@ const {
   removeLessonCompletely,
   cleanupLessonMedia,
   cleanupLessonQuizOnly,
+  deleteRemovedContentBlockImages,
+  deleteRemovedResourceUrls,
+  deleteLessonContentBlockImages,
+  deleteLessonResourceFiles,
+  collectLessonGcsUploadUrls,
+  rollbackLessonGcsUploads,
   revokeCourseEnrollments,
   releaseCourseSlug,
   restoreOriginalCourseSlug,
@@ -132,10 +138,12 @@ const applyLessonTypeTransition = async (lesson, previousType, nextType) => {
   }
 
   if (nextType !== "text" && nextType !== "download") {
+    await deleteLessonContentBlockImages(lesson);
     lesson.contentBlocks = [];
   }
 
   if (nextType !== "download") {
+    await deleteLessonResourceFiles(lesson);
     lesson.resources = [];
   }
 
@@ -777,6 +785,7 @@ exports.createLesson = async (req, res) => {
       lessonData.video.encodingStatus = "processing";
       lessonData.video.provider = "vdocipher";
     } else if (videoFile) {
+      // Legacy admin path: direct multipart upload to GCS (dashboard uses VdoCipher).
       lessonData.video.provider = "gcs";
       lessonData.video.gcsPath = await uploadVideo(
         videoFile.buffer,
@@ -802,7 +811,19 @@ exports.createLesson = async (req, res) => {
       ];
     }
 
-    const lesson = await Lesson.create(lessonData);
+    let lesson;
+    const rollbackUploads = {
+      gcsVideoPath: lessonData.video?.gcsPath || null,
+      gcsUrls: collectLessonGcsUploadUrls(lessonData),
+      vdoCipherVideoId: lessonData.video?.vdoCipherVideoId || null,
+    };
+
+    try {
+      lesson = await Lesson.create(lessonData);
+    } catch (createError) {
+      await rollbackLessonGcsUploads(rollbackUploads);
+      throw createError;
+    }
     await recalculateCourseStats(course._id);
 
     res.status(201).json({ message: "Lesson created", lesson });
@@ -869,16 +890,20 @@ exports.updateLesson = async (req, res) => {
 
     if (nextType === "text" || nextType === "download") {
       if (contentBlocks !== undefined) {
-        lesson.contentBlocks = await resolveLessonContentBlocks(
+        const newBlocks = await resolveLessonContentBlocks(
           contentBlocks,
           blockImageFiles,
         );
+        await deleteRemovedContentBlockImages(lesson.contentBlocks, newBlocks);
+        lesson.contentBlocks = newBlocks;
       }
     }
 
     if (nextType === "download") {
       if (resources !== undefined) {
-        lesson.resources = parseJsonField(resources, []) || [];
+        const newResources = parseJsonField(resources, []) || [];
+        await deleteRemovedResourceUrls(lesson.resources, newResources);
+        lesson.resources = newResources;
       }
       if (resourceFiles.length > 0) {
         const uploaded = await Promise.all(
@@ -924,6 +949,7 @@ exports.updateLesson = async (req, res) => {
       lesson.video.encodingStatus = "processing";
       lesson.video.gcsPath = "";
     } else if (videoFile) {
+      // Legacy admin path: direct multipart upload to GCS (dashboard uses VdoCipher).
       if (lesson.video?.vdoCipherVideoId) {
         await deleteVdocipherVideo(lesson.video.vdoCipherVideoId);
         lesson.video.vdoCipherVideoId = "";

@@ -544,6 +544,11 @@ export const GlobalProvider = ({ children }) => {
     return response.data
   }
 
+  const deleteVdocipherVideo = async (videoId) => {
+    const response = await axiosInstance.delete(`/vdocipher/videos/${videoId}`)
+    return response.data
+  }
+
   return (
     <GlobalContext.Provider
       value={{
@@ -643,6 +648,7 @@ export const GlobalProvider = ({ children }) => {
         revokeEnrollment,
         getOrders,
         getVdocipherUploadCredentials,
+        deleteVdocipherVideo,
       }}>
       {children}
     </GlobalContext.Provider>

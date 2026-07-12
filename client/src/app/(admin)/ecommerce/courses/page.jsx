@@ -12,7 +12,7 @@ import CoursesListTable from './components/CoursesListTable'
 const Courses = () => {
   const { getAllCourses } = useGlobalContext()
   const fetchCourses = useCallback(async () => getAllCourses(true), [getAllCourses])
-  const { items: coursesList, loading, refresh } = useFetchList(fetchCourses)
+  const { items: coursesList, loading, refreshing, refresh } = useFetchList(fetchCourses)
 
   return (
     <>
@@ -37,8 +37,12 @@ const Courses = () => {
                 </div>
               </div>
             </CardBody>
-            <div>
-              {loading ? <ProjectsListTableSkeleton variant="media-order" /> : <CoursesListTable courses={coursesList} onRefresh={refresh} />}
+            <div className="courses-list-table-container">
+              {loading ? (
+                <ProjectsListTableSkeleton variant="media-order" />
+              ) : (
+                <CoursesListTable courses={coursesList} onRefresh={refresh} refreshing={refreshing} />
+              )}
             </div>
           </Card>
         </Col>

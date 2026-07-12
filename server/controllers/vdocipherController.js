@@ -1,6 +1,6 @@
 const crypto = require("crypto");
 const Lesson = require("../models/lessonModel");
-const { getUploadCredentials } = require("../utils/vdocipher");
+const { getUploadCredentials, deleteVideo } = require("../utils/vdocipher");
 const { recalculateCourseStats } = require("../utils/courseHelpers");
 const logger = require("../config/logger");
 
@@ -17,7 +17,9 @@ const safeEqual = (a, b) => {
 
 const verifyVdocipherWebhook = (req) => {
   const secret = process.env.VDOCIPHER_WEBHOOK_SECRET;
-  if (!secret) return true;
+  if (!secret) {
+    return process.env.NODE_ENV !== "production";
+  }
 
   // VdoCipher's documented approach: secret as ?token= in the webhook URL.
   const urlToken = req.query?.token;
@@ -57,6 +59,34 @@ exports.getUploadCredentials = async (req, res) => {
     console.error("VdoCipher upload credentials error:", error);
     res.status(error.status || 500).json({
       message: error.message || "Failed to get upload credentials",
+    });
+  }
+};
+
+exports.deleteUploadedVideo = async (req, res) => {
+  try {
+    const { videoId } = req.params;
+    if (!videoId) {
+      return res.status(400).json({ message: "videoId is required" });
+    }
+
+    const referencedLesson = await Lesson.findOne({
+      "video.vdoCipherVideoId": videoId,
+    }).select("_id");
+
+    if (referencedLesson) {
+      return res.status(409).json({
+        message:
+          "Video is attached to a lesson and cannot be deleted this way.",
+      });
+    }
+
+    await deleteVideo(videoId);
+    res.status(200).json({ message: "Video deleted" });
+  } catch (error) {
+    console.error("VdoCipher delete video error:", error);
+    res.status(error.status || 500).json({
+      message: error.message || "Failed to delete video",
     });
   }
 };
