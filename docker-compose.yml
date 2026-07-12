@@ -20,4 +20,6 @@ services:
       - "5016:5016"
     env_file:
       - ./server/.env
+    volumes:
+      - ./server/gcs-key.json:/app/gcs-key.json:ro
     restart: always

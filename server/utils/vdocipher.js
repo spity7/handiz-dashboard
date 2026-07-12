@@ -1,5 +1,6 @@
 require("../config/env");
 
+// VdoCipher's documented production base URL (hostname is "dev" for all environments).
 const VDOCIPHER_API_BASE =
   process.env.VDOCIPHER_API_BASE || "https://dev.vdocipher.com/api";
 

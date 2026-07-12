@@ -1,4 +1,5 @@
 const express = require("express");
+require("express-async-errors");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const { db } = require("./db/db");
@@ -29,6 +30,12 @@ require("./config/env");
 const app = express();
 const PORT = process.env.PORT;
 
+app.set("trust proxy", 1);
+
+app.get("/health", (_req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+
 // Whish Pay callbacks — mount before JSON parser (GET with query params)
 app.use("/api/v1", webhookRoutes);
 
@@ -54,6 +61,7 @@ app.use(
       "http://localhost:3021",
       "http://localhost:5016",
       "https://handiz.org",
+      "https://www.handiz.org",
       "https://learn.handiz.org",
       "https://dashboard.handiz.org",
       "https://api.handiz.org",
