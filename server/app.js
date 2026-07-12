@@ -51,6 +51,7 @@ app.use(
       "http://localhost:3000",
       "http://localhost:3001",
       "http://localhost:3017",
+      "http://localhost:3021",
       "http://localhost:5016",
       "https://handiz.org",
       "https://learn.handiz.org",

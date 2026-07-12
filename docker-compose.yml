@@ -8,6 +8,7 @@ services:
         VITE_API_BASE_URL: https://api.handiz.org/api/v1/
         VITE_GOOGLE_CLIENT_ID: 974512491943-cn69krek1s1ektd5q4qeg2g4ao3ssvbr.apps.googleusercontent.com
         VITE_ALLOWED_RETURN_ORIGINS: https://handiz.org,https://www.handiz.org
+        VITE_HANDIZ_WEBSITE_URL: https://handiz.org
     ports:
       - "3016:80"
     restart: always
