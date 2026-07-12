@@ -14,6 +14,7 @@ import { useGlobalContext } from '@/context/useGlobalContext'
 import { useAuthContext } from '@/context/useAuthContext'
 import useConfirmAction from '@/hooks/useConfirmAction'
 import { ROLES } from '@/constants/roles'
+import ThumbnailDropzoneInput from '@/components/form/ThumbnailDropzoneInput'
 import DropzoneFormInput from '@/components/form/DropzoneFormInput'
 import ComponentContainerCard from '@/components/ComponentContainerCard'
 import StudentProjectFieldManageLink from '../../components/StudentProjectFieldManageLink'
@@ -577,7 +578,7 @@ const GeneralDetailsForm = () => {
         </Col>
 
         <Col lg={6}>
-          <DropzoneFormInput
+          <ThumbnailDropzoneInput
             label="Project Thumbnail"
             labelClassName="fs-14 mb-1"
             iconProps={{

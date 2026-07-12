@@ -1,5 +1,6 @@
 const Competition = require("../models/competitionModel");
 const { uploadImage, deleteImage } = require("../utils/gcs");
+const { getImageValidationError } = require("../utils/imageValidation");
 
 exports.createCompetition = async (req, res) => {
   try {
@@ -27,6 +28,11 @@ exports.createCompetition = async (req, res) => {
       return res.status(400).json({ message: "Thumbnail image is required." });
     }
 
+    const thumbnailTypeError = getImageValidationError(thumbnailFile);
+    if (thumbnailTypeError) {
+      return res.status(400).json({ message: thumbnailTypeError });
+    }
+
     // Upload thumbnail
     const thumbnailFileName = `competitions/thumbnails/${Date.now()}_${
       thumbnailFile.originalname
@@ -34,7 +40,7 @@ exports.createCompetition = async (req, res) => {
     const thumbnailUrl = await uploadImage(
       thumbnailFile.buffer,
       thumbnailFileName,
-      thumbnailFile.mimetype
+      thumbnailFile.mimetype,
     );
 
     // Upload gallery (optional)
@@ -48,7 +54,7 @@ exports.createCompetition = async (req, res) => {
               file.originalname
             }`;
             return await uploadImage(file.buffer, fileName, file.mimetype);
-          })
+          }),
         );
       } catch (err) {
         console.error("Error uploading one of the gallery images:", err);
@@ -137,6 +143,11 @@ exports.updateCompetition = async (req, res) => {
 
     // ✅ Handle new thumbnail upload
     if (thumbnailFile) {
+      const thumbnailTypeError = getImageValidationError(thumbnailFile);
+      if (thumbnailTypeError) {
+        return res.status(400).json({ message: thumbnailTypeError });
+      }
+
       // Delete old thumbnail if exists
       if (existingCompetition.thumbnailUrl) {
         try {
@@ -153,7 +164,7 @@ exports.updateCompetition = async (req, res) => {
       const newThumbnailUrl = await uploadImage(
         thumbnailFile.buffer,
         newThumbnailName,
-        thumbnailFile.mimetype
+        thumbnailFile.mimetype,
       );
       updateData.thumbnailUrl = newThumbnailUrl;
     }
@@ -168,7 +179,7 @@ exports.updateCompetition = async (req, res) => {
               file.originalname
             }`;
             return await uploadImage(file.buffer, fileName, file.mimetype);
-          })
+          }),
         );
       } catch (err) {
         console.error("Error uploading gallery images:", err);
@@ -191,7 +202,7 @@ exports.updateCompetition = async (req, res) => {
     const updatedCompetition = await Competition.findByIdAndUpdate(
       req.params.id,
       updateData,
-      { new: true }
+      { new: true },
     );
 
     res.status(200).json({
@@ -227,7 +238,7 @@ exports.deleteCompetition = async (req, res) => {
           } catch (err) {
             console.warn("⚠️ Failed to delete gallery image:", err.message);
           }
-        })
+        }),
       );
     }
 

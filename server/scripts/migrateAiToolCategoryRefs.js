@@ -6,7 +6,7 @@
  *
  * Safe to run multiple times (skips documents that already use ObjectIds).
  */
-require("dotenv-safe").config();
+require("../config/env");
 const mongoose = require("mongoose");
 const AiPromptCategory = require("../models/aiPromptCategoryModel");
 

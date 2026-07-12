@@ -7,7 +7,7 @@ import * as yup from 'yup'
 import TextFormInput from '@/components/form/TextFormInput'
 import 'react-quill/dist/quill.snow.css'
 import { useGlobalContext } from '@/context/useGlobalContext'
-import DropzoneFormInput from '@/components/form/DropzoneFormInput'
+import ThumbnailDropzoneInput from '@/components/form/ThumbnailDropzoneInput'
 import ComponentContainerCard from '@/components/ComponentContainerCard'
 import ProjectFormSkeleton from '@/components/skeletons/ProjectFormSkeleton'
 import { sortOthersLast } from '@/utils/sortOthersLast'
@@ -189,7 +189,7 @@ const GeneralDetailsForm = () => {
           </div>
         </Col>
         <Col lg={4}>
-          <DropzoneFormInput
+          <ThumbnailDropzoneInput
             label="Thumbnail"
             labelClassName="fs-14 mb-1"
             iconProps={{

@@ -10,7 +10,15 @@ const notificationSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["project_pending", "project_published", "project_unpublished"],
+      enum: [
+        "project_pending",
+        "project_published",
+        "project_unpublished",
+        "course_enrolled",
+        "course_completed",
+        "course_new_lesson",
+        "payment_received",
+      ],
       required: true,
     },
     title: { type: String, required: true },
@@ -19,6 +27,12 @@ const notificationSchema = new mongoose.Schema(
     relatedProjectId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Project",
+      default: null,
+      index: true,
+    },
+    relatedCourseId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Course",
       default: null,
       index: true,
     },

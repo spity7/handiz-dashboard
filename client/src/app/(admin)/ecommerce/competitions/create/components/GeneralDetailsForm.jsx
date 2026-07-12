@@ -9,7 +9,7 @@ import TextFormInput from '@/components/form/TextFormInput'
 import { renameKeys } from '@/utils/rename-object-keys'
 import 'react-quill/dist/quill.snow.css'
 import { useGlobalContext } from '@/context/useGlobalContext'
-import DropzoneFormInput from '@/components/form/DropzoneFormInput'
+import ThumbnailDropzoneInput from '@/components/form/ThumbnailDropzoneInput'
 import ComponentContainerCard from '@/components/ComponentContainerCard'
 
 const generalFormSchema = yup.object({
@@ -213,7 +213,7 @@ const GeneralDetailsForm = () => {
         </Col>
 
         <Col lg={6}>
-          <DropzoneFormInput
+          <ThumbnailDropzoneInput
             label="Competition Thumbnail"
             labelClassName="fs-14 mb-1"
             iconProps={{

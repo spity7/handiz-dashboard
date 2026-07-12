@@ -25,6 +25,7 @@ const {
   collectProjectDownloadableImages,
   findProjectImageByLabel,
 } = require("../utils/projectImageDownload");
+const { getImageValidationError } = require("../utils/imageValidation");
 
 const collectProjectImageUrls = (project) => [
   ...new Set(
@@ -106,6 +107,11 @@ exports.createProject = async (req, res) => {
 
     if (!thumbnailFile) {
       return res.status(400).json({ message: "Thumbnail image is required." });
+    }
+
+    const thumbnailTypeError = getImageValidationError(thumbnailFile);
+    if (thumbnailTypeError) {
+      return res.status(400).json({ message: thumbnailTypeError });
     }
 
     let parsedContentBlocks = [];
@@ -441,6 +447,11 @@ exports.updateProject = async (req, res) => {
 
     // ✅ Handle new thumbnail upload
     if (thumbnailFile) {
+      const thumbnailTypeError = getImageValidationError(thumbnailFile);
+      if (thumbnailTypeError) {
+        return res.status(400).json({ message: thumbnailTypeError });
+      }
+
       // Delete old thumbnail if exists
       if (existingProject.thumbnailUrl) {
         try {

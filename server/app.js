@@ -15,13 +15,22 @@ const aiToolsRoutes = require("./routes/aiToolsRoutes");
 const officeRoutes = require("./routes/officeRoutes");
 const aboutUsRoutes = require("./routes/aboutUsRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
+const courseRoutes = require("./routes/courseRoutes");
+const enrollmentRoutes = require("./routes/enrollmentRoutes");
+const progressRoutes = require("./routes/progressRoutes");
+const vdocipherRoutes = require("./routes/vdocipherRoutes");
+const webhookRoutes = require("./routes/webhookRoutes");
+const { handleVdocipherWebhook } = require("./controllers/vdocipherController");
 const logger = require("./config/logger");
 require("./cron/cron");
 
-require("dotenv-safe").config();
+require("./config/env");
 
 const app = express();
 const PORT = process.env.PORT;
+
+// Whish Pay callbacks — mount before JSON parser (GET with query params)
+app.use("/api/v1", webhookRoutes);
 
 // Middlewares
 app.use(express.json({ limit: "100mb" }));
@@ -31,6 +40,7 @@ app.use(
     origin: [
       "http://localhost:5173",
       "http://localhost:3000",
+      "http://localhost:3017",
       "http://localhost:5016",
       "https://handiz.org",
       "https://dashboard.handiz.org",
@@ -65,6 +75,11 @@ app.use("/api/v1", aiToolsRoutes);
 app.use("/api/v1", officeRoutes);
 app.use("/api/v1", aboutUsRoutes);
 app.use("/api/v1", notificationRoutes);
+app.use("/api/v1", courseRoutes);
+app.use("/api/v1", enrollmentRoutes);
+app.use("/api/v1", progressRoutes);
+app.use("/api/v1", vdocipherRoutes);
+app.post("/api/v1/webhooks/vdocipher", handleVdocipherWebhook);
 // app.use("/api/v1", propertyRoutes);
 
 // errorhandling for Middleware

@@ -7,6 +7,7 @@ import ProjectFormSkeleton from '@/components/skeletons/ProjectFormSkeleton'
 import { useGlobalContext } from '@/context/useGlobalContext'
 import ReactQuill from 'react-quill'
 import DropzoneFormInput from '@/components/form/DropzoneFormInput'
+import { THUMBNAIL_ACCEPT_STRING, readThumbnailInput } from '@/utils/imageFile'
 import SelectFormInput from '@/components/form/SelectFormInput'
 import { renameKeys } from '@/utils/rename-object-keys'
 import 'react-quill/dist/quill.snow.css'
@@ -53,15 +54,16 @@ const EditCompetition = () => {
   }, [id, getCompetitionById])
 
   const handleFileChange = (e) => {
-    const file = e.target.files[0]
-    if (file) {
-      setThumbnail(file)
-      const reader = new FileReader()
-      reader.onload = () => setPreview(reader.result)
-      reader.readAsDataURL(file)
-    } else {
-      setThumbnail(null)
-    }
+    readThumbnailInput(e, {
+      onValid: (file) => {
+        setThumbnail(file)
+        const reader = new FileReader()
+        reader.onload = () => setPreview(reader.result)
+        reader.readAsDataURL(file)
+      },
+      onClear: () => setThumbnail(null),
+      onInvalid: (message) => alert(message),
+    })
   }
 
   const handleSubmit = async (e) => {
@@ -184,7 +186,7 @@ const EditCompetition = () => {
                   <Col lg={6}>
                     <div className="mb-3">
                       <label className="form-label">Competition Thumbnail</label>
-                      <input type="file" className="form-control" onChange={handleFileChange} />
+                      <input type="file" className="form-control" accept={THUMBNAIL_ACCEPT_STRING} onChange={handleFileChange} />
                       {preview && (
                         <div className="mt-3">
                           <p className="fw-bold mb-1">Preview:</p>

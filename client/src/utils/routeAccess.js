@@ -4,6 +4,7 @@ const ADMIN_ONLY_PREFIXES = [
   '/ecommerce/competitions',
   '/ecommerce/aiTools',
   '/ecommerce/offices',
+  '/ecommerce/courses',
   '/pages/about-us',
   '/pages/users',
   '/ecommerce/services',

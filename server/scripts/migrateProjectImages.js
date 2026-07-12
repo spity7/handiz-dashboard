@@ -6,7 +6,7 @@
  *   node scripts/migrateProjectImages.js
  *   node scripts/migrateProjectImages.js --dry-run
  */
-require("dotenv-safe").config();
+require("../config/env");
 const mongoose = require("mongoose");
 const Project = require("../models/projectModel");
 const {

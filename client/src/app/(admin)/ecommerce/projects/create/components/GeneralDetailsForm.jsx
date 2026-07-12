@@ -10,6 +10,7 @@ import { getAllProjectCategories } from '@/helpers/data'
 import { renameKeys } from '@/utils/rename-object-keys'
 import 'react-quill/dist/quill.snow.css'
 import { useGlobalContext } from '@/context/useGlobalContext'
+import ThumbnailDropzoneInput from '@/components/form/ThumbnailDropzoneInput'
 import DropzoneFormInput from '@/components/form/DropzoneFormInput'
 import ProjectFormSkeleton from '@/components/skeletons/ProjectFormSkeleton'
 
@@ -209,7 +210,7 @@ const GeneralDetailsForm = () => {
 
       <Row>
         <Col lg={6}>
-          <DropzoneFormInput
+          <ThumbnailDropzoneInput
             label="Project Thumbnail"
             labelClassName="fs-14 mb-1 mt-5"
             iconProps={{

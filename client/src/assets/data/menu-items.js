@@ -75,6 +75,30 @@ export const MENU_ITEMS = [
         ],
       },
       {
+        key: 'ecommerce-courses',
+        label: 'Courses',
+        url: '/ecommerce/courses',
+        parentKey: 'ecommerce',
+        roles: ['Admin'],
+        suppressDeepRouteExpand: true,
+        children: [
+          {
+            key: 'ecommerce-courses-enrollments',
+            label: 'Enrollments',
+            url: '/ecommerce/courses/enrollments',
+            parentKey: 'ecommerce-courses',
+            roles: ['Admin'],
+          },
+          {
+            key: 'ecommerce-courses-orders',
+            label: 'Orders',
+            url: '/ecommerce/courses/orders',
+            parentKey: 'ecommerce-courses',
+            roles: ['Admin'],
+          },
+        ],
+      },
+      {
         key: 'ecommerce-competitions',
         label: 'Competitions',
         url: '/ecommerce/competitions',

@@ -11,6 +11,7 @@ const upsertUnreadNotification = async ({
   message,
   link = "",
   relatedProjectId = null,
+  relatedCourseId = null,
 }) => {
   const query = {
     recipientId,
@@ -22,12 +23,17 @@ const upsertUnreadNotification = async ({
     query.relatedProjectId = relatedProjectId;
   }
 
+  if (relatedCourseId) {
+    query.relatedCourseId = relatedCourseId;
+  }
+
   const now = new Date();
   const payload = {
     title,
     message,
     link,
     relatedProjectId,
+    relatedCourseId,
     createdAt: now,
   };
 

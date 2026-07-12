@@ -2,7 +2,7 @@ const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 const logger = require("../../config/logger.js");
 
-require("dotenv-safe").config();
+require("../../config/env");
 
 const transporter = nodemailer.createTransport({
   service: "gmail",

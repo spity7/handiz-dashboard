@@ -12,6 +12,7 @@ import { ROLES, PROJECT_STATUS } from '@/constants/roles'
 import Swal from 'sweetalert2'
 import ReactQuill from 'react-quill'
 import DropzoneFormInput from '@/components/form/DropzoneFormInput'
+import { THUMBNAIL_ACCEPT_STRING, readThumbnailInput } from '@/utils/imageFile'
 import SelectFormInput from '@/components/form/SelectFormInput'
 import StudentProjectFieldManageLink from '../../components/StudentProjectFieldManageLink'
 import RequireProfileComplete from '@/components/auth/RequireProfileComplete'
@@ -217,15 +218,16 @@ const EditProject = () => {
   ])
 
   const handleFileChange = (e) => {
-    const file = e.target.files[0]
-    if (file) {
-      setThumbnail(file)
-      const reader = new FileReader()
-      reader.onload = () => setPreview(reader.result)
-      reader.readAsDataURL(file)
-    } else {
-      setThumbnail(null)
-    }
+    readThumbnailInput(e, {
+      onValid: (file) => {
+        setThumbnail(file)
+        const reader = new FileReader()
+        reader.onload = () => setPreview(reader.result)
+        reader.readAsDataURL(file)
+      },
+      onClear: () => setThumbnail(null),
+      onInvalid: (message) => Swal.fire('Validation', message, 'warning'),
+    })
   }
 
   const handleSubmit = async (e) => {
@@ -573,7 +575,7 @@ const EditProject = () => {
                   <Col lg={5}>
                     <div className="mb-3">
                       <label className="form-label">Project Thumbnail</label>
-                      <input type="file" className="form-control" onChange={handleFileChange} />
+                      <input type="file" className="form-control" accept={THUMBNAIL_ACCEPT_STRING} onChange={handleFileChange} />
                       {preview && (
                         <div className="mt-3">
                           <p className="fw-bold mb-1">Preview:</p>

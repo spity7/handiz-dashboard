@@ -13,7 +13,7 @@
   align-items: center;
 }
 
-.flex-centered{
+.flex-centered {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -240,7 +240,7 @@
     border-radius: 0.45rem;
     border: 1px solid transparent;
     background-color: transparent;
-    color: #7D8A9B;
+    color: #7d8a9b;
     text-decoration: none;
     line-height: 1;
     transition:
@@ -266,7 +266,7 @@
   &__icon {
     font-size: 1.5rem;
     flex-shrink: 0;
-    color: #7D8A9B;
+    color: #7d8a9b;
   }
 
   &__btn--instagram &__icon {
@@ -431,11 +431,7 @@
   overflow: hidden;
 
   .dropdown-notifications-header {
-    background: linear-gradient(
-      180deg,
-      rgba(var(--#{$prefix}primary-rgb), 0.06) 0%,
-      var(--#{$prefix}secondary-bg) 100%
-    );
+    background: linear-gradient(180deg, rgba(var(--#{$prefix}primary-rgb), 0.06) 0%, var(--#{$prefix}secondary-bg) 100%);
   }
 
   .dropdown-notifications-footer {
@@ -579,6 +575,55 @@
     font-size: 0.8125rem;
     padding: 0.35em 0.65em;
     letter-spacing: 0.02em;
+  }
+}
+
+.courses-list-table {
+  .courses-table-filter {
+    min-width: 8.5rem;
+    max-width: 14rem;
+    font-weight: 400;
+  }
+
+  .courses-table-filter-btn {
+    min-width: 8.5rem;
+    max-width: 14rem;
+    font-weight: 400;
+  }
+
+  .courses-table-filter-placeholder {
+    display: block;
+    min-height: 31px;
+  }
+
+  .courses-table-filters {
+    min-width: 8.5rem;
+  }
+
+  .courses-table-count-filter {
+    .courses-table-filter-op {
+      min-width: 6.5rem;
+      max-width: 8rem;
+      flex: 1 1 6.5rem;
+      font-weight: 400;
+    }
+
+    .courses-table-filter-num {
+      min-width: 4.5rem;
+      max-width: 6rem;
+      flex: 0 0 4.5rem;
+      font-weight: 400;
+    }
+  }
+
+  th {
+    vertical-align: top;
+  }
+
+  .courses-list-col-title {
+    max-width: 20rem;
+    white-space: normal;
+    word-break: break-word;
   }
 }
 
@@ -833,7 +878,9 @@
     color: var(--#{$prefix}body-color);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
     cursor: pointer;
-    transition: background-color 0.2s ease, color 0.2s ease;
+    transition:
+      background-color 0.2s ease,
+      color 0.2s ease;
 
     &:hover {
       background: var(--#{$prefix}primary);

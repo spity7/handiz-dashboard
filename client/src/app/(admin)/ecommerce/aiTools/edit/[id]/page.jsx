@@ -9,6 +9,7 @@ import ReactQuill from 'react-quill'
 import 'react-quill/dist/quill.snow.css'
 import ComponentContainerCard from '@/components/ComponentContainerCard'
 import { sortOthersLast } from '@/utils/sortOthersLast'
+import { THUMBNAIL_ACCEPT_STRING, readThumbnailInput } from '@/utils/imageFile'
 
 const normalizeQuillValue = (value) => {
   if (!value || value === '<p><br></p>' || value === '<br/>') return ''
@@ -80,15 +81,16 @@ const EditAiTool = () => {
   }, [id, getAiToolById])
 
   const handleFileChange = (e) => {
-    const file = e.target.files[0]
-    if (file) {
-      setThumbnail(file)
-      const reader = new FileReader()
-      reader.onload = () => setPreview(reader.result)
-      reader.readAsDataURL(file)
-    } else {
-      setThumbnail(null)
-    }
+    readThumbnailInput(e, {
+      onValid: (file) => {
+        setThumbnail(file)
+        const reader = new FileReader()
+        reader.onload = () => setPreview(reader.result)
+        reader.readAsDataURL(file)
+      },
+      onClear: () => setThumbnail(null),
+      onInvalid: (message) => alert(message),
+    })
   }
 
   const handleSubmit = async (e) => {
@@ -209,7 +211,7 @@ const EditAiTool = () => {
                   <Col lg={6}>
                     <div className="mb-3">
                       <label className="form-label">Thumbnail</label>
-                      <input type="file" className="form-control" onChange={handleFileChange} />
+                      <input type="file" className="form-control" accept={THUMBNAIL_ACCEPT_STRING} onChange={handleFileChange} />
                       {preview && (
                         <div className="mt-3">
                           <p className="fw-bold mb-1">Preview:</p>

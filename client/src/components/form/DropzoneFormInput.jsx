@@ -4,8 +4,21 @@ import useFileUploader from '@/hooks/useFileUploader'
 import IconifyIcon from '../wrappers/IconifyIcon'
 import { useEffect } from 'react'
 
-const DropzoneFormInput = ({ label, labelClassName, helpText, iconProps, showPreview, text, textClassName, onFileUpload, resetTrigger }) => {
-  const { selectedFiles, handleAcceptedFiles, removeFile } = useFileUploader(showPreview)
+const DropzoneFormInput = ({
+  label,
+  labelClassName,
+  helpText,
+  iconProps,
+  showPreview,
+  text,
+  textClassName,
+  onFileUpload,
+  resetTrigger,
+  accept,
+  maxFiles = 30,
+  onDropRejected,
+}) => {
+  const { selectedFiles, handleAcceptedFiles, removeFile } = useFileUploader(showPreview, maxFiles)
 
   // 🧹 Whenever resetTrigger changes, clear selected files
   useEffect(() => {
@@ -14,11 +27,19 @@ const DropzoneFormInput = ({ label, labelClassName, helpText, iconProps, showPre
     }
   }, [resetTrigger])
 
+  const handleDrop = (acceptedFiles, fileRejections) => {
+    if (fileRejections?.length > 0) {
+      onDropRejected?.(fileRejections)
+      return
+    }
+    handleAcceptedFiles(acceptedFiles, onFileUpload)
+  }
+
   return (
     <>
       {label && <FormLabel className={labelClassName}>{label}</FormLabel>}
 
-      <Dropzone onDrop={(acceptedFiles) => handleAcceptedFiles(acceptedFiles, onFileUpload)} maxFiles={30}>
+      <Dropzone onDrop={handleDrop} accept={accept} maxFiles={maxFiles}>
         {({ getRootProps, getInputProps }) => (
           <div className="dropzone dropzone-custom w-100">
             <div className="dz-message" {...getRootProps()}>
@@ -62,7 +83,7 @@ const DropzoneFormInput = ({ label, labelClassName, helpText, iconProps, showPre
                             className="rounded-circle icon-sm p-0 d-flex align-items-center justify-content-center"
                             onClick={(e) => {
                               e.stopPropagation()
-                              removeFile(file)
+                              removeFile(file, onFileUpload)
                             }}>
                             <IconifyIcon icon="bx:x" />
                           </Button>

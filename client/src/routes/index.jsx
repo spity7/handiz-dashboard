@@ -29,6 +29,12 @@ const EcommerceCompetitions = lazy(() => import('@/app/(admin)/ecommerce/competi
 const EcommerceCompetitionCreate = lazy(() => import('@/app/(admin)/ecommerce/competitions/create/page'))
 const EcommerceCompetitionUpdate = lazy(() => import('@/app/(admin)/ecommerce/competitions/edit/[id]/page'))
 
+const EcommerceCourses = lazy(() => import('@/app/(admin)/ecommerce/courses/page'))
+const EcommerceCourseCreate = lazy(() => import('@/app/(admin)/ecommerce/courses/create/page'))
+const EcommerceCourseEdit = lazy(() => import('@/app/(admin)/ecommerce/courses/edit/[id]/page'))
+const EcommerceCourseEnrollments = lazy(() => import('@/app/(admin)/ecommerce/courses/enrollments/page'))
+const EcommerceCourseOrders = lazy(() => import('@/app/(admin)/ecommerce/courses/orders/page'))
+
 const EcommerceAiTools = lazy(() => import('@/app/(admin)/ecommerce/aiTools/page'))
 const EcommerceAiToolCategories = lazy(() => import('@/app/(admin)/ecommerce/aiTools/categories/page'))
 const EcommerceAiToolCreate = lazy(() => import('@/app/(admin)/ecommerce/aiTools/create/page'))
@@ -289,6 +295,32 @@ const appsRoutes = [
     name: 'Competition Update',
     path: '/ecommerce/competitions/edit/:id',
     element: <EcommerceCompetitionUpdate />,
+  },
+
+  {
+    name: 'Courses',
+    path: '/ecommerce/courses',
+    element: <EcommerceCourses />,
+  },
+  {
+    name: 'Create Course',
+    path: '/ecommerce/courses/create',
+    element: <EcommerceCourseCreate />,
+  },
+  {
+    name: 'Edit Course',
+    path: '/ecommerce/courses/edit/:id',
+    element: <EcommerceCourseEdit />,
+  },
+  {
+    name: 'Course Enrollments',
+    path: '/ecommerce/courses/enrollments',
+    element: <EcommerceCourseEnrollments />,
+  },
+  {
+    name: 'Course Orders',
+    path: '/ecommerce/courses/orders',
+    element: <EcommerceCourseOrders />,
   },
 
   {

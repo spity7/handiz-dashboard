@@ -1,5 +1,6 @@
 const Office = require("../models/officeModel");
 const { uploadImage, deleteImage } = require("../utils/gcs");
+const { getImageValidationError } = require("../utils/imageValidation");
 
 exports.createOffice = async (req, res) => {
   try {
@@ -37,6 +38,11 @@ exports.createOffice = async (req, res) => {
 
     if (!thumbnailFile) {
       return res.status(400).json({ message: "Thumbnail image is required." });
+    }
+
+    const thumbnailTypeError = getImageValidationError(thumbnailFile);
+    if (thumbnailTypeError) {
+      return res.status(400).json({ message: thumbnailTypeError });
     }
 
     // Upload thumbnail
@@ -185,6 +191,11 @@ exports.updateOffice = async (req, res) => {
 
     // ✅ Handle new thumbnail upload
     if (thumbnailFile) {
+      const thumbnailTypeError = getImageValidationError(thumbnailFile);
+      if (thumbnailTypeError) {
+        return res.status(400).json({ message: thumbnailTypeError });
+      }
+
       // Delete old thumbnail if exists
       if (existingOffice.thumbnailUrl) {
         try {

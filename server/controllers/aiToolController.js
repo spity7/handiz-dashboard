@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const AiTool = require("../models/aiToolModel");
 const AiPromptCategory = require("../models/aiPromptCategoryModel");
 const { uploadImage, deleteImage } = require("../utils/gcs");
+const { getImageValidationError } = require("../utils/imageValidation");
 
 const POPULATE_CATEGORY = { path: "category", select: "name isFallback" };
 
@@ -34,6 +35,11 @@ exports.createAiTool = async (req, res) => {
 
     if (!thumbnailFile) {
       return res.status(400).json({ message: "Thumbnail image is required." });
+    }
+
+    const thumbnailTypeError = getImageValidationError(thumbnailFile);
+    if (thumbnailTypeError) {
+      return res.status(400).json({ message: thumbnailTypeError });
     }
 
     // Upload thumbnail
@@ -162,6 +168,11 @@ exports.updateAiTool = async (req, res) => {
 
     // ✅ Handle new thumbnail upload
     if (thumbnailFile) {
+      const thumbnailTypeError = getImageValidationError(thumbnailFile);
+      if (thumbnailTypeError) {
+        return res.status(400).json({ message: thumbnailTypeError });
+      }
+
       // Delete old thumbnail if exists
       if (existingAiTool.thumbnailUrl) {
         try {

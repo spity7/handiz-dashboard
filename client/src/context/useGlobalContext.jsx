@@ -424,6 +424,126 @@ export const GlobalProvider = ({ children }) => {
     return response.data
   }
 
+  const getAllCourses = async (admin = false) => {
+    const response = await axiosInstance.get('/courses', {
+      params: admin ? { admin: 'true' } : {},
+    })
+    return response.data.courses
+  }
+
+  const getCourseById = async (id) => {
+    const response = await axiosInstance.get(`/courses/admin/${id}`)
+    return response.data
+  }
+
+  const getCourseAnalytics = async (id) => {
+    const response = await axiosInstance.get(`/courses/${id}/analytics`)
+    return response.data.analytics
+  }
+
+  const createCourse = async (data) => {
+    const response = await axiosInstance.post('/courses', data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return response.data
+  }
+
+  const updateCourse = async (id, data) => {
+    const response = await axiosInstance.put(`/courses/${id}`, data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return response.data
+  }
+
+  const deleteCourse = async (id) => {
+    const response = await axiosInstance.delete(`/courses/${id}`)
+    return response.data
+  }
+
+  const restoreCourse = async (id) => {
+    const response = await axiosInstance.patch(`/courses/${id}/restore`)
+    return response.data
+  }
+
+  const permanentlyDeleteCourse = async (id) => {
+    const response = await axiosInstance.delete(`/courses/${id}/permanent`)
+    return response.data
+  }
+
+  const createCourseModule = async (courseId, data) => {
+    const response = await axiosInstance.post(`/courses/${courseId}/modules`, data)
+    return response.data
+  }
+
+  const updateCourseModule = async (courseId, moduleId, data) => {
+    const response = await axiosInstance.put(`/courses/${courseId}/modules/${moduleId}`, data)
+    return response.data
+  }
+
+  const deleteCourseModule = async (courseId, moduleId) => {
+    const response = await axiosInstance.delete(`/courses/${courseId}/modules/${moduleId}`)
+    return response.data
+  }
+
+  const createLesson = async (courseId, data) => {
+    const response = await axiosInstance.post(`/courses/${courseId}/lessons`, data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return response.data
+  }
+
+  const updateLesson = async (courseId, lessonId, data) => {
+    const response = await axiosInstance.put(`/courses/${courseId}/lessons/${lessonId}`, data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return response.data
+  }
+
+  const deleteLesson = async (courseId, lessonId) => {
+    const response = await axiosInstance.delete(`/courses/${courseId}/lessons/${lessonId}`)
+    return response.data
+  }
+
+  const reorderCurriculum = async (courseId, modules) => {
+    const response = await axiosInstance.patch(`/courses/${courseId}/curriculum/reorder`, { modules })
+    return response.data
+  }
+
+  const upsertQuiz = async (courseId, lessonId, data) => {
+    const response = await axiosInstance.put(`/courses/${courseId}/lessons/${lessonId}/quiz`, data)
+    return response.data
+  }
+
+  const getCourseEnrollments = async (courseId) => {
+    const response = await axiosInstance.get(`/courses/${courseId}/enrollments`)
+    return response.data.enrollments
+  }
+
+  const getAllEnrollments = async () => {
+    const response = await axiosInstance.get('/enrollments')
+    return response.data.enrollments
+  }
+
+  const adminCreateEnrollment = async (data) => {
+    const response = await axiosInstance.post('/enrollments', data)
+    return response.data
+  }
+
+  const revokeEnrollment = async (id) => {
+    const response = await axiosInstance.delete(`/enrollments/${id}`)
+    return response.data
+  }
+
+  const getOrders = async () => {
+    const response = await axiosInstance.get('/orders')
+    return response.data.orders
+  }
+
+  const getVdocipherUploadCredentials = async (title) => {
+    const response = await axiosInstance.post('/vdocipher/upload-credentials', { title })
+    return response.data
+  }
+
   return (
     <GlobalContext.Provider
       value={{
@@ -501,6 +621,28 @@ export const GlobalProvider = ({ children }) => {
         getAboutUsById,
         updateAboutUs,
         deleteAboutUs,
+        getAllCourses,
+        getCourseById,
+        getCourseAnalytics,
+        createCourse,
+        updateCourse,
+        deleteCourse,
+        restoreCourse,
+        permanentlyDeleteCourse,
+        createCourseModule,
+        updateCourseModule,
+        deleteCourseModule,
+        createLesson,
+        updateLesson,
+        deleteLesson,
+        reorderCurriculum,
+        upsertQuiz,
+        getCourseEnrollments,
+        getAllEnrollments,
+        adminCreateEnrollment,
+        revokeEnrollment,
+        getOrders,
+        getVdocipherUploadCredentials,
       }}>
       {children}
     </GlobalContext.Provider>

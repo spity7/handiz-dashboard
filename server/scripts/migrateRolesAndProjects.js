@@ -5,7 +5,7 @@
  * Uses raw MongoDB updates so Mongoose schema defaults (status: Pending)
  * do not mask documents that have no status field in the database yet.
  */
-require("dotenv-safe").config();
+require("../config/env");
 const mongoose = require("mongoose");
 const User = require("../models/userModel");
 const Project = require("../models/projectModel");

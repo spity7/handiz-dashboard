@@ -1,7 +1,7 @@
 const { Storage } = require("@google-cloud/storage");
 const path = require("path");
 const { optimizeImage } = require("./imageProcessing");
-require("dotenv-safe").config();
+require("../config/env");
 
 const keyPath =
   process.env.GCS_KEYFILE || path.join(__dirname, "../gcs-key.json");
@@ -89,6 +89,62 @@ async function deleteImage(fileUrl) {
   }
 }
 
+function courseVideoFileName(originalName, stamp = Date.now()) {
+  const base = safeBaseName(originalName, "video");
+  const ext = path.extname(originalName || "") || ".mp4";
+  const prefix = process.env.GCS_VIDEO_BUCKET_PATH || "courses/videos/";
+  return `${prefix}${stamp}_${base}${ext}`;
+}
+
+async function uploadVideo(fileBuffer, originalName, mimeType) {
+  const fileName = courseVideoFileName(originalName);
+  const file = bucket.file(fileName);
+
+  await file.save(fileBuffer, {
+    metadata: { contentType: mimeType || "video/mp4" },
+    resumable: true,
+  });
+
+  return fileName;
+}
+
+async function uploadCourseFile(
+  fileBuffer,
+  originalName,
+  mimeType,
+  subfolder = "resources",
+) {
+  const base = safeBaseName(originalName, "file");
+  const ext = path.extname(originalName || "");
+  const fileName = `courses/${subfolder}/${Date.now()}_${base}${ext}`;
+  await uploadImage(fileBuffer, fileName, mimeType);
+  return `https://storage.googleapis.com/${bucketName}/${encodeURIComponent(fileName)}`;
+}
+
+async function getSignedVideoUrl(gcsPath, expiresInSeconds) {
+  if (!gcsPath) return null;
+  const expiry =
+    expiresInSeconds ||
+    parseInt(process.env.GCS_SIGNED_URL_EXPIRY_SECONDS || "900", 10);
+
+  const [url] = await bucket.file(gcsPath).getSignedUrl({
+    version: "v4",
+    action: "read",
+    expires: Date.now() + expiry * 1000,
+  });
+
+  return url;
+}
+
+async function deleteGcsFile(gcsPath) {
+  if (!gcsPath) return;
+  try {
+    await bucket.file(gcsPath).delete();
+  } catch (err) {
+    console.warn("Failed to delete GCS file:", err.message);
+  }
+}
+
 module.exports = {
   uploadImage,
   uploadProjectImage,
@@ -97,4 +153,9 @@ module.exports = {
   getFileNameFromUrl,
   bucket,
   deleteImage,
+  uploadVideo,
+  uploadCourseFile,
+  getSignedVideoUrl,
+  deleteGcsFile,
+  courseVideoFileName,
 };
