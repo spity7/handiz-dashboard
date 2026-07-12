@@ -37,10 +37,19 @@ const getImageValidationError = (file, label = "Thumbnail") => {
   return `${label} must be an image file (JPEG, PNG, GIF, WebP, or AVIF).`;
 };
 
+const isCompressibleImage = (mimeType, originalName) => {
+  const mime = String(mimeType || "").toLowerCase();
+  if (ALLOWED_IMAGE_MIME_TYPES.has(mime)) return true;
+
+  const ext = path.extname(originalName || "").toLowerCase();
+  return ALLOWED_IMAGE_EXTENSIONS.has(ext);
+};
+
 module.exports = {
   ALLOWED_IMAGE_MIME_TYPES,
   ALLOWED_IMAGE_EXTENSIONS,
   THUMBNAIL_INVALID_MESSAGE,
   isAllowedImageUpload,
+  isCompressibleImage,
   getImageValidationError,
 };

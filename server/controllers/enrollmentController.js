@@ -42,6 +42,10 @@ exports.enrollFree = async (req, res) => {
         existing.source = ENROLLMENT_SOURCE.FREE;
         existing.enrolledAt = new Date();
         await existing.save();
+        await Course.findByIdAndUpdate(course._id, {
+          $inc: { enrollmentCount: 1 },
+        });
+        await notifyCourseEnrolled(req.user._id, course);
         return res
           .status(200)
           .json({ message: "Re-enrolled", enrollment: existing });
@@ -112,7 +116,9 @@ exports.getEnrollmentById = async (req, res) => {
     }
 
     const course = enrollment.courseId;
-    const curriculum = await buildCurriculum(course._id);
+    const curriculum = await buildCurriculum(course._id, {
+      hideEmptyModules: true,
+    });
 
     const sanitizedCurriculum = curriculum.map((mod) => ({
       ...mod,
@@ -165,9 +171,15 @@ exports.adminCreateEnrollment = async (req, res) => {
 
     let enrollment = await Enrollment.findOne({ userId, courseId });
     if (enrollment) {
+      const wasRevoked = enrollment.status === ENROLLMENT_STATUS.REVOKED;
       enrollment.status = ENROLLMENT_STATUS.ACTIVE;
       enrollment.source = ENROLLMENT_SOURCE.ADMIN;
       await enrollment.save();
+      if (wasRevoked) {
+        await Course.findByIdAndUpdate(courseId, {
+          $inc: { enrollmentCount: 1 },
+        });
+      }
     } else {
       enrollment = await Enrollment.create({
         userId,
@@ -193,8 +205,18 @@ exports.revokeEnrollment = async (req, res) => {
     if (!enrollment)
       return res.status(404).json({ message: "Enrollment not found" });
 
+    const wasCountable =
+      enrollment.status === ENROLLMENT_STATUS.ACTIVE ||
+      enrollment.status === ENROLLMENT_STATUS.COMPLETED;
+
     enrollment.status = ENROLLMENT_STATUS.REVOKED;
     await enrollment.save();
+
+    if (wasCountable) {
+      await Course.findByIdAndUpdate(enrollment.courseId, {
+        $inc: { enrollmentCount: -1 },
+      });
+    }
 
     res.status(200).json({ message: "Enrollment revoked" });
   } catch (error) {

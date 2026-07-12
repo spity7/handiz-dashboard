@@ -37,7 +37,12 @@ const findSlugOwner = async (Model, query) => {
   return Model.findOne(query).select("_id");
 };
 
-const generateUniqueSlug = async (Model, base, excludeId = null) => {
+const generateUniqueSlug = async (
+  Model,
+  base,
+  excludeId = null,
+  scope = null,
+) => {
   let slug = slugify(base);
   if (!slug) slug = "course";
   let candidate = slug;
@@ -45,6 +50,9 @@ const generateUniqueSlug = async (Model, base, excludeId = null) => {
 
   while (true) {
     const query = { slug: candidate };
+    if (scope && typeof scope === "object") {
+      Object.assign(query, scope);
+    }
     if (excludeId) query._id = { $ne: excludeId };
     const exists = await findSlugOwner(Model, query);
     if (!exists) return candidate;
@@ -97,12 +105,15 @@ const cleanupLessonMedia = async (lesson) => {
   await deleteLessonResourceFiles(lesson);
 };
 
-const cleanupLessonRelatedData = async (lessonId) => {
+const cleanupLessonQuizOnly = async (lessonId) => {
   const quiz = await Quiz.findOne({ lessonId });
-  if (quiz) {
-    await QuizAttempt.deleteMany({ quizId: quiz._id });
-    await Quiz.deleteOne({ _id: quiz._id });
-  }
+  if (!quiz) return;
+  await QuizAttempt.deleteMany({ quizId: quiz._id });
+  await Quiz.deleteOne({ _id: quiz._id });
+};
+
+const cleanupLessonRelatedData = async (lessonId) => {
+  await cleanupLessonQuizOnly(lessonId);
   await LessonProgress.deleteMany({ lessonId });
 };
 
@@ -122,6 +133,13 @@ const revokeCourseEnrollments = async (courseId) => {
     },
     { $set: { status: ENROLLMENT_STATUS.REVOKED } },
   );
+
+  if (result.modifiedCount > 0) {
+    await Course.findByIdAndUpdate(courseId, {
+      $inc: { enrollmentCount: -result.modifiedCount },
+    });
+  }
+
   return result.modifiedCount;
 };
 
@@ -256,7 +274,11 @@ const issueCertificateIfNeeded = async (enrollment) => {
 
 const buildCurriculum = async (
   courseId,
-  { includeUnpublished = false } = {},
+  {
+    includeUnpublished = false,
+    hideEmptyModules = false,
+    includeQuiz = false,
+  } = {},
 ) => {
   const lessonFilter = { courseId };
   if (!includeUnpublished) lessonFilter.isPublished = true;
@@ -266,12 +288,88 @@ const buildCurriculum = async (
     Lesson.find(lessonFilter).sort({ order: 1 }),
   ]);
 
-  return modules.map((mod) => ({
+  let quizByLessonId = new Map();
+  if (includeQuiz) {
+    const quizLessons = lessons.filter((l) => l.type === "quiz");
+    if (quizLessons.length > 0) {
+      const quizzes = await Quiz.find({
+        lessonId: { $in: quizLessons.map((l) => l._id) },
+      });
+      quizByLessonId = new Map(
+        quizzes.map((q) => [String(q.lessonId), q.toObject()]),
+      );
+    }
+  }
+
+  const curriculum = modules.map((mod) => ({
     ...mod.toObject(),
     lessons: lessons
       .filter((l) => String(l.moduleId) === String(mod._id))
-      .map((l) => l.toObject()),
+      .map((l) => {
+        const lessonObj = l.toObject();
+        if (lessonObj.type !== "video") {
+          delete lessonObj.video;
+        }
+        if (includeQuiz && l.type === "quiz") {
+          lessonObj.quiz = quizByLessonId.get(String(l._id)) || null;
+        }
+        return lessonObj;
+      }),
   }));
+
+  if (hideEmptyModules) {
+    return curriculum.filter((mod) => (mod.lessons || []).length > 0);
+  }
+
+  return curriculum;
+};
+
+const validateCourseCanPublish = async (courseId) => {
+  const publishedLessons = await Lesson.find({
+    courseId,
+    isPublished: true,
+  });
+
+  if (publishedLessons.length === 0) {
+    return {
+      ok: false,
+      message:
+        "Cannot publish: add at least one published lesson to the curriculum.",
+    };
+  }
+
+  const pendingVideos = publishedLessons.filter(
+    (lesson) =>
+      lesson.type === "video" &&
+      lesson.video?.vdoCipherVideoId &&
+      lesson.video.encodingStatus !== "ready",
+  );
+
+  if (pendingVideos.length > 0) {
+    const titles = pendingVideos.map((l) => `"${l.title}"`).join(", ");
+    return {
+      ok: false,
+      message: `Cannot publish: video lesson(s) still processing: ${titles}.`,
+    };
+  }
+
+  return { ok: true };
+};
+
+const stripLessonMediaIds = (obj) => {
+  if (obj.video?.gcsPath) {
+    delete obj.video.gcsPath;
+  }
+  if (obj.video?.vdoCipherVideoId) {
+    delete obj.video.vdoCipherVideoId;
+  }
+};
+
+const filterStudentContentBlocks = (blocks) => {
+  if (!Array.isArray(blocks)) return blocks;
+  return blocks.filter(
+    (block) => block.type !== "file" && block.type !== "video",
+  );
 };
 
 const sanitizeLessonForClient = (
@@ -279,6 +377,8 @@ const sanitizeLessonForClient = (
   { hasAccess, isStaff: staff = false },
 ) => {
   const obj = lesson.toObject ? lesson.toObject() : { ...lesson };
+  const keepResources = obj.type === "download";
+
   if (!hasAccess) {
     delete obj.video;
     delete obj.resources;
@@ -286,20 +386,13 @@ const sanitizeLessonForClient = (
     obj.locked = true;
   } else {
     obj.locked = false;
-    if (obj.video?.gcsPath) {
-      delete obj.video.gcsPath;
-    }
-    if (obj.video?.vdoCipherVideoId) {
-      delete obj.video.vdoCipherVideoId;
-    }
+    stripLessonMediaIds(obj);
 
     if (!staff) {
-      delete obj.resources;
-      if (Array.isArray(obj.contentBlocks)) {
-        obj.contentBlocks = obj.contentBlocks.filter(
-          (block) => block.type !== "file" && block.type !== "video",
-        );
+      if (!keepResources) {
+        delete obj.resources;
       }
+      obj.contentBlocks = filterStudentContentBlocks(obj.contentBlocks);
     }
   }
   return obj;
@@ -308,15 +401,14 @@ const sanitizeLessonForClient = (
 /**
  * Strip downloadable assets from lesson payload for student playback API.
  */
-const sanitizeLessonPlayback = (lessonObj, { isStaff: staff = false }) => {
+const sanitizeLessonPlayback = (lessonObj, { isStaff: staff = false } = {}) => {
   if (staff) return lessonObj;
 
-  delete lessonObj.resources;
-  if (Array.isArray(lessonObj.contentBlocks)) {
-    lessonObj.contentBlocks = lessonObj.contentBlocks.filter(
-      (block) => block.type !== "file" && block.type !== "video",
-    );
+  const keepResources = lessonObj.type === "download";
+  if (!keepResources) {
+    delete lessonObj.resources;
   }
+  lessonObj.contentBlocks = filterStudentContentBlocks(lessonObj.contentBlocks);
   return lessonObj;
 };
 
@@ -336,6 +428,7 @@ module.exports = {
   generateUniqueSlug,
   entityBelongsToCourse,
   cleanupLessonMedia,
+  cleanupLessonQuizOnly,
   cleanupLessonRelatedData,
   removeLessonCompletely,
   revokeCourseEnrollments,
@@ -347,6 +440,7 @@ module.exports = {
   recalculateEnrollmentProgress,
   issueCertificateIfNeeded,
   buildCurriculum,
+  validateCourseCanPublish,
   sanitizeLessonForClient,
   sanitizeLessonPlayback,
   notifyCourseEnrolled,

@@ -1,8 +1,49 @@
+const crypto = require("crypto");
 const Lesson = require("../models/lessonModel");
 const { getUploadCredentials } = require("../utils/vdocipher");
 const { recalculateCourseStats } = require("../utils/courseHelpers");
 const logger = require("../config/logger");
 
+const safeEqual = (a, b) => {
+  try {
+    const left = Buffer.from(String(a), "utf8");
+    const right = Buffer.from(String(b), "utf8");
+    if (left.length !== right.length) return false;
+    return crypto.timingSafeEqual(left, right);
+  } catch {
+    return false;
+  }
+};
+
+const verifyVdocipherWebhook = (req) => {
+  const secret = process.env.VDOCIPHER_WEBHOOK_SECRET;
+  if (!secret) return true;
+
+  // VdoCipher's documented approach: secret as ?token= in the webhook URL.
+  const urlToken = req.query?.token;
+  if (urlToken && safeEqual(urlToken, secret)) {
+    return true;
+  }
+
+  // Optional fallback for providers that send HMAC signature headers.
+  const signature =
+    req.headers["x-vdocipher-signature"] ||
+    req.headers["x-webhook-signature"] ||
+    req.headers["authorization"];
+
+  if (!signature) return false;
+
+  const rawBody = req.rawBody || JSON.stringify(req.body || {});
+  const expected = crypto
+    .createHmac("sha256", secret)
+    .update(rawBody)
+    .digest("hex");
+
+  const provided = String(signature)
+    .replace(/^sha256=/i, "")
+    .trim();
+  return safeEqual(provided, expected);
+};
 exports.getUploadCredentials = async (req, res) => {
   try {
     const { title, folderId } = req.body;
@@ -22,6 +63,12 @@ exports.getUploadCredentials = async (req, res) => {
 
 exports.handleVdocipherWebhook = async (req, res) => {
   try {
+    if (!verifyVdocipherWebhook(req)) {
+      logger.warn("VdoCipher webhook rejected: invalid token or signature");
+      return res
+        .status(401)
+        .json({ message: "Invalid webhook authentication" });
+    }
     const { event, payload } = req.body || {};
 
     if (event !== "video:ready" || !payload?.id) {

@@ -72,6 +72,7 @@ const fulfillPaidEnrollment = async ({
     enrollment.status = ENROLLMENT_STATUS.ACTIVE;
     enrollment.source = ENROLLMENT_SOURCE.WHISH;
     await enrollment.save();
+    await Course.findByIdAndUpdate(courseId, { $inc: { enrollmentCount: 1 } });
   }
 
   await notifyCourseEnrolled(userId, course);
@@ -357,7 +358,15 @@ exports.submitQuizAttempt = async (req, res) => {
         progress.completedAt = new Date();
         await progress.save();
       }
-      await recalculateEnrollmentProgress(enrollment._id);
+      const enrollmentProgress = await recalculateEnrollmentProgress(
+        enrollment._id,
+      );
+      return res.status(200).json({
+        attempt,
+        passed,
+        score,
+        enrollmentProgress,
+      });
     }
 
     res.status(200).json({ attempt, passed, score });

@@ -1,6 +1,7 @@
 const { Storage } = require("@google-cloud/storage");
 const path = require("path");
 const { optimizeImage } = require("./imageProcessing");
+const { isCompressibleImage } = require("./imageValidation");
 require("../config/env");
 
 const keyPath =
@@ -60,6 +61,42 @@ async function uploadThumbnail(fileBuffer, originalName) {
   return uploadProjectImage(fileBuffer, originalName, "thumbnails");
 }
 
+function courseImageFileName(
+  subfolder,
+  originalName,
+  extension,
+  stamp = Date.now(),
+  index,
+) {
+  const base = safeBaseName(originalName);
+  const prefix =
+    index !== undefined && index !== null ? `${stamp}_${index}` : String(stamp);
+  return `courses/${subfolder}/${prefix}_${base}${extension}`;
+}
+
+async function uploadCourseThumbnail(fileBuffer, originalName) {
+  const { buffer, mimeType, extension } = await optimizeImage(fileBuffer);
+  const fileName = courseImageFileName("thumbnails", originalName, extension);
+  return uploadImage(buffer, fileName, mimeType);
+}
+
+async function uploadCourseImage(
+  fileBuffer,
+  originalName,
+  subfolder = "images",
+  { stamp = Date.now(), index } = {},
+) {
+  const { buffer, mimeType, extension } = await optimizeImage(fileBuffer);
+  const fileName = courseImageFileName(
+    subfolder,
+    originalName,
+    extension,
+    stamp,
+    index,
+  );
+  return uploadImage(buffer, fileName, mimeType);
+}
+
 function getFileNameFromUrl(fileUrl) {
   if (!fileUrl) return null;
   const marker = `/${bucketName}/`;
@@ -114,6 +151,10 @@ async function uploadCourseFile(
   mimeType,
   subfolder = "resources",
 ) {
+  if (isCompressibleImage(mimeType, originalName)) {
+    return uploadCourseImage(fileBuffer, originalName, subfolder);
+  }
+
   const base = safeBaseName(originalName, "file");
   const ext = path.extname(originalName || "");
   const fileName = `courses/${subfolder}/${Date.now()}_${base}${ext}`;
@@ -154,6 +195,8 @@ module.exports = {
   bucket,
   deleteImage,
   uploadVideo,
+  uploadCourseThumbnail,
+  uploadCourseImage,
   uploadCourseFile,
   getSignedVideoUrl,
   deleteGcsFile,

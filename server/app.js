@@ -33,7 +33,16 @@ const PORT = process.env.PORT;
 app.use("/api/v1", webhookRoutes);
 
 // Middlewares
-app.use(express.json({ limit: "100mb" }));
+app.use(
+  express.json({
+    limit: "100mb",
+    verify: (req, _res, buf) => {
+      if (String(req.originalUrl || "").includes("/webhooks/vdocipher")) {
+        req.rawBody = buf.toString("utf8");
+      }
+    },
+  }),
+);
 app.use(express.urlencoded({ extended: true, limit: "100mb" }));
 app.use(
   cors({
@@ -52,6 +61,8 @@ app.use(
       "Authorization",
       "X-Requested-With",
       "X-Auth-Token",
+      "X-Vdocipher-Signature",
+      "X-Webhook-Signature",
     ],
     credentials: true,
     preflightContinue: false,

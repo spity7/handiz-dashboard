@@ -39,6 +39,7 @@ const courseUpload = upload.fields([
   { name: "thumbnail", maxCount: 1 },
   { name: "video", maxCount: 1 },
   { name: "resources", maxCount: 10 },
+  { name: "blockImages", maxCount: 20 },
 ]);
 
 // Public / optional auth

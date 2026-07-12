@@ -4,9 +4,9 @@ const Lesson = require("../models/lessonModel");
 const Enrollment = require("../models/enrollmentModel");
 const Quiz = require("../models/quizModel");
 const {
-  uploadImage,
   uploadVideo,
   uploadCourseFile,
+  uploadCourseThumbnail,
   deleteImage,
   deleteGcsFile,
   getSignedVideoUrl,
@@ -25,12 +25,15 @@ const {
   sanitizeLessonPlayback,
   entityBelongsToCourse,
   removeLessonCompletely,
+  cleanupLessonMedia,
+  cleanupLessonQuizOnly,
   revokeCourseEnrollments,
   releaseCourseSlug,
   restoreOriginalCourseSlug,
   permanentlyDeleteCourseContent,
   normalizeCoursePricing,
   serializeCourseForResponse,
+  validateCourseCanPublish,
 } = require("../utils/courseHelpers");
 const {
   getPlaybackOtp,
@@ -64,6 +67,81 @@ const applyPublishMetadata = (course, previousStatus, nextStatus, userId) => {
     course.publishedBy = userId;
   }
   course.lastPublishedAt = now;
+};
+
+const resolveLessonContentBlocks = async (
+  contentBlocksRaw,
+  blockImageFiles,
+) => {
+  let blocks = parseJsonField(contentBlocksRaw, []) || [];
+  if (!blocks.length) return [];
+
+  if (blockImageFiles.length > 0) {
+    const uploaded = await Promise.all(
+      blockImageFiles.map((file) =>
+        uploadCourseFile(
+          file.buffer,
+          file.originalname,
+          file.mimetype,
+          "blocks",
+        ),
+      ),
+    );
+    blocks = blocks.map((block) => {
+      if (
+        block.type === "image" &&
+        block.fileIndex !== undefined &&
+        uploaded[block.fileIndex]
+      ) {
+        return { type: "image", content: uploaded[block.fileIndex] };
+      }
+      const { fileIndex, ...rest } = block;
+      return rest;
+    });
+  } else {
+    blocks = blocks.map((block) => {
+      const { fileIndex, ...rest } = block;
+      return rest;
+    });
+  }
+
+  return blocks;
+};
+
+const lessonHasVideoSource = (lesson, { vdoCipherVideoId, videoFile } = {}) =>
+  Boolean(
+    vdoCipherVideoId ||
+    videoFile ||
+    lesson?.video?.vdoCipherVideoId ||
+    lesson?.video?.gcsPath,
+  );
+
+const applyLessonTypeTransition = async (lesson, previousType, nextType) => {
+  if (previousType === nextType) return;
+
+  if (nextType !== "video" && previousType === "video") {
+    await cleanupLessonMedia(lesson);
+    lesson.video = {
+      provider: "vdocipher",
+      vdoCipherVideoId: "",
+      encodingStatus: "pending",
+      gcsPath: "",
+      durationSeconds: 0,
+      thumbnailUrl: "",
+    };
+  }
+
+  if (nextType !== "text" && nextType !== "download") {
+    lesson.contentBlocks = [];
+  }
+
+  if (nextType !== "download") {
+    lesson.resources = [];
+  }
+
+  if (nextType !== "quiz" && previousType === "quiz") {
+    await cleanupLessonQuizOnly(lesson._id);
+  }
 };
 
 const hasThumbnail = (thumbnailFile, thumbnailUrl) =>
@@ -166,6 +244,7 @@ exports.getCourseBySlug = async (req, res) => {
 
     const curriculum = await buildCurriculum(course._id, {
       includeUnpublished: isStaff(req.user),
+      hideEmptyModules: !isStaff(req.user),
     });
 
     let enrollment = null;
@@ -191,6 +270,7 @@ exports.getCourseBySlug = async (req, res) => {
       enrollment,
       isEnrolled:
         !!enrollment && ["active", "completed"].includes(enrollment.status),
+      isStaff: staff,
     });
   } catch (error) {
     console.error("getCourseBySlug error:", error);
@@ -208,6 +288,7 @@ exports.getCourseById = async (req, res) => {
 
     const curriculum = await buildCurriculum(course._id, {
       includeUnpublished: true,
+      includeQuiz: true,
     });
 
     res.status(200).json({
@@ -260,15 +341,20 @@ exports.createCourse = async (req, res) => {
     let thumbnailUrl = "";
 
     if (thumbnailFile) {
-      const fileName = `courses/thumbnails/${Date.now()}_${thumbnailFile.originalname}`;
-      thumbnailUrl = await uploadImage(
+      thumbnailUrl = await uploadCourseThumbnail(
         thumbnailFile.buffer,
-        fileName,
-        thumbnailFile.mimetype,
+        thumbnailFile.originalname,
       );
     }
 
     const resolvedStatus = normalizeCourseStatus(status);
+    if (resolvedStatus === COURSE_STATUS.PUBLISHED) {
+      return res.status(400).json({
+        message:
+          "Cannot publish a new course before adding curriculum. Save as draft, add lessons, then publish.",
+      });
+    }
+
     const publishedNow = new Date();
 
     const pricing = normalizeCoursePricing(
@@ -344,17 +430,14 @@ exports.updateCourse = async (req, res) => {
       discountEndsAt,
       freeHasExpiry,
       freeEndsAt,
+      slug,
       instructorId,
       status,
     } = req.body;
     const thumbnailFile = req.files?.thumbnail?.[0];
 
     if (title) {
-      const previousTitle = course.title;
       course.title = title;
-      if (title !== previousTitle) {
-        course.slug = await generateUniqueSlug(Course, title, course._id);
-      }
     }
     if (excerpt !== undefined) course.excerpt = excerpt;
     if (description !== undefined) course.description = description;
@@ -417,6 +500,17 @@ exports.updateCourse = async (req, res) => {
     if (status !== undefined) {
       const resolvedStatus = normalizeCourseStatus(status);
       const previousStatus = course.status;
+
+      if (
+        resolvedStatus === COURSE_STATUS.PUBLISHED &&
+        previousStatus !== COURSE_STATUS.PUBLISHED
+      ) {
+        const publishCheck = await validateCourseCanPublish(course._id);
+        if (!publishCheck.ok) {
+          return res.status(400).json({ message: publishCheck.message });
+        }
+      }
+
       course.status = resolvedStatus;
       applyPublishMetadata(
         course,
@@ -433,11 +527,9 @@ exports.updateCourse = async (req, res) => {
       }
 
       if (course.thumbnailUrl) await deleteImage(course.thumbnailUrl);
-      const fileName = `courses/thumbnails/${Date.now()}_${thumbnailFile.originalname}`;
-      course.thumbnailUrl = await uploadImage(
+      course.thumbnailUrl = await uploadCourseThumbnail(
         thumbnailFile.buffer,
-        fileName,
-        thumbnailFile.mimetype,
+        thumbnailFile.originalname,
       );
     }
 
@@ -625,6 +717,7 @@ exports.createLesson = async (req, res) => {
     } = req.body;
     const videoFile = req.files?.video?.[0];
     const resourceFiles = req.files?.resources || [];
+    const blockImageFiles = req.files?.blockImages || [];
 
     if (!moduleId || !title) {
       return res
@@ -637,17 +730,33 @@ exports.createLesson = async (req, res) => {
       return res.status(400).json({ message: "Invalid module" });
     }
 
-    const slug = await generateUniqueSlug(Lesson, title);
+    const lessonType = type || "video";
+    if (
+      lessonType === "video" &&
+      !lessonHasVideoSource(null, { vdoCipherVideoId, videoFile })
+    ) {
+      return res
+        .status(400)
+        .json({ message: "A video file is required for video lessons." });
+    }
+
+    const lessonCount = await Lesson.countDocuments({ moduleId });
+    const resolvedOrder =
+      order !== undefined && order !== "" ? Number(order) : lessonCount;
+
+    const slug = await generateUniqueSlug(Lesson, title, null, {
+      courseId: course._id,
+    });
     const lessonData = {
       courseId: course._id,
       moduleId,
       title,
       slug,
-      type: type || "video",
-      order: order !== undefined ? Number(order) : 0,
+      type: lessonType,
+      order: resolvedOrder,
       isPreview: isPreview === "true" || isPreview === true,
       isPublished: isPublished !== "false" && isPublished !== false,
-      contentBlocks: parseJsonField(contentBlocks, []) || [],
+      contentBlocks: [],
       resources: parseJsonField(resources, []) || [],
       video: {
         provider: "vdocipher",
@@ -655,6 +764,13 @@ exports.createLesson = async (req, res) => {
         encodingStatus: "pending",
       },
     };
+
+    if (lessonType === "text" || lessonType === "download") {
+      lessonData.contentBlocks = await resolveLessonContentBlocks(
+        contentBlocks,
+        blockImageFiles,
+      );
+    }
 
     if (vdoCipherVideoId) {
       lessonData.video.vdoCipherVideoId = vdoCipherVideoId;
@@ -670,7 +786,7 @@ exports.createLesson = async (req, res) => {
       lessonData.video.encodingStatus = "ready";
     }
 
-    if (resourceFiles.length > 0) {
+    if (lessonType === "download" && resourceFiles.length > 0) {
       const uploaded = await Promise.all(
         resourceFiles.map((file) =>
           uploadCourseFile(file.buffer, file.originalname, file.mimetype),
@@ -722,21 +838,25 @@ exports.updateLesson = async (req, res) => {
     } = req.body;
     const videoFile = req.files?.video?.[0];
     const resourceFiles = req.files?.resources || [];
+    const blockImageFiles = req.files?.blockImages || [];
+    const previousType = lesson.type;
 
     if (title) {
       lesson.title = title;
-      lesson.slug = await generateUniqueSlug(Lesson, title, lesson._id);
+      lesson.slug = await generateUniqueSlug(Lesson, title, lesson._id, {
+        courseId: course._id,
+      });
     }
-    if (type) lesson.type = type;
-    if (order !== undefined) lesson.order = Number(order);
+
+    const nextType = type || lesson.type;
+    if (type) lesson.type = nextType;
+
+    if (order !== undefined && order !== "") lesson.order = Number(order);
     if (isPreview !== undefined)
       lesson.isPreview = isPreview === "true" || isPreview === true;
     if (isPublished !== undefined)
       lesson.isPublished = isPublished !== "false" && isPublished !== false;
-    if (contentBlocks !== undefined)
-      lesson.contentBlocks = parseJsonField(contentBlocks, []) || [];
-    if (resources !== undefined)
-      lesson.resources = parseJsonField(resources, lesson.resources) || [];
+
     if (moduleId) {
       const targetModule = await CourseModule.findById(moduleId);
       if (!targetModule || !entityBelongsToCourse(targetModule, course._id)) {
@@ -744,9 +864,50 @@ exports.updateLesson = async (req, res) => {
       }
       lesson.moduleId = moduleId;
     }
-    if (durationSeconds !== undefined) {
-      lesson.video = lesson.video || {};
-      lesson.video.durationSeconds = Number(durationSeconds) || 0;
+
+    await applyLessonTypeTransition(lesson, previousType, nextType);
+
+    if (nextType === "text" || nextType === "download") {
+      if (contentBlocks !== undefined) {
+        lesson.contentBlocks = await resolveLessonContentBlocks(
+          contentBlocks,
+          blockImageFiles,
+        );
+      }
+    }
+
+    if (nextType === "download") {
+      if (resources !== undefined) {
+        lesson.resources = parseJsonField(resources, []) || [];
+      }
+      if (resourceFiles.length > 0) {
+        const uploaded = await Promise.all(
+          resourceFiles.map((file) =>
+            uploadCourseFile(file.buffer, file.originalname, file.mimetype),
+          ),
+        );
+        lesson.resources = [
+          ...(lesson.resources || []),
+          ...uploaded.map((url, i) => ({
+            title: resourceFiles[i].originalname,
+            url,
+            fileType: resourceFiles[i].mimetype,
+          })),
+        ];
+      }
+    }
+
+    if (nextType === "video") {
+      if (!lessonHasVideoSource(lesson, { vdoCipherVideoId, videoFile })) {
+        return res.status(400).json({
+          message:
+            "This video lesson has no video. Upload a video file before saving.",
+        });
+      }
+      if (durationSeconds !== undefined) {
+        lesson.video = lesson.video || {};
+        lesson.video.durationSeconds = Number(durationSeconds) || 0;
+      }
     }
 
     if (
@@ -776,22 +937,6 @@ exports.updateLesson = async (req, res) => {
       );
       lesson.video.provider = "gcs";
       lesson.video.encodingStatus = "ready";
-    }
-
-    if (resourceFiles.length > 0) {
-      const uploaded = await Promise.all(
-        resourceFiles.map((file) =>
-          uploadCourseFile(file.buffer, file.originalname, file.mimetype),
-        ),
-      );
-      lesson.resources = [
-        ...(lesson.resources || []),
-        ...uploaded.map((url, i) => ({
-          title: resourceFiles[i].originalname,
-          url,
-          fileType: resourceFiles[i].mimetype,
-        })),
-      ];
     }
 
     await lesson.save();
@@ -839,11 +984,26 @@ exports.reorderCurriculum = async (req, res) => {
 
     for (const mod of modules) {
       if (mod._id) {
+        const courseModule = await CourseModule.findById(mod._id);
+        if (!courseModule || !entityBelongsToCourse(courseModule, course._id)) {
+          return res.status(400).json({
+            message: `Invalid module in reorder payload: ${mod._id}`,
+          });
+        }
         await CourseModule.findByIdAndUpdate(mod._id, { order: mod.order });
       }
       if (Array.isArray(mod.lessons)) {
         for (const lesson of mod.lessons) {
           if (lesson._id) {
+            const existingLesson = await Lesson.findById(lesson._id);
+            if (
+              !existingLesson ||
+              !entityBelongsToCourse(existingLesson, course._id)
+            ) {
+              return res.status(400).json({
+                message: `Invalid lesson in reorder payload: ${lesson._id}`,
+              });
+            }
             await Lesson.findByIdAndUpdate(lesson._id, {
               order: lesson.order,
               moduleId: mod._id,
@@ -969,6 +1129,11 @@ exports.upsertQuiz = async (req, res) => {
 
     const { passingScore, questions } = req.body;
     const parsedQuestions = parseJsonField(questions, []) || [];
+    if (!parsedQuestions.length) {
+      return res
+        .status(400)
+        .json({ message: "Quiz must have at least one question." });
+    }
 
     const quiz = await Quiz.findOneAndUpdate(
       { lessonId: lesson._id },
