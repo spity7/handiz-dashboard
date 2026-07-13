@@ -1,6 +1,8 @@
 node_modules
 .env
-.env.*
+.env.local
+.env.production
+.env.development
 logs
 npm-debug.log
 .git
@@ -8,3 +10,5 @@ npm-debug.log
 *.md
 .vscode
 .idea
+
+!.env.example
