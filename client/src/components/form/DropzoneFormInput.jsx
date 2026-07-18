@@ -1,12 +1,14 @@
 import { Button, Card, Col, FormLabel, FormText, Row } from 'react-bootstrap'
 import Dropzone from 'react-dropzone'
 import useFileUploader from '@/hooks/useFileUploader'
+import RequiredFormLabel from '@/components/form/RequiredFormLabel'
 import IconifyIcon from '../wrappers/IconifyIcon'
 import { useEffect } from 'react'
 
 const DropzoneFormInput = ({
   label,
   labelClassName,
+  required = false,
   helpText,
   iconProps,
   showPreview,
@@ -37,7 +39,15 @@ const DropzoneFormInput = ({
 
   return (
     <>
-      {label && <FormLabel className={labelClassName}>{label}</FormLabel>}
+      {label ? (
+        required ? (
+          <RequiredFormLabel className={labelClassName} required>
+            {label}
+          </RequiredFormLabel>
+        ) : (
+          <FormLabel className={labelClassName}>{label}</FormLabel>
+        )
+      ) : null}
 
       <Dropzone onDrop={handleDrop} accept={accept} maxFiles={maxFiles}>
         {({ getRootProps, getInputProps }) => (

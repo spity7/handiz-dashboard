@@ -29,8 +29,13 @@ const {
   serializeCourseForResponse,
 } = require("./coursePricing");
 const { upsertUnreadNotification } = require("./helpers/notificationService");
-const { deleteImage, deleteGcsFile } = require("./gcs");
-const { deleteVideo: deleteVdocipherVideo } = require("./vdocipher");
+const { deleteImage } = require("./gcs");
+const {
+  deleteVideo: deleteVdocipherVideo,
+  deleteFolder: deleteVdocipherFolder,
+  createFolder,
+  buildCourseFolderName,
+} = require("./vdocipher");
 
 const slugify = (text) =>
   String(text || "")
@@ -124,12 +129,7 @@ const collectLessonGcsUploadUrls = (lessonData) => {
   return [...new Set(urls.filter(Boolean))];
 };
 
-const rollbackLessonGcsUploads = async ({
-  gcsVideoPath,
-  gcsUrls,
-  vdoCipherVideoId,
-}) => {
-  if (gcsVideoPath) await deleteGcsFile(gcsVideoPath);
+const rollbackLessonGcsUploads = async ({ gcsUrls, vdoCipherVideoId }) => {
   await deleteGcsUrls(gcsUrls);
   if (vdoCipherVideoId) {
     try {
@@ -142,6 +142,17 @@ const rollbackLessonGcsUploads = async ({
       );
     }
   }
+};
+
+const ensureCourseVdocipherFolder = async (course) => {
+  if (course.vdoCipherFolderId) {
+    return course.vdoCipherFolderId;
+  }
+
+  const folder = await createFolder(buildCourseFolderName(course));
+  course.vdoCipherFolderId = folder.id;
+  await course.save();
+  return folder.id;
 };
 
 const deleteLessonResourceFiles = async (lesson) => {
@@ -163,7 +174,6 @@ const deleteLessonResourceFiles = async (lesson) => {
 };
 
 const cleanupLessonMedia = async (lesson) => {
-  if (lesson.video?.gcsPath) await deleteGcsFile(lesson.video.gcsPath);
   if (lesson.video?.vdoCipherVideoId) {
     try {
       await deleteVdocipherVideo(lesson.video.vdoCipherVideoId);
@@ -281,6 +291,19 @@ const permanentlyDeleteCourseContent = async (course) => {
   for (const lesson of lessons) {
     await removeLessonCompletely(lesson);
   }
+
+  if (course.vdoCipherFolderId) {
+    try {
+      await deleteVdocipherFolder(course.vdoCipherFolderId);
+    } catch (err) {
+      console.warn(
+        "Failed to delete VdoCipher folder:",
+        course.vdoCipherFolderId,
+        err.message,
+      );
+    }
+  }
+
   await CourseModule.deleteMany({ courseId: course._id });
   await Quiz.deleteMany({ courseId: course._id });
 
@@ -323,13 +346,38 @@ const recalculateCourseStats = async (courseId) => {
     0,
   );
 
-  await Course.findByIdAndUpdate(courseId, {
+  const course = await Course.findById(courseId).select("status");
+  const updates = {
     lessonCount,
     totalDurationMinutes: Math.ceil(totalSeconds / 60),
-  });
+  };
 
-  return { lessonCount, totalDurationMinutes: Math.ceil(totalSeconds / 60) };
+  const revertedToDraft =
+    lessonCount === 0 && course?.status === COURSE_STATUS.PUBLISHED;
+
+  if (revertedToDraft) {
+    updates.status = COURSE_STATUS.DRAFT;
+  }
+
+  await Course.findByIdAndUpdate(courseId, updates);
+
+  return {
+    lessonCount,
+    totalDurationMinutes: updates.totalDurationMinutes,
+    revertedToDraft,
+  };
 };
+
+const COURSE_REVERTED_TO_DRAFT_MESSAGE =
+  "Course moved to Draft because it has no published lessons.";
+
+const courseStatsSideEffects = (stats) =>
+  stats?.revertedToDraft
+    ? {
+        courseRevertedToDraft: true,
+        courseStatusMessage: COURSE_REVERTED_TO_DRAFT_MESSAGE,
+      }
+    : {};
 
 const getPublishedLessonsForCourse = async (courseId) =>
   Lesson.find({ courseId, isPublished: true }).sort({ order: 1 });
@@ -553,9 +601,6 @@ const validateCourseCanPublish = async (courseId) => {
 };
 
 const stripLessonMediaIds = (obj) => {
-  if (obj.video?.gcsPath) {
-    delete obj.video.gcsPath;
-  }
   if (obj.video?.vdoCipherVideoId) {
     delete obj.video.vdoCipherVideoId;
   }
@@ -633,6 +678,7 @@ module.exports = {
   deleteLessonResourceFiles,
   collectLessonGcsUploadUrls,
   rollbackLessonGcsUploads,
+  ensureCourseVdocipherFolder,
   cleanupLessonMedia,
   cleanupLessonQuizOnly,
   cleanupLessonRelatedData,
@@ -643,6 +689,8 @@ module.exports = {
   restoreOriginalCourseSlug,
   permanentlyDeleteCourseContent,
   recalculateCourseStats,
+  courseStatsSideEffects,
+  COURSE_REVERTED_TO_DRAFT_MESSAGE,
   getPublishedLessonsForCourse,
   buildSequentialLockMap,
   isLessonSequentiallyLocked,

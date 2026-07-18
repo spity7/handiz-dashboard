@@ -1,9 +1,12 @@
-import { useMemo, useState } from 'react'
-import { Button, Card, Col, Form, InputGroup, Row, Spinner } from 'react-bootstrap'
+import { useEffect, useMemo, useState } from 'react'
+import { Badge, Button, Card, Col, Form, InputGroup, Row, Spinner } from 'react-bootstrap'
 import { useNavigate } from 'react-router-dom'
 import Swal from 'sweetalert2'
 import ThumbnailDropzoneInput from '@/components/form/ThumbnailDropzoneInput'
+import RequiredFormLabel from '@/components/form/RequiredFormLabel'
+import { useAuthContext } from '@/context/useAuthContext'
 import { useGlobalContext } from '@/context/useGlobalContext'
+import InstructorSelect from './InstructorSelect'
 import {
   DISCOUNT_TYPE,
   MIN_PAID_COURSE_PRICE,
@@ -29,7 +32,17 @@ const apiErrorMessage = (error, fallback) => {
 
 const CourseForm = ({ course = null, onSaved, disabled = false }) => {
   const { createCourse, updateCourse } = useGlobalContext()
+  const { user: currentUser } = useAuthContext()
   const navigate = useNavigate()
+  const isEditing = Boolean(course?._id)
+  const canPublish = (course?.lessonCount ?? 0) > 0
+  const showDraftOnlyStatus = !isEditing || (course?.status === 'Draft' && !canPublish)
+  const resolvedInstructorId = typeof course?.instructorId === 'object' ? course.instructorId._id : course?.instructorId || currentUser?._id || ''
+  const instructorUser = useMemo(() => {
+    if (course?.instructorId && typeof course.instructorId === 'object') return course.instructorId
+    if (!isEditing && currentUser) return currentUser
+    return null
+  }, [course?.instructorId, currentUser, isEditing])
   const [loading, setLoading] = useState(false)
   const [thumbnailFile, setThumbnailFile] = useState(null)
   const [form, setForm] = useState({
@@ -49,8 +62,13 @@ const CourseForm = ({ course = null, onSaved, disabled = false }) => {
     freeEndsAt: toDatetimeLocalValue(course?.pricing?.freeEndsAt),
     status: course?.status || 'Draft',
     tags: (course?.tags || []).join(', '),
-    instructorId: typeof course?.instructorId === 'object' ? course.instructorId._id : course?.instructorId || '',
+    instructorId: resolvedInstructorId,
   })
+
+  useEffect(() => {
+    if (!course?.status) return
+    setForm((prev) => (prev.status === course.status ? prev : { ...prev, status: course.status }))
+  }, [course?.status])
 
   const hasThumbnail = Boolean(thumbnailFile) || Boolean(course?.thumbnailUrl)
 
@@ -248,8 +266,17 @@ const CourseForm = ({ course = null, onSaved, disabled = false }) => {
       <Row>
         <Col md={6}>
           <Form.Group className="mb-3">
-            <Form.Label>Title</Form.Label>
-            <Form.Control name="title" value={form.title} onChange={handleChange} placeholder="e.g. Introduction to Web Development" required />
+            <RequiredFormLabel htmlFor="course-title" required>
+              Title
+            </RequiredFormLabel>
+            <Form.Control
+              id="course-title"
+              name="title"
+              value={form.title}
+              onChange={handleChange}
+              placeholder="e.g. Introduction to Web Development"
+              required
+            />
           </Form.Group>
           <Form.Group className="mb-3">
             <Form.Label>Excerpt</Form.Label>
@@ -269,7 +296,8 @@ const CourseForm = ({ course = null, onSaved, disabled = false }) => {
         </Col>
         <Col md={6}>
           <ThumbnailDropzoneInput
-            label="Thumbnail *"
+            label="Thumbnail"
+            required
             text="Upload course thumbnail (required, 1 image only)"
             showPreview
             onFileUpload={(files) => setThumbnailFile(files[0] || null)}
@@ -291,18 +319,42 @@ const CourseForm = ({ course = null, onSaved, disabled = false }) => {
         <Col md={3}>
           <Form.Group className="mb-3">
             <Form.Label>Status</Form.Label>
-            <Form.Select name="status" value={form.status} onChange={handleChange}>
-              <option value="Draft">Draft</option>
-              <option value="Published">Published</option>
-              <option value="Archived">Archived</option>
-            </Form.Select>
-            {course?.publishedAt && (
-              <Form.Text muted className="d-block mt-1">
-                First published {formatDiscountEndsAt(course.publishedAt)}
-                {course.lastPublishedAt &&
-                  course.lastPublishedAt !== course.publishedAt &&
-                  ` · Last published ${formatDiscountEndsAt(course.lastPublishedAt)}`}
-              </Form.Text>
+            {showDraftOnlyStatus ? (
+              <>
+                <div className="course-status-draft">
+                  <Badge bg="warning" className="course-status-draft__badge">
+                    Draft
+                  </Badge>
+                </div>
+                <Form.Text muted className="d-block mt-1">
+                  {!isEditing
+                    ? 'New courses start as Draft. Add lessons on the next screen, then publish when ready.'
+                    : 'Add at least one published lesson in the curriculum below before you can publish this course.'}
+                </Form.Text>
+              </>
+            ) : (
+              <>
+                <Form.Select name="status" value={form.status} onChange={handleChange}>
+                  <option value="Draft">Draft</option>
+                  <option value="Published" disabled={!canPublish}>
+                    Published
+                  </option>
+                  <option value="Archived">Archived</option>
+                </Form.Select>
+                {!canPublish && form.status === 'Draft' && (
+                  <Form.Text muted className="d-block mt-1">
+                    Publish becomes available after at least one lesson is published.
+                  </Form.Text>
+                )}
+                {course?.publishedAt && (
+                  <Form.Text muted className="d-block mt-1">
+                    First published {formatDiscountEndsAt(course.publishedAt)}
+                    {course.lastPublishedAt &&
+                      course.lastPublishedAt !== course.publishedAt &&
+                      ` · Last published ${formatDiscountEndsAt(course.lastPublishedAt)}`}
+                  </Form.Text>
+                )}
+              </>
             )}
           </Form.Group>
         </Col>
@@ -323,13 +375,13 @@ const CourseForm = ({ course = null, onSaved, disabled = false }) => {
       <Row>
         <Col md={6}>
           <Form.Group className="mb-3">
-            <Form.Label>Instructor user ID</Form.Label>
-            <Form.Control name="instructorId" value={form.instructorId} onChange={handleChange} placeholder="Optional — defaults to course creator" />
-            <Form.Text muted>
-              {course?.instructorId && typeof course.instructorId === 'object' && (course.instructorId.firstname || course.instructorId.email)
-                ? `Current: ${[course.instructorId.firstname, course.instructorId.lastname].filter(Boolean).join(' ') || course.instructorId.email}`
-                : 'Leave blank to use the creating admin as instructor.'}
-            </Form.Text>
+            <Form.Label>Instructor</Form.Label>
+            <InstructorSelect
+              value={form.instructorId}
+              selectedUser={instructorUser}
+              disabled={disabled || loading}
+              onChange={(instructorId) => setForm((prev) => ({ ...prev, instructorId }))}
+            />
           </Form.Group>
         </Col>
       </Row>
@@ -355,10 +407,13 @@ const CourseForm = ({ course = null, onSaved, disabled = false }) => {
           <Row className="g-3 align-items-end">
             <Col md={4}>
               <Form.Group>
-                <Form.Label>{form.isFree ? 'Original price (compare-at)' : 'List price (USD) *'}</Form.Label>
+                <RequiredFormLabel htmlFor="course-list-price" required={!form.isFree}>
+                  {form.isFree ? 'Original price (compare-at)' : 'List price (USD)'}
+                </RequiredFormLabel>
                 <InputGroup>
                   <InputGroup.Text>$</InputGroup.Text>
                   <Form.Control
+                    id="course-list-price"
                     type="number"
                     step="0.01"
                     min={0}
@@ -400,8 +455,11 @@ const CourseForm = ({ course = null, onSaved, disabled = false }) => {
                 <Row className="g-3">
                   <Col md={4}>
                     <Form.Group>
-                      <Form.Label>Free offer ends on *</Form.Label>
+                      <RequiredFormLabel htmlFor="course-free-ends-at" required={canSaveFreeExpiration}>
+                        Free offer ends on
+                      </RequiredFormLabel>
                       <Form.Control
+                        id="course-free-ends-at"
                         type="datetime-local"
                         name="freeEndsAt"
                         value={form.freeEndsAt}
@@ -455,10 +513,13 @@ const CourseForm = ({ course = null, onSaved, disabled = false }) => {
                   </Col>
                   <Col md={4}>
                     <Form.Group>
-                      <Form.Label>Discount value *</Form.Label>
+                      <RequiredFormLabel htmlFor="course-discount-value" required>
+                        Discount value
+                      </RequiredFormLabel>
                       {form.discountType === DISCOUNT_TYPE.PERCENT ? (
                         <InputGroup>
                           <Form.Control
+                            id="course-discount-value"
                             type="number"
                             step="1"
                             min={discountBounds.min}
@@ -475,6 +536,7 @@ const CourseForm = ({ course = null, onSaved, disabled = false }) => {
                         <InputGroup>
                           <InputGroup.Text>$</InputGroup.Text>
                           <Form.Control
+                            id="course-discount-value"
                             type="number"
                             step="1"
                             min={discountBounds.min}
@@ -504,8 +566,11 @@ const CourseForm = ({ course = null, onSaved, disabled = false }) => {
                       <Row className="g-3">
                         <Col md={4}>
                           <Form.Group>
-                            <Form.Label>Ends on *</Form.Label>
+                            <RequiredFormLabel htmlFor="course-discount-ends-at" required>
+                              Ends on
+                            </RequiredFormLabel>
                             <Form.Control
+                              id="course-discount-ends-at"
                               type="datetime-local"
                               name="discountEndsAt"
                               value={form.discountEndsAt}

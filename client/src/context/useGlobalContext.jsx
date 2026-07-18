@@ -539,8 +539,12 @@ export const GlobalProvider = ({ children }) => {
     return response.data.orders
   }
 
-  const getVdocipherUploadCredentials = async (title) => {
-    const response = await axiosInstance.post('/vdocipher/upload-credentials', { title })
+  const getVdocipherUploadCredentials = async (title, { courseId, moduleTitle } = {}) => {
+    const response = await axiosInstance.post('/vdocipher/upload-credentials', {
+      title,
+      courseId,
+      moduleTitle,
+    })
     return response.data
   }
 

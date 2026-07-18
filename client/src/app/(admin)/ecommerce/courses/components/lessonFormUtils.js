@@ -24,7 +24,7 @@ export const validateLessonForm = ({ lessonForm, editingLesson, videoFile, quizQ
   }
 
   if (lessonForm.type === 'video') {
-    const hasExistingVideo = editingLesson?.video?.vdoCipherVideoId || editingLesson?.video?.gcsPath
+    const hasExistingVideo = editingLesson?.video?.vdoCipherVideoId
     if (!videoFile && !hasExistingVideo) {
       return 'A video file is required for video lessons.'
     }
@@ -65,7 +65,7 @@ export const validateLessonForm = ({ lessonForm, editingLesson, videoFile, quizQ
 
 export const getVideoStatusLabel = (lesson) => {
   const status = lesson?.video?.encodingStatus
-  if (!lesson?.video?.vdoCipherVideoId && !lesson?.video?.gcsPath) {
+  if (!lesson?.video?.vdoCipherVideoId) {
     return 'No video attached'
   }
   if (status === 'ready') return 'Video ready'
@@ -77,7 +77,7 @@ export const getVideoStatusLabel = (lesson) => {
 export const getLessonVideoBadge = (lesson) => {
   if (lesson?.type !== 'video') return null
 
-  const hasVideo = lesson?.video?.vdoCipherVideoId || lesson?.video?.gcsPath
+  const hasVideo = lesson?.video?.vdoCipherVideoId
   const status = lesson?.video?.encodingStatus
 
   if (!hasVideo) {

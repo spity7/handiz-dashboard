@@ -22,6 +22,9 @@ const apiErrorMessage = (error, fallback) => {
   return fallback
 }
 
+const courseRevertNotice = (result) =>
+  result?.courseRevertedToDraft ? result.courseStatusMessage || 'Course moved to Draft because it has no published lessons.' : ''
+
 const cloneCurriculum = (items) => JSON.parse(JSON.stringify(items || []))
 
 const LESSON_TYPE_ICONS = {
@@ -240,9 +243,10 @@ const EditCourse = () => {
 
     try {
       setDeletingModuleId(moduleId)
-      await deleteCourseModule(id, moduleId)
+      const result = await deleteCourseModule(id, moduleId)
       await loadCourse()
-      await Swal.fire('Deleted', 'Module removed successfully.', 'success')
+      const revertNotice = courseRevertNotice(result)
+      await Swal.fire('Deleted', revertNotice ? `Module removed successfully.\n\n${revertNotice}` : 'Module removed successfully.', 'success')
     } catch (error) {
       Swal.fire('Error', apiErrorMessage(error, 'Failed to delete module'), 'error')
     } finally {
@@ -495,6 +499,8 @@ const EditCourse = () => {
         setLessonSavePhase('uploading')
         uploadedVideoId = await uploadVideoToVdocipher(videoFile, {
           title: lessonForm.title,
+          courseId: id,
+          moduleTitle: mod?.title,
           getCredentials: getVdocipherUploadCredentials,
         })
         formData.append('vdoCipherVideoId', uploadedVideoId)
@@ -502,11 +508,12 @@ const EditCourse = () => {
       }
 
       let lessonId = editingLesson?._id
+      let lessonResult = null
       if (editingLesson) {
-        await updateLesson(id, editingLesson._id, formData)
+        lessonResult = await updateLesson(id, editingLesson._id, formData)
       } else {
-        const result = await createLesson(id, formData)
-        lessonId = result.lesson._id
+        lessonResult = await createLesson(id, formData)
+        lessonId = lessonResult.lesson._id
       }
 
       if (lessonForm.type === 'quiz' && lessonId) {
@@ -518,7 +525,9 @@ const EditCourse = () => {
 
       setShowLessonModal(false)
       await loadCourse()
-      await Swal.fire('Saved', editingLesson ? 'Lesson updated successfully.' : 'Lesson added successfully.', 'success')
+      const revertNotice = courseRevertNotice(lessonResult)
+      const savedMessage = editingLesson ? 'Lesson updated successfully.' : 'Lesson added successfully.'
+      await Swal.fire('Saved', revertNotice ? `${savedMessage}\n\n${revertNotice}` : savedMessage, 'success')
     } catch (error) {
       if (uploadedVideoId) {
         try {
@@ -548,9 +557,10 @@ const EditCourse = () => {
 
     try {
       setDeletingLessonId(lessonId)
-      await deleteLesson(id, lessonId)
+      const result = await deleteLesson(id, lessonId)
       await loadCourse()
-      await Swal.fire('Deleted', 'Lesson removed successfully.', 'success')
+      const revertNotice = courseRevertNotice(result)
+      await Swal.fire('Deleted', revertNotice ? `Lesson removed successfully.\n\n${revertNotice}` : 'Lesson removed successfully.', 'success')
     } catch (error) {
       Swal.fire('Error', apiErrorMessage(error, 'Failed to delete lesson'), 'error')
     } finally {

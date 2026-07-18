@@ -4,12 +4,9 @@ const Lesson = require("../models/lessonModel");
 const Enrollment = require("../models/enrollmentModel");
 const Quiz = require("../models/quizModel");
 const {
-  uploadVideo,
   uploadCourseFile,
   uploadCourseThumbnail,
   deleteImage,
-  deleteGcsFile,
-  getSignedVideoUrl,
 } = require("../utils/gcs");
 const { COURSE_STATUS } = require("../constants/courseStatus");
 const { ENROLLMENT_STATUS } = require("../constants/enrollmentStatus");
@@ -21,6 +18,7 @@ const {
 const {
   generateUniqueSlug,
   recalculateCourseStats,
+  courseStatsSideEffects,
   buildCurriculum,
   sanitizeLessonForClient,
   sanitizeLessonPlayback,
@@ -34,6 +32,7 @@ const {
   deleteLessonResourceFiles,
   collectLessonGcsUploadUrls,
   rollbackLessonGcsUploads,
+  ensureCourseVdocipherFolder,
   revokeCourseEnrollments,
   reactivateArchivedCourseEnrollments,
   releaseCourseSlug,
@@ -118,13 +117,8 @@ const resolveLessonContentBlocks = async (
   return blocks;
 };
 
-const lessonHasVideoSource = (lesson, { vdoCipherVideoId, videoFile } = {}) =>
-  Boolean(
-    vdoCipherVideoId ||
-    videoFile ||
-    lesson?.video?.vdoCipherVideoId ||
-    lesson?.video?.gcsPath,
-  );
+const lessonHasVideoSource = (lesson, { vdoCipherVideoId } = {}) =>
+  Boolean(vdoCipherVideoId || lesson?.video?.vdoCipherVideoId);
 
 const applyLessonTypeTransition = async (lesson, previousType, nextType) => {
   if (previousType === nextType) return;
@@ -135,7 +129,6 @@ const applyLessonTypeTransition = async (lesson, previousType, nextType) => {
       provider: "vdocipher",
       vdoCipherVideoId: "",
       encodingStatus: "pending",
-      gcsPath: "",
       durationSeconds: 0,
       thumbnailUrl: "",
     };
@@ -450,6 +443,15 @@ exports.createCourse = async (req, res) => {
         : {}),
     });
 
+    try {
+      await ensureCourseVdocipherFolder(course);
+    } catch (folderError) {
+      console.warn(
+        "VdoCipher folder creation failed; will retry on video upload:",
+        folderError.message,
+      );
+    }
+
     res.status(201).json({
       message: "Course created",
       course: serializeCourseForResponse(course, { forAdmin: true }),
@@ -554,10 +556,7 @@ exports.updateCourse = async (req, res) => {
       const resolvedStatus = normalizeCourseStatus(status);
       const previousStatus = course.status;
 
-      if (
-        resolvedStatus === COURSE_STATUS.PUBLISHED &&
-        previousStatus !== COURSE_STATUS.PUBLISHED
-      ) {
+      if (resolvedStatus === COURSE_STATUS.PUBLISHED) {
         const publishCheck = await validateCourseCanPublish(course._id);
         if (!publishCheck.ok) {
           return res.status(400).json({ message: publishCheck.message });
@@ -747,9 +746,12 @@ exports.deleteModule = async (req, res) => {
       await removeLessonCompletely(lesson);
     }
     await module.deleteOne();
-    await recalculateCourseStats(course._id);
+    const stats = await recalculateCourseStats(course._id);
 
-    res.status(200).json({ message: "Module deleted" });
+    res.status(200).json({
+      message: "Module deleted",
+      ...courseStatsSideEffects(stats),
+    });
   } catch (error) {
     console.error("deleteModule error:", error);
     res.status(500).json({ message: "Server error deleting module" });
@@ -773,7 +775,6 @@ exports.createLesson = async (req, res) => {
       durationSeconds,
       vdoCipherVideoId,
     } = req.body;
-    const videoFile = req.files?.video?.[0];
     const resourceFiles = req.files?.resources || [];
     const blockImageFiles = req.files?.blockImages || [];
 
@@ -791,7 +792,7 @@ exports.createLesson = async (req, res) => {
     const lessonType = type || "video";
     if (
       lessonType === "video" &&
-      !lessonHasVideoSource(null, { vdoCipherVideoId, videoFile })
+      !lessonHasVideoSource(null, { vdoCipherVideoId })
     ) {
       return res
         .status(400)
@@ -834,15 +835,6 @@ exports.createLesson = async (req, res) => {
       lessonData.video.vdoCipherVideoId = vdoCipherVideoId;
       lessonData.video.encodingStatus = "processing";
       lessonData.video.provider = "vdocipher";
-    } else if (videoFile) {
-      // Legacy admin path: direct multipart upload to GCS (dashboard uses VdoCipher).
-      lessonData.video.provider = "gcs";
-      lessonData.video.gcsPath = await uploadVideo(
-        videoFile.buffer,
-        videoFile.originalname,
-        videoFile.mimetype,
-      );
-      lessonData.video.encodingStatus = "ready";
     }
 
     if (lessonType === "download" && resourceFiles.length > 0) {
@@ -863,7 +855,6 @@ exports.createLesson = async (req, res) => {
 
     let lesson;
     const rollbackUploads = {
-      gcsVideoPath: lessonData.video?.gcsPath || null,
       gcsUrls: collectLessonGcsUploadUrls(lessonData),
       vdoCipherVideoId: lessonData.video?.vdoCipherVideoId || null,
     };
@@ -907,7 +898,6 @@ exports.updateLesson = async (req, res) => {
       moduleId,
       vdoCipherVideoId,
     } = req.body;
-    const videoFile = req.files?.video?.[0];
     const resourceFiles = req.files?.resources || [];
     const blockImageFiles = req.files?.blockImages || [];
     const previousType = lesson.type;
@@ -973,7 +963,7 @@ exports.updateLesson = async (req, res) => {
     }
 
     if (nextType === "video") {
-      if (!lessonHasVideoSource(lesson, { vdoCipherVideoId, videoFile })) {
+      if (!lessonHasVideoSource(lesson, { vdoCipherVideoId })) {
         return res.status(400).json({
           message:
             "This video lesson has no video. Upload a video file before saving.",
@@ -992,33 +982,20 @@ exports.updateLesson = async (req, res) => {
       if (lesson.video?.vdoCipherVideoId) {
         await deleteVdocipherVideo(lesson.video.vdoCipherVideoId);
       }
-      if (lesson.video?.gcsPath) await deleteGcsFile(lesson.video.gcsPath);
       lesson.video = lesson.video || {};
       lesson.video.vdoCipherVideoId = vdoCipherVideoId;
       lesson.video.provider = "vdocipher";
       lesson.video.encodingStatus = "processing";
-      lesson.video.gcsPath = "";
-    } else if (videoFile) {
-      // Legacy admin path: direct multipart upload to GCS (dashboard uses VdoCipher).
-      if (lesson.video?.vdoCipherVideoId) {
-        await deleteVdocipherVideo(lesson.video.vdoCipherVideoId);
-        lesson.video.vdoCipherVideoId = "";
-      }
-      if (lesson.video?.gcsPath) await deleteGcsFile(lesson.video.gcsPath);
-      lesson.video = lesson.video || {};
-      lesson.video.gcsPath = await uploadVideo(
-        videoFile.buffer,
-        videoFile.originalname,
-        videoFile.mimetype,
-      );
-      lesson.video.provider = "gcs";
-      lesson.video.encodingStatus = "ready";
     }
 
     await lesson.save();
-    await recalculateCourseStats(lesson.courseId);
+    const stats = await recalculateCourseStats(lesson.courseId);
 
-    res.status(200).json({ message: "Lesson updated", lesson });
+    res.status(200).json({
+      message: "Lesson updated",
+      lesson,
+      ...courseStatsSideEffects(stats),
+    });
   } catch (error) {
     console.error("updateLesson error:", error);
     res
@@ -1039,9 +1016,12 @@ exports.deleteLesson = async (req, res) => {
 
     const courseId = lesson.courseId;
     await removeLessonCompletely(lesson);
-    await recalculateCourseStats(courseId);
+    const stats = await recalculateCourseStats(courseId);
 
-    res.status(200).json({ message: "Lesson deleted" });
+    res.status(200).json({
+      message: "Lesson deleted",
+      ...courseStatsSideEffects(stats),
+    });
   } catch (error) {
     console.error("deleteLesson error:", error);
     res.status(500).json({ message: "Server error deleting lesson" });
@@ -1144,34 +1124,26 @@ exports.getLessonBySlug = async (req, res) => {
     }
 
     const lessonObj = lesson.toObject();
-    let videoUrl = null;
     let playback = null;
 
     if (lesson.type === "video") {
-      if (lesson.video?.vdoCipherVideoId) {
-        if (lesson.video.encodingStatus !== "ready") {
-          return res.status(409).json({
-            message: "Video is still processing. Please check back shortly.",
-            encodingStatus: lesson.video.encodingStatus,
-          });
-        }
+      if (!lesson.video?.vdoCipherVideoId) {
+        return res
+          .status(404)
+          .json({ message: "Video not found for this lesson." });
+      }
 
-        playback = await getPlaybackOtp(lesson.video.vdoCipherVideoId, {
-          annotate: buildWatermarkAnnotate(req.user),
-        });
-        delete lessonObj.video.vdoCipherVideoId;
-      } else if (lesson.video?.gcsPath && staff) {
-        videoUrl = await getSignedVideoUrl(lesson.video.gcsPath);
-        delete lessonObj.video.gcsPath;
-      } else if (!staff) {
-        return res.status(403).json({
-          message:
-            "This lesson is only available through protected streaming. Please contact support.",
+      if (lesson.video.encodingStatus !== "ready") {
+        return res.status(409).json({
+          message: "Video is still processing. Please check back shortly.",
+          encodingStatus: lesson.video.encodingStatus,
         });
       }
-    } else if (lesson.video?.gcsPath && staff) {
-      videoUrl = await getSignedVideoUrl(lesson.video.gcsPath);
-      delete lessonObj.video.gcsPath;
+
+      playback = await getPlaybackOtp(lesson.video.vdoCipherVideoId, {
+        annotate: buildWatermarkAnnotate(req.user),
+      });
+      delete lessonObj.video.vdoCipherVideoId;
     }
 
     sanitizeLessonPlayback(lessonObj, { isStaff: staff });
@@ -1193,7 +1165,6 @@ exports.getLessonBySlug = async (req, res) => {
     res.status(200).json({
       course: { _id: course._id, title: course.title, slug: course.slug },
       lesson: lessonObj,
-      videoUrl,
       playback,
       quiz,
       enrollment,

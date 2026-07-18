@@ -1,7 +1,15 @@
 const crypto = require("crypto");
+const Course = require("../models/courseModel");
 const Lesson = require("../models/lessonModel");
-const { getUploadCredentials, deleteVideo } = require("../utils/vdocipher");
-const { recalculateCourseStats } = require("../utils/courseHelpers");
+const {
+  getUploadCredentials,
+  deleteVideo,
+  buildLessonVideoTitle,
+} = require("../utils/vdocipher");
+const {
+  recalculateCourseStats,
+  ensureCourseVdocipherFolder,
+} = require("../utils/courseHelpers");
 const logger = require("../config/logger");
 
 const safeEqual = (a, b) => {
@@ -48,8 +56,22 @@ const verifyVdocipherWebhook = (req) => {
 };
 exports.getUploadCredentials = async (req, res) => {
   try {
-    const { title, folderId } = req.body;
-    const data = await getUploadCredentials(title, folderId);
+    const { title, courseId, moduleTitle } = req.body;
+    let folderId;
+
+    if (courseId) {
+      const course = await Course.findById(courseId);
+      if (!course) {
+        return res.status(404).json({ message: "Course not found" });
+      }
+      folderId = await ensureCourseVdocipherFolder(course);
+    }
+
+    const videoTitle = buildLessonVideoTitle({
+      moduleTitle,
+      lessonTitle: title,
+    });
+    const data = await getUploadCredentials(videoTitle, folderId);
 
     res.status(200).json({
       clientPayload: data.clientPayload,

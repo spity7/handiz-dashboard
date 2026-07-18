@@ -42,7 +42,7 @@ const lessonSchema = new mongoose.Schema(
     video: {
       provider: {
         type: String,
-        enum: ["gcs", "vdocipher"],
+        enum: ["vdocipher"],
         default: "vdocipher",
       },
       vdoCipherVideoId: { type: String, default: "", index: true },
@@ -51,7 +51,6 @@ const lessonSchema = new mongoose.Schema(
         enum: ["pending", "processing", "ready", "failed"],
         default: "pending",
       },
-      gcsPath: { type: String, default: "" },
       durationSeconds: { type: Number, default: 0 },
       thumbnailUrl: { type: String, default: "" },
     },

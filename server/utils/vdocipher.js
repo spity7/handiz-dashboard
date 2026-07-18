@@ -53,6 +53,27 @@ const getUploadCredentials = async (title, folderId) => {
   return vdocipherFetch(`/videos?${params.toString()}`, { method: "PUT" });
 };
 
+const createFolder = async (name, parent = "root") => {
+  return vdocipherFetch("/videos/folders", {
+    method: "POST",
+    body: { name, parent },
+  });
+};
+
+const buildCourseFolderName = (course) => {
+  const title = String(course?.title || "Untitled course").trim();
+  const slug = String(course?.slug || "").trim();
+  const name = slug ? `${title} (${slug})` : title;
+  return name.slice(0, 200);
+};
+
+const buildLessonVideoTitle = ({ moduleTitle, lessonTitle } = {}) => {
+  const lesson = String(lessonTitle || "").trim();
+  const module = String(moduleTitle || "").trim();
+  if (module && lesson) return `${module} - ${lesson}`;
+  return lesson || module || "Untitled lesson";
+};
+
 const getPlaybackOtp = async (videoId, { ttl, annotate } = {}) => {
   const body = {};
   const otpTtl = ttl || parseInt(process.env.VDOCIPHER_OTP_TTL || "300", 10);
@@ -88,6 +109,13 @@ const deleteVideo = async (videoId) => {
   });
 };
 
+const deleteFolder = async (folderId) => {
+  if (!folderId) return;
+  return vdocipherFetch(`/videos/folders/${encodeURIComponent(folderId)}`, {
+    method: "DELETE",
+  });
+};
+
 const getVideo = async (videoId) => {
   return vdocipherFetch(`/videos/${videoId}`);
 };
@@ -97,5 +125,9 @@ module.exports = {
   getPlaybackOtp,
   buildWatermarkAnnotate,
   deleteVideo,
+  deleteFolder,
   getVideo,
+  createFolder,
+  buildCourseFolderName,
+  buildLessonVideoTitle,
 };

@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Dropdown, DropdownDivider, DropdownHeader, DropdownItem, DropdownMenu, DropdownToggle } from 'react-bootstrap'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
-import avatar1 from '@/assets/images/users/avatar-1.jpg'
+import UserRoleAvatar from '@/components/users/UserRoleAvatar'
 import { useAuthContext } from '@/context/useAuthContext'
 import { useState, useEffect } from 'react'
 
@@ -64,9 +64,16 @@ const ProfileDropdown = () => {
         id="page-header-user-dropdown"
         data-bs-toggle="dropdown"
         aria-haspopup="true"
-        aria-expanded="false">
-        <span className="d-flex align-items-center">
-          <img className="rounded-circle" width={32} height={32} src={avatar1} alt="avatar-3" />
+        aria-expanded="false"
+        aria-label={user ? `Account menu for ${user.firstname || user.username}` : 'Account menu'}>
+        <span className="d-flex align-items-center justify-content-center topbar-profile-avatar-wrap">
+          {user ? (
+            <UserRoleAvatar user={user} size="sm" className="topbar-profile-avatar" />
+          ) : (
+            <span className="user-role-avatar user-role-avatar--sm user-role-avatar--user topbar-profile-avatar" aria-hidden="true">
+              <span className="user-role-avatar__initials">?</span>
+            </span>
+          )}
         </span>
       </DropdownToggle>
       <DropdownMenu>

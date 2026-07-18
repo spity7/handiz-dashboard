@@ -2,8 +2,11 @@
  * Upload a video file to VdoCipher via server-issued S3 credentials.
  * Returns the VdoCipher videoId when upload succeeds.
  */
-export async function uploadVideoToVdocipher(file, { title, getCredentials }) {
-  const { clientPayload, videoId } = await getCredentials(title || file.name)
+export async function uploadVideoToVdocipher(file, { title, courseId, moduleTitle, getCredentials }) {
+  const { clientPayload, videoId } = await getCredentials(title || file.name, {
+    courseId,
+    moduleTitle,
+  })
 
   if (!clientPayload?.uploadLink || !videoId) {
     throw new Error('Invalid upload credentials from server')
