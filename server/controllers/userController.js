@@ -2,6 +2,7 @@ const User = require("../models/userModel.js");
 const Project = require("../models/projectModel.js");
 const { ROLES } = require("../constants/permissions");
 const generateTokenAndSetCookie = require("../utils/helpers/generateTokenAndSetCookie.js");
+const { getCookieOptions } = require("../utils/helpers/cookieOptions.js");
 const isPasswordComplex = require("../utils/helpers/isPasswordComplex.js");
 const sendVerificationEmail = require("../utils/helpers/sendVerificationEmail.js");
 const { Parser } = require("json2csv");
@@ -180,12 +181,7 @@ exports.getMe = async (req, res) => {
 
 exports.logoutUser = (req, res) => {
   try {
-    res.clearCookie("jwt", {
-      httpOnly: true,
-      path: "/",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      secure: process.env.NODE_ENV === "production",
-    });
+    res.clearCookie("jwt", getCookieOptions());
 
     res.status(200).json({ message: "User logged out successfully" });
   } catch (err) {

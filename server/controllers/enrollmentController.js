@@ -4,6 +4,7 @@ const User = require("../models/userModel");
 const {
   ENROLLMENT_STATUS,
   ENROLLMENT_SOURCE,
+  ENROLLMENT_REVOKED_REASON,
 } = require("../constants/enrollmentStatus");
 const { canEnrollInCourse } = require("../utils/courseAccess");
 const {
@@ -208,8 +209,11 @@ exports.revokeEnrollment = async (req, res) => {
     const wasCountable =
       enrollment.status === ENROLLMENT_STATUS.ACTIVE ||
       enrollment.status === ENROLLMENT_STATUS.COMPLETED;
+    const previousStatus = enrollment.status;
 
     enrollment.status = ENROLLMENT_STATUS.REVOKED;
+    enrollment.revokedReason = ENROLLMENT_REVOKED_REASON.ADMIN;
+    enrollment.statusBeforeRevoke = previousStatus;
     await enrollment.save();
 
     if (wasCountable) {
@@ -227,13 +231,29 @@ exports.revokeEnrollment = async (req, res) => {
 
 exports.getAllEnrollments = async (req, res) => {
   try {
-    const enrollments = await Enrollment.find()
-      .populate("userId", "firstname lastname email")
-      .populate("courseId", "title slug")
-      .sort({ enrolledAt: -1 })
-      .limit(500);
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 100));
+    const skip = (page - 1) * limit;
 
-    res.status(200).json({ enrollments });
+    const [enrollments, total] = await Promise.all([
+      Enrollment.find()
+        .populate("userId", "firstname lastname email")
+        .populate("courseId", "title slug")
+        .sort({ enrolledAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      Enrollment.countDocuments(),
+    ]);
+
+    res.status(200).json({
+      enrollments,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit) || 1,
+      },
+    });
   } catch (error) {
     console.error("getAllEnrollments error:", error);
     res.status(500).json({ message: "Server error fetching enrollments" });

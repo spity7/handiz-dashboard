@@ -5,6 +5,7 @@ import { useAtom } from 'jotai'
 import userAtom from '@/atoms/userAtom'
 import useShowModal from '@/hooks/useShowModal'
 import { API_BASE_URL } from '@/config/api'
+import { completeAuthRedirect } from '@/utils/authRedirect'
 axios.defaults.withCredentials = true
 const BASE_URL = API_BASE_URL
 
@@ -60,7 +61,8 @@ export function AuthProvider({ children }) {
         if (error?.response?.status === 401) {
           clearSession()
           if (!window.location.pathname.startsWith('/auth/')) {
-            window.location.href = '/auth/sign-in'
+            const returnTo = `${window.location.pathname}${window.location.search}`
+            window.location.href = `/auth/sign-in?redirectTo=${encodeURIComponent(returnTo)}`
           }
         }
         return Promise.reject(error)
@@ -142,6 +144,7 @@ export function AuthProvider({ children }) {
       const fresh = persistUser(data)
       setUser(fresh)
       setUserAtom(fresh)
+      completeAuthRedirect('/')
     } catch (error) {
       const msg = error?.response?.data?.error || error?.message || 'Login failed. Please try again.'
       toast.error(msg)
@@ -165,6 +168,7 @@ export function AuthProvider({ children }) {
       const fresh = persistUser(data)
       setUser(fresh)
       setUserAtom(fresh)
+      completeAuthRedirect('/')
     } catch (error) {
       const msg = error?.response?.data?.error || error?.message || 'Google sign in failed. Please try again.'
       toast.error(msg)

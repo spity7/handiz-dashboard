@@ -8,7 +8,7 @@ const PERMISSIONS = {
   "studentProjects:read": [ROLES.ADMIN, ROLES.EDITOR, ROLES.USER],
   "studentProjects:create": [ROLES.ADMIN, ROLES.EDITOR, ROLES.USER],
   "studentProjects:taxonomy": [ROLES.ADMIN, ROLES.EDITOR],
-  "courses:read": [ROLES.ADMIN],
+  "courses:read": [ROLES.ADMIN, ROLES.EDITOR],
   "courses:manage": [ROLES.ADMIN],
   "courses:enroll": [ROLES.ADMIN, ROLES.EDITOR, ROLES.USER],
   "courses:orders:read": [ROLES.ADMIN],

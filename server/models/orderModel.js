@@ -20,7 +20,7 @@ const orderSchema = new mongoose.Schema(
     },
     paymentProvider: {
       type: String,
-      enum: ["whish", "stripe"],
+      enum: ["whish"],
       default: "whish",
     },
     whishExternalId: {
@@ -29,15 +29,6 @@ const orderSchema = new mongoose.Schema(
       index: true,
     },
     whishTransactionId: {
-      type: String,
-      default: "",
-    },
-    stripeSessionId: {
-      type: String,
-      default: "",
-      index: true,
-    },
-    stripePaymentIntentId: {
       type: String,
       default: "",
     },

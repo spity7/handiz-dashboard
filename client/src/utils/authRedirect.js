@@ -2,6 +2,8 @@ import { ALLOWED_RETURN_ORIGINS } from '@/config/api'
 
 export const AUTH_REDIRECT_KEY = 'auth-redirect-to'
 
+let postAuthRedirectStarted = false
+
 export function isAllowedRedirectTarget(target) {
   if (!target || typeof target !== 'string') return false
 
@@ -23,6 +25,7 @@ export function isAllowedRedirectTarget(target) {
 
 export function storeAuthRedirect(target) {
   if (!isAllowedRedirectTarget(target)) return
+  postAuthRedirectStarted = false
   sessionStorage.setItem(AUTH_REDIRECT_KEY, target)
 }
 
@@ -60,7 +63,10 @@ export function resolvePostAuthRedirect(fallback = '/') {
   return fallback
 }
 
-let postAuthRedirectStarted = false
+export function completeAuthRedirect(fallback = '/') {
+  captureAuthRedirectFromSearch(new URLSearchParams(window.location.search))
+  redirectAfterAuth(fallback)
+}
 
 export function redirectAfterAuth(fallback = '/') {
   if (postAuthRedirectStarted) return

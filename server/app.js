@@ -44,7 +44,8 @@ app.use(
   express.json({
     limit: "100mb",
     verify: (req, _res, buf) => {
-      if (String(req.originalUrl || "").includes("/webhooks/vdocipher")) {
+      const url = String(req.originalUrl || "");
+      if (url.includes("/webhooks/vdocipher")) {
         req.rawBody = buf.toString("utf8");
       }
     },

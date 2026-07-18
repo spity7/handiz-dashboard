@@ -49,6 +49,7 @@ const CourseForm = ({ course = null, onSaved, disabled = false }) => {
     freeEndsAt: toDatetimeLocalValue(course?.pricing?.freeEndsAt),
     status: course?.status || 'Draft',
     tags: (course?.tags || []).join(', '),
+    instructorId: typeof course?.instructorId === 'object' ? course.instructorId._id : course?.instructorId || '',
   })
 
   const hasThumbnail = Boolean(thumbnailFile) || Boolean(course?.thumbnailUrl)
@@ -216,6 +217,8 @@ const CourseForm = ({ course = null, onSaved, disabled = false }) => {
                 .filter(Boolean),
             ),
           )
+        } else if (key === 'instructorId') {
+          if (String(value).trim()) formData.append(key, String(value).trim())
         } else if (key === 'price' && form.isFree && (value === '' || value === null)) {
           formData.append(key, '0')
         } else {
@@ -313,6 +316,20 @@ const CourseForm = ({ course = null, onSaved, disabled = false }) => {
           <Form.Group className="mb-3">
             <Form.Label>Tags (comma-separated)</Form.Label>
             <Form.Control name="tags" value={form.tags} onChange={handleChange} placeholder="e.g. design, beginner, marketing" />
+          </Form.Group>
+        </Col>
+      </Row>
+
+      <Row>
+        <Col md={6}>
+          <Form.Group className="mb-3">
+            <Form.Label>Instructor user ID</Form.Label>
+            <Form.Control name="instructorId" value={form.instructorId} onChange={handleChange} placeholder="Optional — defaults to course creator" />
+            <Form.Text muted>
+              {course?.instructorId && typeof course.instructorId === 'object' && (course.instructorId.firstname || course.instructorId.email)
+                ? `Current: ${[course.instructorId.firstname, course.instructorId.lastname].filter(Boolean).join(' ') || course.instructorId.email}`
+                : 'Leave blank to use the creating admin as instructor.'}
+            </Form.Text>
           </Form.Group>
         </Col>
       </Row>

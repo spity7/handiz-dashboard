@@ -12,6 +12,7 @@ const {
   getSignedVideoUrl,
 } = require("../utils/gcs");
 const { COURSE_STATUS } = require("../constants/courseStatus");
+const { ENROLLMENT_STATUS } = require("../constants/enrollmentStatus");
 const {
   isStaff,
   canAccessLesson,
@@ -34,12 +35,15 @@ const {
   collectLessonGcsUploadUrls,
   rollbackLessonGcsUploads,
   revokeCourseEnrollments,
+  reactivateArchivedCourseEnrollments,
   releaseCourseSlug,
   restoreOriginalCourseSlug,
   permanentlyDeleteCourseContent,
   normalizeCoursePricing,
   serializeCourseForResponse,
   validateCourseCanPublish,
+  buildSequentialLockMap,
+  isLessonSequentiallyLocked,
 } = require("../utils/courseHelpers");
 const {
   getPlaybackOtp,
@@ -192,7 +196,37 @@ exports.getCourses = async (req, res) => {
       courses = courses.filter((course) => !course.pricing?.isFree);
     }
 
-    res.status(200).json({ courses });
+    let enrollmentMap = new Map();
+    if (req.user && !isAdminList) {
+      const enrollments = await Enrollment.find({
+        userId: req.user._id,
+        status: {
+          $in: [ENROLLMENT_STATUS.ACTIVE, ENROLLMENT_STATUS.COMPLETED],
+        },
+      }).select("courseId status progressPercent");
+      enrollmentMap = new Map(
+        enrollments.map((enrollment) => [
+          String(enrollment.courseId),
+          {
+            isEnrolled: true,
+            enrollmentStatus: enrollment.status,
+            progressPercent: enrollment.progressPercent,
+          },
+        ]),
+      );
+    }
+
+    const coursesWithEnrollment = courses.map((course) => {
+      const enrollment = enrollmentMap.get(String(course._id));
+      return {
+        ...course,
+        isEnrolled: Boolean(enrollment?.isEnrolled),
+        enrollmentStatus: enrollment?.enrollmentStatus || null,
+        progressPercent: enrollment?.progressPercent ?? null,
+      };
+    });
+
+    res.status(200).json({ courses: coursesWithEnrollment });
   } catch (error) {
     console.error("getCourses error:", error);
     res.status(500).json({ message: "Server error fetching courses" });
@@ -264,11 +298,22 @@ exports.getCourseBySlug = async (req, res) => {
     }
 
     const staff = isStaff(req.user);
+    const sequentialLockMap =
+      enrollment && !staff
+        ? await buildSequentialLockMap(enrollment, course._id)
+        : new Map();
+
     const sanitizedCurriculum = curriculum.map((mod) => ({
       ...mod,
       lessons: mod.lessons.map((lesson) => {
         const hasAccess = canAccessLesson(req.user, lesson, enrollment);
-        return sanitizeLessonForClient(lesson, { hasAccess, isStaff: staff });
+        const sequentiallyLocked =
+          hasAccess && sequentialLockMap.get(String(lesson._id)) === true;
+        return sanitizeLessonForClient(lesson, {
+          hasAccess,
+          isStaff: staff,
+          sequentiallyLocked,
+        });
       }),
     }));
 
@@ -598,10 +643,15 @@ exports.restoreCourse = async (req, res) => {
     await restoreOriginalCourseSlug(course);
     await course.restore();
 
+    const reactivatedEnrollments = await reactivateArchivedCourseEnrollments(
+      course._id,
+    );
+
     res.status(200).json({
       message:
-        "Course restored. Publish it separately to make it public. Previous enrollments remain revoked.",
+        "Course restored. Publish it separately to make it public. Enrollments revoked during archive were reactivated.",
       course,
+      reactivatedEnrollments,
     });
   } catch (error) {
     console.error("restoreCourse error:", error);
@@ -1074,6 +1124,7 @@ exports.getLessonBySlug = async (req, res) => {
       });
     }
 
+    const staff = isStaff(req.user);
     const hasAccess = canAccessLesson(req.user, lesson, enrollment);
     if (!hasAccess) {
       return res
@@ -1081,10 +1132,20 @@ exports.getLessonBySlug = async (req, res) => {
         .json({ message: "You do not have access to this lesson" });
     }
 
+    if (
+      !staff &&
+      enrollment &&
+      (await isLessonSequentiallyLocked(enrollment, lesson, course._id))
+    ) {
+      return res.status(403).json({
+        message: "Complete previous lessons before accessing this one",
+        sequentiallyLocked: true,
+      });
+    }
+
     const lessonObj = lesson.toObject();
     let videoUrl = null;
     let playback = null;
-    const staff = isStaff(req.user);
 
     if (lesson.type === "video") {
       if (lesson.video?.vdoCipherVideoId) {

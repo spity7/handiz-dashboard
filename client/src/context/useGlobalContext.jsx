@@ -519,9 +519,9 @@ export const GlobalProvider = ({ children }) => {
     return response.data.enrollments
   }
 
-  const getAllEnrollments = async () => {
-    const response = await axiosInstance.get('/enrollments')
-    return response.data.enrollments
+  const getAllEnrollments = async (params = {}) => {
+    const response = await axiosInstance.get('/enrollments', { params })
+    return response.data
   }
 
   const adminCreateEnrollment = async (data) => {

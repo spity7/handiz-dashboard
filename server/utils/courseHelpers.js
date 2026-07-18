@@ -7,7 +7,16 @@ const Certificate = require("../models/certificateModel");
 const Quiz = require("../models/quizModel");
 const QuizAttempt = require("../models/quizAttemptModel");
 const Notification = require("../models/notificationModel");
-const { ENROLLMENT_STATUS } = require("../constants/enrollmentStatus");
+const {
+  ENROLLMENT_STATUS,
+  ENROLLMENT_REVOKED_REASON,
+} = require("../constants/enrollmentStatus");
+const User = require("../models/userModel");
+const { uploadCourseFile } = require("./gcs");
+const {
+  buildCertificatePdfBuffer,
+  formatStudentName,
+} = require("./certificatePdf");
 const { COURSE_STATUS } = require("../constants/courseStatus");
 const {
   normalizeCoursePricing,
@@ -196,23 +205,59 @@ const removeLessonCompletely = async (lesson) => {
 };
 
 const revokeCourseEnrollments = async (courseId) => {
-  const result = await Enrollment.updateMany(
-    {
-      courseId,
-      status: {
-        $in: [ENROLLMENT_STATUS.ACTIVE, ENROLLMENT_STATUS.COMPLETED],
-      },
+  const enrollments = await Enrollment.find({
+    courseId,
+    status: {
+      $in: [ENROLLMENT_STATUS.ACTIVE, ENROLLMENT_STATUS.COMPLETED],
     },
-    { $set: { status: ENROLLMENT_STATUS.REVOKED } },
+  });
+
+  if (enrollments.length === 0) return 0;
+
+  await Promise.all(
+    enrollments.map((enrollment) =>
+      Enrollment.findByIdAndUpdate(enrollment._id, {
+        status: ENROLLMENT_STATUS.REVOKED,
+        revokedReason: ENROLLMENT_REVOKED_REASON.COURSE_ARCHIVE,
+        statusBeforeRevoke: enrollment.status,
+      }),
+    ),
   );
 
-  if (result.modifiedCount > 0) {
-    await Course.findByIdAndUpdate(courseId, {
-      $inc: { enrollmentCount: -result.modifiedCount },
-    });
-  }
+  await Course.findByIdAndUpdate(courseId, {
+    $inc: { enrollmentCount: -enrollments.length },
+  });
 
-  return result.modifiedCount;
+  return enrollments.length;
+};
+
+const reactivateArchivedCourseEnrollments = async (courseId) => {
+  const enrollments = await Enrollment.find({
+    courseId,
+    status: ENROLLMENT_STATUS.REVOKED,
+    revokedReason: ENROLLMENT_REVOKED_REASON.COURSE_ARCHIVE,
+  });
+
+  if (enrollments.length === 0) return 0;
+
+  await Promise.all(
+    enrollments.map((enrollment) =>
+      Enrollment.findByIdAndUpdate(enrollment._id, {
+        status:
+          enrollment.statusBeforeRevoke === ENROLLMENT_STATUS.COMPLETED
+            ? ENROLLMENT_STATUS.COMPLETED
+            : ENROLLMENT_STATUS.ACTIVE,
+        revokedReason: null,
+        statusBeforeRevoke: null,
+      }),
+    ),
+  );
+
+  await Course.findByIdAndUpdate(courseId, {
+    $inc: { enrollmentCount: enrollments.length },
+  });
+
+  return enrollments.length;
 };
 
 const releaseCourseSlug = (course) => {
@@ -289,6 +334,42 @@ const recalculateCourseStats = async (courseId) => {
 const getPublishedLessonsForCourse = async (courseId) =>
   Lesson.find({ courseId, isPublished: true }).sort({ order: 1 });
 
+const buildSequentialLockMap = async (enrollment, courseId) => {
+  const lockMap = new Map();
+  if (!enrollment) return lockMap;
+
+  const lessons = await getPublishedLessonsForCourse(courseId);
+  if (lessons.length === 0) return lockMap;
+
+  const completedIds = new Set(
+    (
+      await LessonProgress.find({
+        enrollmentId: enrollment._id,
+        completed: true,
+        lessonId: { $in: lessons.map((lesson) => lesson._id) },
+      }).select("lessonId")
+    ).map((progress) => String(progress.lessonId)),
+  );
+
+  let priorLessonsComplete = true;
+  for (const lesson of lessons) {
+    if (!priorLessonsComplete && !lesson.isPreview) {
+      lockMap.set(String(lesson._id), true);
+    }
+    if (!completedIds.has(String(lesson._id))) {
+      priorLessonsComplete = false;
+    }
+  }
+
+  return lockMap;
+};
+
+const isLessonSequentiallyLocked = async (enrollment, lesson, courseId) => {
+  if (!enrollment || !lesson || lesson.isPreview) return false;
+  const lockMap = await buildSequentialLockMap(enrollment, courseId);
+  return lockMap.get(String(lesson._id)) === true;
+};
+
 const recalculateEnrollmentProgress = async (enrollmentId) => {
   const enrollment = await Enrollment.findById(enrollmentId);
   if (!enrollment) return null;
@@ -334,26 +415,55 @@ const issueCertificateIfNeeded = async (enrollment) => {
   const existing = await Certificate.findOne({
     enrollmentId: enrollment._id,
   });
-  if (existing) return existing;
+  if (existing?.pdfUrl) return existing;
 
-  const certificate = await Certificate.create({
-    enrollmentId: enrollment._id,
-    userId: enrollment.userId,
-    courseId: enrollment.courseId,
-    certificateNumber: generateCertificateNumber(),
-  });
+  const [user, course] = await Promise.all([
+    User.findById(enrollment.userId).select(
+      "firstname lastname username email",
+    ),
+    Course.findById(enrollment.courseId).select("title slug"),
+  ]);
 
-  const course = await Course.findById(enrollment.courseId).select(
-    "title slug",
-  );
-  await upsertUnreadNotification({
-    recipientId: enrollment.userId,
-    type: "course_completed",
-    title: "Course completed!",
-    message: `Congratulations! You completed "${course?.title || "your course"}".`,
-    link: `/my-courses`,
-    relatedCourseId: enrollment.courseId,
-  });
+  const certificate =
+    existing ||
+    (await Certificate.create({
+      enrollmentId: enrollment._id,
+      userId: enrollment.userId,
+      courseId: enrollment.courseId,
+      certificateNumber: generateCertificateNumber(),
+    }));
+
+  if (!certificate.pdfUrl) {
+    try {
+      const pdfBuffer = await buildCertificatePdfBuffer({
+        studentName: formatStudentName(user),
+        courseTitle: course?.title || "Course",
+        certificateNumber: certificate.certificateNumber,
+        issuedAt: certificate.issuedAt || new Date(),
+      });
+      const pdfUrl = await uploadCourseFile(
+        pdfBuffer,
+        `certificate-${certificate.certificateNumber}.pdf`,
+        "application/pdf",
+        "certificates",
+      );
+      certificate.pdfUrl = pdfUrl;
+      await certificate.save();
+    } catch (error) {
+      console.error("issueCertificateIfNeeded pdf error:", error.message);
+    }
+  }
+
+  if (!existing) {
+    await upsertUnreadNotification({
+      recipientId: enrollment.userId,
+      type: "course_completed",
+      title: "Course completed!",
+      message: `Congratulations! You completed "${course?.title || "your course"}".`,
+      link: `/my-courses`,
+      relatedCourseId: enrollment.courseId,
+    });
+  }
 
   return certificate;
 };
@@ -460,16 +570,20 @@ const filterStudentContentBlocks = (blocks) => {
 
 const sanitizeLessonForClient = (
   lesson,
-  { hasAccess, isStaff: staff = false },
+  { hasAccess, isStaff: staff = false, sequentiallyLocked = false },
 ) => {
   const obj = lesson.toObject ? lesson.toObject() : { ...lesson };
   const keepResources = obj.type === "download";
+  const blocked = !hasAccess || sequentiallyLocked;
 
-  if (!hasAccess) {
+  if (blocked) {
     delete obj.video;
     delete obj.resources;
     delete obj.contentBlocks;
     obj.locked = true;
+    if (sequentiallyLocked && hasAccess) {
+      obj.sequentiallyLocked = true;
+    }
   } else {
     obj.locked = false;
     stripLessonMediaIds(obj);
@@ -524,11 +638,14 @@ module.exports = {
   cleanupLessonRelatedData,
   removeLessonCompletely,
   revokeCourseEnrollments,
+  reactivateArchivedCourseEnrollments,
   releaseCourseSlug,
   restoreOriginalCourseSlug,
   permanentlyDeleteCourseContent,
   recalculateCourseStats,
   getPublishedLessonsForCourse,
+  buildSequentialLockMap,
+  isLessonSequentiallyLocked,
   recalculateEnrollmentProgress,
   issueCertificateIfNeeded,
   buildCurriculum,

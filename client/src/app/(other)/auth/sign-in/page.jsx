@@ -1,5 +1,6 @@
+import { useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { buildAuthLink } from '@/utils/authRedirect'
+import { buildAuthLink, captureAuthRedirectFromSearch } from '@/utils/authRedirect'
 import PageMetaData from '@/components/PageTitle'
 import ThirdPartyAuth from '@/components/ThirdPartyAuth'
 import AuthPageShell from '@/components/auth/AuthPageShell'
@@ -8,6 +9,10 @@ import LoginForm from './LoginForm'
 const SignIn = () => {
   const [searchParams] = useSearchParams()
   const signUpLink = buildAuthLink('/auth/sign-up', searchParams)
+
+  useEffect(() => {
+    captureAuthRedirectFromSearch(searchParams)
+  }, [searchParams])
 
   return (
     <>

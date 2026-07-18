@@ -4,6 +4,8 @@ const {
   ENROLLMENT_STATUS_VALUES,
   ENROLLMENT_SOURCE,
   ENROLLMENT_SOURCE_VALUES,
+  ENROLLMENT_REVOKED_REASON,
+  ENROLLMENT_REVOKED_REASON_VALUES,
 } = require("../constants/enrollmentStatus");
 
 const enrollmentSchema = new mongoose.Schema(
@@ -52,6 +54,16 @@ const enrollmentSchema = new mongoose.Schema(
     lastAccessedAt: {
       type: Date,
       default: Date.now,
+    },
+    revokedReason: {
+      type: String,
+      enum: ENROLLMENT_REVOKED_REASON_VALUES,
+      default: null,
+    },
+    statusBeforeRevoke: {
+      type: String,
+      enum: ENROLLMENT_STATUS_VALUES,
+      default: null,
     },
   },
   { timestamps: true },

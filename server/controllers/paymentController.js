@@ -20,6 +20,7 @@ const {
 const {
   notifyCourseEnrolled,
   recalculateEnrollmentProgress,
+  issueCertificateIfNeeded,
 } = require("../utils/courseHelpers");
 const {
   upsertUnreadNotification,
@@ -30,16 +31,59 @@ const {
   buildCallbackUrl,
 } = require("../utils/whish");
 
-const getHandizSiteUrl = () => {
-  const fromEnv = process.env.HANDIZ_SITE_URL;
-  if (fromEnv) return fromEnv.replace(/\/$/, "");
-  return process.env.NODE_ENV === "development"
-    ? "http://localhost:3000"
-    : "https://handiz.org";
-};
+const fulfillPaidEnrollmentFromOrder = async (
+  order,
+  { transactionId = "" } = {},
+) => {
+  const course = await Course.findById(order.courseId);
+  if (!course) return null;
 
-const getApiBaseUrl = () =>
-  (process.env.BASE_URL || "http://localhost:5016").replace(/\/$/, "");
+  await Order.findByIdAndUpdate(order._id, {
+    status: ORDER_STATUS.PAID,
+    paidAt: new Date(),
+    whishTransactionId: transactionId || order.whishTransactionId,
+  });
+
+  let enrollment = await Enrollment.findOne({
+    userId: order.userId,
+    courseId: order.courseId,
+  });
+
+  if (!enrollment) {
+    enrollment = await Enrollment.create({
+      userId: order.userId,
+      courseId: order.courseId,
+      source: ENROLLMENT_SOURCE.WHISH,
+    });
+    await Course.findByIdAndUpdate(order.courseId, {
+      $inc: { enrollmentCount: 1 },
+    });
+  } else if (enrollment.status === ENROLLMENT_STATUS.REVOKED) {
+    enrollment.status =
+      enrollment.statusBeforeRevoke === ENROLLMENT_STATUS.COMPLETED
+        ? ENROLLMENT_STATUS.COMPLETED
+        : ENROLLMENT_STATUS.ACTIVE;
+    enrollment.source = ENROLLMENT_SOURCE.WHISH;
+    enrollment.revokedReason = null;
+    enrollment.statusBeforeRevoke = null;
+    await enrollment.save();
+    await Course.findByIdAndUpdate(order.courseId, {
+      $inc: { enrollmentCount: 1 },
+    });
+  }
+
+  await notifyCourseEnrolled(order.userId, course);
+  await upsertUnreadNotification({
+    recipientId: order.userId,
+    type: "payment_received",
+    title: "Payment received",
+    message: `Your payment for "${course.title}" was successful.`,
+    link: `/courses/${course.slug}/learn`,
+    relatedCourseId: course._id,
+  });
+
+  return enrollment;
+};
 
 const fulfillPaidEnrollment = async ({
   userId,
@@ -47,90 +91,81 @@ const fulfillPaidEnrollment = async ({
   externalId,
   transactionId,
 }) => {
-  const course = await Course.findById(courseId);
-  if (!course) return;
-
   const orderQuery = externalId
     ? { whishExternalId: String(externalId) }
     : { userId, courseId, status: ORDER_STATUS.PENDING };
 
-  await Order.findOneAndUpdate(orderQuery, {
-    status: ORDER_STATUS.PAID,
-    whishTransactionId: transactionId || "",
-    paidAt: new Date(),
-  });
+  const order = await Order.findOne(orderQuery);
+  if (!order) return null;
+  return fulfillPaidEnrollmentFromOrder(order, { transactionId });
+};
 
-  let enrollment = await Enrollment.findOne({ userId, courseId });
-  if (!enrollment) {
-    enrollment = await Enrollment.create({
-      userId,
-      courseId,
-      source: ENROLLMENT_SOURCE.WHISH,
-    });
-    await Course.findByIdAndUpdate(courseId, { $inc: { enrollmentCount: 1 } });
-  } else if (enrollment.status === ENROLLMENT_STATUS.REVOKED) {
-    enrollment.status = ENROLLMENT_STATUS.ACTIVE;
-    enrollment.source = ENROLLMENT_SOURCE.WHISH;
-    await enrollment.save();
-    await Course.findByIdAndUpdate(courseId, { $inc: { enrollmentCount: 1 } });
+const getLmsSiteUrl = () => {
+  const fromEnv = process.env.LMS_SITE_URL;
+  if (fromEnv) return fromEnv.replace(/\/$/, "");
+  return process.env.NODE_ENV === "development"
+    ? "http://localhost:3001"
+    : "https://learn.handiz.org";
+};
+
+const getApiBaseUrl = () =>
+  (process.env.BASE_URL || "http://localhost:5016").replace(/\/$/, "");
+
+const loadCheckoutCourse = async (req, res) => {
+  const course = await Course.findById(req.params.id);
+  if (!course) {
+    res.status(404).json({ message: "Course not found" });
+    return null;
+  }
+  if (!canEnrollInCourse(req.user, course)) {
+    res.status(400).json({ message: "Course not available" });
+    return null;
+  }
+  if (isEffectivelyFree(course.pricing)) {
+    res.status(400).json({ message: "Course is free. Use enroll endpoint." });
+    return null;
   }
 
-  await notifyCourseEnrolled(userId, course);
-  await upsertUnreadNotification({
-    recipientId: userId,
-    type: "payment_received",
-    title: "Payment received",
-    message: `Your payment for "${course.title}" was successful.`,
-    link: `/courses/${course.slug}/learn`,
-    relatedCourseId: course._id,
+  const existing = await Enrollment.findOne({
+    userId: req.user._id,
+    courseId: course._id,
+    status: { $in: [ENROLLMENT_STATUS.ACTIVE, ENROLLMENT_STATUS.COMPLETED] },
   });
+  if (existing) {
+    res.status(400).json({ message: "Already enrolled", enrollment: existing });
+    return null;
+  }
+
+  const amount = getCourseCheckoutAmount(course.pricing);
+  if (!amount || amount <= 0) {
+    res.status(400).json({ message: "Course is free. Use enroll endpoint." });
+    return null;
+  }
+
+  return { course, amount };
 };
 
 exports.createCheckoutSession = async (req, res) => {
   try {
+    const checkout = await loadCheckoutCourse(req, res);
+    if (!checkout) return;
+
     const whish = getWhishClient();
     if (!whish) {
       return res.status(503).json({ message: "Payment system not configured" });
     }
 
-    const course = await Course.findById(req.params.id);
-    if (!course) return res.status(404).json({ message: "Course not found" });
-    if (!canEnrollInCourse(req.user, course)) {
-      return res.status(400).json({ message: "Course not available" });
-    }
-    if (isEffectivelyFree(course.pricing)) {
-      return res
-        .status(400)
-        .json({ message: "Course is free. Use enroll endpoint." });
-    }
-
-    const existing = await Enrollment.findOne({
-      userId: req.user._id,
-      courseId: course._id,
-      status: { $in: [ENROLLMENT_STATUS.ACTIVE, ENROLLMENT_STATUS.COMPLETED] },
-    });
-    if (existing) {
-      return res
-        .status(400)
-        .json({ message: "Already enrolled", enrollment: existing });
-    }
-
-    const amount = getCourseCheckoutAmount(course.pricing);
-    if (!amount || amount <= 0) {
-      return res.status(400).json({
-        message: "Course is free. Use enroll endpoint.",
-      });
-    }
+    const { course, amount } = checkout;
     const currency = COURSE_CURRENCY;
     const externalId = whish.generateExternalId();
     const apiBase = getApiBaseUrl();
-    const siteBase = getHandizSiteUrl();
+    const lmsBase = getLmsSiteUrl();
     const successRedirect =
       process.env.WHISH_SUCCESS_URL ||
-      `${siteBase}/courses/{slug}?enrolled=true`;
+      `${lmsBase}/courses/{slug}?enrolled=true`;
     const failureRedirect =
       process.env.WHISH_CANCEL_URL ||
-      `${siteBase}/courses/{slug}?payment=failed`;
+      `${lmsBase}/courses/{slug}?payment=failed`;
 
     await Order.create({
       userId: req.user._id,
@@ -391,12 +426,21 @@ exports.getCertificate = async (req, res) => {
       return res.status(400).json({ message: "Course not yet completed" });
     }
 
-    const certificate = await Certificate.findOne({
+    let certificate = await Certificate.findOne({
       enrollmentId: enrollment._id,
-    }).populate("courseId", "title slug");
+    })
+      .populate("courseId", "title slug")
+      .populate("userId", "firstname lastname username email");
 
     if (!certificate) {
       return res.status(404).json({ message: "Certificate not found" });
+    }
+
+    if (!certificate.pdfUrl) {
+      certificate = await issueCertificateIfNeeded(enrollment);
+      certificate = await Certificate.findById(certificate._id)
+        .populate("courseId", "title slug")
+        .populate("userId", "firstname lastname username email");
     }
 
     res.status(200).json({ certificate });
