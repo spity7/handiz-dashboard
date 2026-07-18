@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
-import { GoogleLogin, useGoogleOAuth } from '@react-oauth/google'
 import { toast } from 'react-toastify'
 import { Spinner } from 'react-bootstrap'
 import { useAuthContext } from '@/context/useAuthContext'
+import { GOOGLE_CLIENT_ID } from '@/config/api'
+import { ensureGoogleIdentityInitialized, loadGoogleIdentityScript } from '@/utils/googleIdentity'
 
 const GoogleLogo = () => (
   <svg aria-hidden="true" viewBox="0 0 24 24" width="22" height="22" className="google-signin-btn__icon">
@@ -27,27 +28,19 @@ const GoogleLogo = () => (
 
 const GoogleSignInButton = ({ mode = 'signin' }) => {
   const { handleGoogleLogin } = useAuthContext()
-  const { scriptLoadedSuccessfully } = useGoogleOAuth()
   const [isLoading, setIsLoading] = useState(false)
+  const [scriptLoaded, setScriptLoaded] = useState(false)
+  const [buttonWidth, setButtonWidth] = useState(0)
   const wrapperRef = useRef(null)
-  const [iframeWidth, setIframeWidth] = useState(0)
+  const overlayRef = useRef(null)
+  const buttonRenderedRef = useRef(false)
+  const onSuccessRef = useRef(null)
+  const onErrorRef = useRef(null)
 
   const actionLabel = mode === 'signup' ? 'Sign up with Google' : 'Sign in with Google'
-  const isReady = scriptLoadedSuccessfully && !isLoading
+  const buttonText = mode === 'signup' ? 'signup_with' : 'signin_with'
 
-  useEffect(() => {
-    const el = wrapperRef.current
-    if (!el) return
-
-    const updateWidth = () => setIframeWidth(el.offsetWidth)
-    updateWidth()
-
-    const observer = new ResizeObserver(updateWidth)
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [isLoading, scriptLoadedSuccessfully, actionLabel])
-
-  const onSuccess = async (credentialResponse) => {
+  onSuccessRef.current = async (credentialResponse) => {
     if (!credentialResponse?.credential) return
 
     setIsLoading(true)
@@ -58,24 +51,95 @@ const GoogleSignInButton = ({ mode = 'signin' }) => {
     }
   }
 
-  const onError = () => {
+  onErrorRef.current = () => {
     setIsLoading(false)
     toast.error('Google sign in failed. Check that this site is listed in Google Cloud Console under Authorized JavaScript origins.')
   }
 
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) return
+
+    let active = true
+
+    loadGoogleIdentityScript()
+      .then(() => {
+        if (active) setScriptLoaded(true)
+      })
+      .catch(() => {
+        if (active) {
+          toast.error('Failed to load Google Sign-In. Please refresh and try again.')
+        }
+      })
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  useEffect(() => {
+    const el = wrapperRef.current
+    if (!el || !scriptLoaded) return
+
+    const measureWidth = () => {
+      const nextWidth = el.offsetWidth
+      if (nextWidth > 0) {
+        setButtonWidth((prev) => (prev === nextWidth ? prev : nextWidth))
+      }
+    }
+
+    measureWidth()
+
+    const observer = new ResizeObserver(measureWidth)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [scriptLoaded])
+
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID || !scriptLoaded || buttonWidth <= 0 || buttonRenderedRef.current) {
+      return
+    }
+
+    const container = overlayRef.current
+    if (!container) return
+
+    ensureGoogleIdentityInitialized(GOOGLE_CLIENT_ID, (credentialResponse) => {
+      if (!credentialResponse?.credential) {
+        onErrorRef.current?.()
+        return
+      }
+
+      onSuccessRef.current?.(credentialResponse)
+    })
+
+    window.google.accounts.id.renderButton(container, {
+      type: 'standard',
+      theme: 'outline',
+      size: 'large',
+      width: buttonWidth,
+      text: buttonText,
+      shape: 'rectangular',
+    })
+
+    buttonRenderedRef.current = true
+  }, [scriptLoaded, buttonWidth, buttonText])
+
+  if (!GOOGLE_CLIENT_ID) {
+    return null
+  }
+
   return (
-    <div className={`google-signin${isReady ? '' : ' google-signin--pending'}`}>
+    <div className={`google-signin${scriptLoaded ? '' : ' google-signin--pending'}`}>
       <div ref={wrapperRef} className="google-signin-btn-wrapper">
         <div
-          className={`google-signin-btn${isLoading ? ' is-loading' : ''}${!scriptLoadedSuccessfully ? ' is-pending' : ''}`}
-          aria-busy={isLoading || !scriptLoadedSuccessfully}
-          aria-disabled={!scriptLoadedSuccessfully}>
+          className={`google-signin-btn${isLoading ? ' is-loading' : ''}${!scriptLoaded ? ' is-pending' : ''}`}
+          aria-busy={isLoading || !scriptLoaded}
+          aria-disabled={!scriptLoaded}>
           {isLoading ? (
             <>
               <Spinner animation="border" size="sm" role="status" className="google-signin-btn__spinner" />
               <span>Connecting to Google...</span>
             </>
-          ) : !scriptLoadedSuccessfully ? (
+          ) : !scriptLoaded ? (
             <>
               <span className="google-signin-btn__shimmer" aria-hidden="true" />
               <span className="google-signin-btn__pending-text">Loading Google Sign-In...</span>
@@ -88,19 +152,13 @@ const GoogleSignInButton = ({ mode = 'signin' }) => {
           )}
         </div>
 
-        {isReady && iframeWidth > 0 && (
-          <div className="google-signin-overlay" role="presentation">
-            <GoogleLogin
-              onSuccess={onSuccess}
-              onError={onError}
-              useOneTap={false}
-              theme="outline"
-              size="large"
-              width={iframeWidth}
-              text={mode === 'signup' ? 'signup_with' : 'signin_with'}
-              shape="rectangular"
-            />
-          </div>
+        {scriptLoaded && buttonWidth > 0 && (
+          <div
+            ref={overlayRef}
+            className={`google-signin-overlay${isLoading ? ' google-signin-overlay--disabled' : ''}`}
+            role="presentation"
+            aria-hidden={isLoading}
+          />
         )}
       </div>
     </div>
