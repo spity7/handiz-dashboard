@@ -113,7 +113,8 @@ const NotificationsPage = () => {
                     <p className="mb-0 text-muted small">You&apos;re all caught up</p>
                   )}
                 </div>
-                <Button variant="soft-primary" size="sm" onClick={handleClearAll} disabled={!unreadCount}>
+                <Button variant="soft-primary" size="sm" className="icons-center" onClick={handleClearAll} disabled={!unreadCount}>
+                  <IconifyIcon icon="lucide:check-check" className="me-1" />
                   Mark all read
                 </Button>
               </div>

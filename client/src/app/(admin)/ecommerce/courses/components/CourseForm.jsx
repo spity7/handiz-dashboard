@@ -30,6 +30,89 @@ const apiErrorMessage = (error, fallback) => {
   return fallback
 }
 
+const sameId = (a, b) => String(a ?? '') === String(b ?? '')
+
+const normalizeTags = (tags) => {
+  const values = Array.isArray(tags)
+    ? tags
+    : String(tags || '')
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter(Boolean)
+
+  return [...new Set(values.map((tag) => tag.trim()).filter(Boolean))].sort().join(', ')
+}
+
+const normalizePrice = (price, isFree) => {
+  if (isFree && (price === '' || price === null || price === undefined)) return ''
+  const num = Number(price)
+  return Number.isFinite(num) ? num : 0
+}
+
+const normalizeHeroHighlights = (highlights) => {
+  const values = Array.isArray(highlights)
+    ? highlights
+    : String(highlights || '')
+        .split('\n')
+        .map((item) => item.trim())
+        .filter(Boolean)
+
+  return [...new Set(values.map((item) => item.trim()).filter(Boolean))]
+}
+
+const serializeHeroHighlights = (highlights) => normalizeHeroHighlights(highlights).join('\n')
+
+const buildFormValuesFromCourse = (course, currentUser) => {
+  if (!course) return null
+
+  const instructorId = typeof course.instructorId === 'object' ? course.instructorId._id : course.instructorId || currentUser?._id || ''
+
+  return {
+    title: course.title || '',
+    excerpt: course.excerpt || '',
+    description: course.description || '',
+    level: course.level || 'Beginner',
+    heroHighlights: serializeHeroHighlights(course.heroHighlights || []),
+    order: Number(course.order ?? 999),
+    isFree: course.pricing?.isFree ?? true,
+    price: course.pricing?.isFree ? course.pricing?.price ?? '' : course.pricing?.price ?? 0,
+    discountEnabled: course.pricing?.discount?.enabled ?? false,
+    discountType: course.pricing?.discount?.type || DISCOUNT_TYPE.PERCENT,
+    discountValue: Number(course.pricing?.discount?.value ?? 0),
+    discountHasExpiry: Boolean(course.pricing?.discount?.endsAt),
+    discountEndsAt: toDatetimeLocalValue(course.pricing?.discount?.endsAt),
+    freeHasExpiry: Boolean(course.pricing?.freeEndsAt),
+    freeEndsAt: toDatetimeLocalValue(course.pricing?.freeEndsAt),
+    status: course.status || 'Draft',
+    tags: normalizeTags(course.tags || []),
+    instructorId: String(instructorId || ''),
+  }
+}
+
+const courseFormHasChanges = (form, saved, { hasNewThumbnail, hasNewHeroDesktop, hasNewHeroMobile }) => {
+  if (hasNewThumbnail || hasNewHeroDesktop || hasNewHeroMobile) return true
+  if (!saved) return false
+
+  const scalarFields = ['title', 'excerpt', 'description', 'level', 'status', 'discountType', 'discountEndsAt', 'freeEndsAt']
+
+  if (scalarFields.some((key) => String(form[key] ?? '') !== String(saved[key] ?? ''))) {
+    return true
+  }
+
+  if (Boolean(form.isFree) !== Boolean(saved.isFree)) return true
+  if (Boolean(form.discountEnabled) !== Boolean(saved.discountEnabled)) return true
+  if (Boolean(form.discountHasExpiry) !== Boolean(saved.discountHasExpiry)) return true
+  if (Boolean(form.freeHasExpiry) !== Boolean(saved.freeHasExpiry)) return true
+  if (!sameId(form.instructorId, saved.instructorId)) return true
+  if (Number(form.order) !== Number(saved.order)) return true
+  if (normalizePrice(form.price, form.isFree) !== normalizePrice(saved.price, saved.isFree)) return true
+  if (Number(form.discountValue) !== Number(saved.discountValue)) return true
+  if (normalizeTags(form.tags) !== saved.tags) return true
+  if (serializeHeroHighlights(form.heroHighlights) !== saved.heroHighlights) return true
+
+  return false
+}
+
 const CourseForm = ({ course = null, onSaved, disabled = false }) => {
   const { createCourse, updateCourse } = useGlobalContext()
   const { user: currentUser } = useAuthContext()
@@ -45,11 +128,14 @@ const CourseForm = ({ course = null, onSaved, disabled = false }) => {
   }, [course?.instructorId, currentUser, isEditing])
   const [loading, setLoading] = useState(false)
   const [thumbnailFile, setThumbnailFile] = useState(null)
+  const [heroImageDesktopFile, setHeroImageDesktopFile] = useState(null)
+  const [heroImageMobileFile, setHeroImageMobileFile] = useState(null)
   const [form, setForm] = useState({
     title: course?.title || '',
     excerpt: course?.excerpt || '',
     description: course?.description || '',
     level: course?.level || 'Beginner',
+    heroHighlights: serializeHeroHighlights(course?.heroHighlights || []),
     order: course?.order ?? 999,
     isFree: course?.pricing?.isFree ?? true,
     price: course?.pricing?.isFree ? course?.pricing?.price ?? '' : course?.pricing?.price ?? 0,
@@ -71,6 +157,8 @@ const CourseForm = ({ course = null, onSaved, disabled = false }) => {
   }, [course?.status])
 
   const hasThumbnail = Boolean(thumbnailFile) || Boolean(course?.thumbnailUrl)
+  const hasHeroDesktop = Boolean(heroImageDesktopFile) || Boolean(course?.heroImageDesktopUrl)
+  const hasHeroMobile = Boolean(heroImageMobileFile) || Boolean(course?.heroImageMobileUrl)
 
   const discountBounds = useMemo(() => getDiscountValueBounds(form.price, form.discountType), [form.price, form.discountType])
 
@@ -101,6 +189,18 @@ const CourseForm = ({ course = null, onSaved, disabled = false }) => {
       form.freeHasExpiry,
       form.freeEndsAt,
     ],
+  )
+
+  const savedFormValues = useMemo(() => buildFormValuesFromCourse(course, currentUser), [course, currentUser])
+
+  const hasChanges = useMemo(
+    () =>
+      courseFormHasChanges(form, savedFormValues, {
+        hasNewThumbnail: Boolean(thumbnailFile),
+        hasNewHeroDesktop: Boolean(heroImageDesktopFile),
+        hasNewHeroMobile: Boolean(heroImageMobileFile),
+      }),
+    [form, savedFormValues, thumbnailFile, heroImageDesktopFile, heroImageMobileFile],
   )
 
   const handleChange = (e) => {
@@ -153,6 +253,16 @@ const CourseForm = ({ course = null, onSaved, disabled = false }) => {
 
     if (!hasThumbnail) {
       Swal.fire('Validation', 'Course thumbnail is required.', 'warning')
+      return
+    }
+
+    if (!hasHeroDesktop) {
+      Swal.fire('Validation', 'Desktop hero image is required.', 'warning')
+      return
+    }
+
+    if (!hasHeroMobile) {
+      Swal.fire('Validation', 'Mobile hero image is required.', 'warning')
       return
     }
 
@@ -235,6 +345,8 @@ const CourseForm = ({ course = null, onSaved, disabled = false }) => {
                 .filter(Boolean),
             ),
           )
+        } else if (key === 'heroHighlights') {
+          formData.append('heroHighlights', JSON.stringify(normalizeHeroHighlights(value)))
         } else if (key === 'instructorId') {
           if (String(value).trim()) formData.append(key, String(value).trim())
         } else if (key === 'price' && form.isFree && (value === '' || value === null)) {
@@ -244,9 +356,14 @@ const CourseForm = ({ course = null, onSaved, disabled = false }) => {
         }
       })
       if (thumbnailFile) formData.append('thumbnail', thumbnailFile)
+      if (heroImageDesktopFile) formData.append('heroImageDesktop', heroImageDesktopFile)
+      if (heroImageMobileFile) formData.append('heroImageMobile', heroImageMobileFile)
 
       if (course?._id) {
         await updateCourse(course._id, formData)
+        setThumbnailFile(null)
+        setHeroImageDesktopFile(null)
+        setHeroImageMobileFile(null)
         onSaved?.()
         await Swal.fire('Saved', 'Course updated successfully.', 'success')
       } else {
@@ -305,6 +422,64 @@ const CourseForm = ({ course = null, onSaved, disabled = false }) => {
           {course?.thumbnailUrl && !thumbnailFile && <img src={course.thumbnailUrl} alt="" className="img-fluid rounded mt-2" />}
         </Col>
       </Row>
+
+      <Card className="mb-4 border">
+        <Card.Header className="bg-light fw-semibold">Course page hero images</Card.Header>
+        <Card.Body>
+          <p className="text-muted mb-4">
+            Required background images for the course detail page. Use a wide landscape image for desktop (16:9 or 21:9, subject on the right) and a
+            taller crop for mobile (4:5 or 9:16, subject in the upper area). The catalog thumbnail above is still used on course cards and listings.
+          </p>
+          <Row>
+            <Col md={6}>
+              <ThumbnailDropzoneInput
+                label="Desktop hero image"
+                required
+                text="Upload desktop hero background (required)"
+                showPreview
+                onFileUpload={(files) => setHeroImageDesktopFile(files[0] || null)}
+              />
+              {course?.heroImageDesktopUrl && !heroImageDesktopFile && (
+                <img src={course.heroImageDesktopUrl} alt="" className="img-fluid rounded mt-2" />
+              )}
+            </Col>
+            <Col md={6}>
+              <ThumbnailDropzoneInput
+                label="Mobile hero image"
+                required
+                text="Upload mobile hero background (required)"
+                showPreview
+                onFileUpload={(files) => setHeroImageMobileFile(files[0] || null)}
+              />
+              {course?.heroImageMobileUrl && !heroImageMobileFile && (
+                <img src={course.heroImageMobileUrl} alt="" className="img-fluid rounded mt-2" />
+              )}
+            </Col>
+          </Row>
+        </Card.Body>
+      </Card>
+
+      <Card className="mb-4 border">
+        <Card.Header className="bg-light fw-semibold">Course page highlights</Card.Header>
+        <Card.Body>
+          <p className="text-muted mb-3">
+            Bullet points shown on the course detail hero panel. Leave empty to auto-generate from lesson count, duration, and default perks.
+          </p>
+          <Form.Group>
+            <Form.Label>Hero highlights</Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={5}
+              name="heroHighlights"
+              value={form.heroHighlights}
+              onChange={handleChange}
+              placeholder={'Under 1 hour of premium content\n1 step-by-step video lesson\nLifetime access\nFuture updates included'}
+            />
+            <Form.Text muted>Enter one highlight per line.</Form.Text>
+          </Form.Group>
+        </Card.Body>
+      </Card>
+
       <Row>
         <Col md={3}>
           <Form.Group className="mb-3">
@@ -661,7 +836,7 @@ const CourseForm = ({ course = null, onSaved, disabled = false }) => {
         </Card.Body>
       </Card>
 
-      <Button type="submit" disabled={loading || disabled}>
+      <Button type="submit" disabled={loading || disabled || (isEditing && !hasChanges)}>
         {loading ? (
           <>
             <Spinner animation="border" size="sm" className="me-2" />

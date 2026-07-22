@@ -6,6 +6,7 @@ const Quiz = require("../models/quizModel");
 const {
   uploadCourseFile,
   uploadCourseThumbnail,
+  uploadCourseHeroImage,
   deleteImage,
 } = require("../utils/gcs");
 const { COURSE_STATUS } = require("../constants/courseStatus");
@@ -46,6 +47,7 @@ const {
   refreshEnrollmentProgress,
   serializeEnrollmentForClient,
   recalculateAllEnrollmentsForCourse,
+  notifyCourseInstructorAssigned,
 } = require("../utils/courseHelpers");
 const {
   getPlaybackOtp,
@@ -154,6 +156,39 @@ const applyLessonTypeTransition = async (lesson, previousType, nextType) => {
 
 const hasThumbnail = (thumbnailFile, thumbnailUrl) =>
   Boolean(thumbnailFile) || Boolean(String(thumbnailUrl || "").trim());
+
+const hasCourseImage = hasThumbnail;
+
+const uploadValidatedCourseImage = async (file, uploadFn) => {
+  const validationError = getImageValidationError(file);
+  if (validationError) {
+    return { error: validationError };
+  }
+
+  const url = await uploadFn(file.buffer, file.originalname);
+  return { url };
+};
+
+const applyOptionalHeroImageUpload = async ({
+  course,
+  file,
+  variant,
+  currentUrlKey,
+}) => {
+  if (!file) return null;
+
+  const result = await uploadValidatedCourseImage(
+    file,
+    (buffer, originalName) =>
+      uploadCourseHeroImage(buffer, originalName, variant),
+  );
+  if (result.error) return result;
+
+  const previousUrl = course[currentUrlKey];
+  if (previousUrl) await deleteImage(previousUrl);
+  course[currentUrlKey] = result.url;
+  return null;
+};
 
 exports.getCourses = async (req, res) => {
   try {
@@ -361,6 +396,7 @@ exports.createCourse = async (req, res) => {
       description,
       level,
       tags,
+      heroHighlights,
       order,
       isFree,
       price,
@@ -375,6 +411,8 @@ exports.createCourse = async (req, res) => {
       instructorId,
     } = req.body;
     const thumbnailFile = req.files?.thumbnail?.[0];
+    const heroImageDesktopFile = req.files?.heroImageDesktop?.[0];
+    const heroImageMobileFile = req.files?.heroImageMobile?.[0];
 
     if (!title) {
       return res.status(400).json({ message: "Title is required" });
@@ -382,6 +420,16 @@ exports.createCourse = async (req, res) => {
 
     if (!thumbnailFile) {
       return res.status(400).json({ message: "Course thumbnail is required" });
+    }
+
+    if (!heroImageDesktopFile) {
+      return res
+        .status(400)
+        .json({ message: "Desktop hero image is required" });
+    }
+
+    if (!heroImageMobileFile) {
+      return res.status(400).json({ message: "Mobile hero image is required" });
     }
 
     const thumbnailTypeError = getImageValidationError(thumbnailFile);
@@ -398,6 +446,28 @@ exports.createCourse = async (req, res) => {
         thumbnailFile.originalname,
       );
     }
+
+    let heroImageDesktopUrl = "";
+    const heroDesktopResult = await uploadValidatedCourseImage(
+      heroImageDesktopFile,
+      (buffer, originalName) =>
+        uploadCourseHeroImage(buffer, originalName, "desktop"),
+    );
+    if (heroDesktopResult.error) {
+      return res.status(400).json({ message: heroDesktopResult.error });
+    }
+    heroImageDesktopUrl = heroDesktopResult.url;
+
+    let heroImageMobileUrl = "";
+    const heroMobileResult = await uploadValidatedCourseImage(
+      heroImageMobileFile,
+      (buffer, originalName) =>
+        uploadCourseHeroImage(buffer, originalName, "mobile"),
+    );
+    if (heroMobileResult.error) {
+      return res.status(400).json({ message: heroMobileResult.error });
+    }
+    heroImageMobileUrl = heroMobileResult.url;
 
     const resolvedStatus = normalizeCourseStatus(status);
     if (resolvedStatus === COURSE_STATUS.PUBLISHED) {
@@ -427,18 +497,23 @@ exports.createCourse = async (req, res) => {
       return res.status(400).json({ message: pricing.error });
     }
 
+    const resolvedInstructorId = instructorId || req.user._id;
+
     const course = await Course.create({
       title,
       slug,
       excerpt: excerpt || "",
       description: description || "",
       thumbnailUrl,
+      heroImageDesktopUrl,
+      heroImageMobileUrl,
       level,
       tags: parseJsonField(tags, []) || [],
+      heroHighlights: parseJsonField(heroHighlights, []) || [],
       order: order ? Number(order) : 999,
       status: resolvedStatus,
       pricing,
-      instructorId: instructorId || req.user._id,
+      instructorId: resolvedInstructorId,
       createdBy: req.user._id,
       ...(resolvedStatus === COURSE_STATUS.PUBLISHED
         ? {
@@ -455,6 +530,17 @@ exports.createCourse = async (req, res) => {
       console.warn(
         "VdoCipher folder creation failed; will retry on video upload:",
         folderError.message,
+      );
+    }
+
+    try {
+      await notifyCourseInstructorAssigned(resolvedInstructorId, course, {
+        assignedBy: req.user._id,
+      });
+    } catch (notifyError) {
+      console.warn(
+        "Instructor assignment notification failed:",
+        notifyError.message,
       );
     }
 
@@ -481,6 +567,7 @@ exports.updateCourse = async (req, res) => {
       description,
       level,
       tags,
+      heroHighlights,
       order,
       isFree,
       price,
@@ -496,6 +583,8 @@ exports.updateCourse = async (req, res) => {
       status,
     } = req.body;
     const thumbnailFile = req.files?.thumbnail?.[0];
+    const heroImageDesktopFile = req.files?.heroImageDesktop?.[0];
+    const heroImageMobileFile = req.files?.heroImageMobile?.[0];
 
     if (title) {
       course.title = title;
@@ -505,7 +594,15 @@ exports.updateCourse = async (req, res) => {
     if (level) course.level = level;
     if (tags !== undefined)
       course.tags = parseJsonField(tags, course.tags) || [];
+    if (heroHighlights !== undefined) {
+      course.heroHighlights =
+        parseJsonField(heroHighlights, course.heroHighlights) || [];
+    }
     if (order !== undefined) course.order = Number(order);
+
+    const previousInstructorId = course.instructorId
+      ? String(course.instructorId)
+      : null;
     if (instructorId) course.instructorId = instructorId;
 
     if (
@@ -591,11 +688,55 @@ exports.updateCourse = async (req, res) => {
       );
     }
 
+    const heroDesktopError = await applyOptionalHeroImageUpload({
+      course,
+      file: heroImageDesktopFile,
+      variant: "desktop",
+      currentUrlKey: "heroImageDesktopUrl",
+    });
+    if (heroDesktopError?.error) {
+      return res.status(400).json({ message: heroDesktopError.error });
+    }
+
+    const heroMobileError = await applyOptionalHeroImageUpload({
+      course,
+      file: heroImageMobileFile,
+      variant: "mobile",
+      currentUrlKey: "heroImageMobileUrl",
+    });
+    if (heroMobileError?.error) {
+      return res.status(400).json({ message: heroMobileError.error });
+    }
+
     if (!hasThumbnail(thumbnailFile, course.thumbnailUrl)) {
       return res.status(400).json({ message: "Course thumbnail is required" });
     }
 
+    if (!hasCourseImage(heroImageDesktopFile, course.heroImageDesktopUrl)) {
+      return res
+        .status(400)
+        .json({ message: "Desktop hero image is required" });
+    }
+
+    if (!hasCourseImage(heroImageMobileFile, course.heroImageMobileUrl)) {
+      return res.status(400).json({ message: "Mobile hero image is required" });
+    }
+
     await course.save();
+
+    if (instructorId && String(instructorId) !== previousInstructorId) {
+      try {
+        await notifyCourseInstructorAssigned(instructorId, course, {
+          assignedBy: req.user._id,
+        });
+      } catch (notifyError) {
+        console.warn(
+          "Instructor assignment notification failed:",
+          notifyError.message,
+        );
+      }
+    }
+
     res.status(200).json({
       message: "Course updated",
       course: serializeCourseForResponse(course, { forAdmin: true }),

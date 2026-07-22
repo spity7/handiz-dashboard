@@ -35,6 +35,12 @@ const upload = multer({
   },
 });
 
+const courseImageUpload = upload.fields([
+  { name: "thumbnail", maxCount: 1 },
+  { name: "heroImageDesktop", maxCount: 1 },
+  { name: "heroImageMobile", maxCount: 1 },
+]);
+
 const courseUpload = upload.fields([
   { name: "thumbnail", maxCount: 1 },
   { name: "resources", maxCount: 10 },
@@ -77,14 +83,14 @@ router.post(
   "/courses",
   protectRoute,
   authorizePermission("courses:manage"),
-  upload.fields([{ name: "thumbnail", maxCount: 1 }]),
+  courseImageUpload,
   createCourse,
 );
 router.put(
   "/courses/:id",
   protectRoute,
   authorizePermission("courses:manage"),
-  upload.fields([{ name: "thumbnail", maxCount: 1 }]),
+  courseImageUpload,
   updateCourse,
 );
 router.delete(

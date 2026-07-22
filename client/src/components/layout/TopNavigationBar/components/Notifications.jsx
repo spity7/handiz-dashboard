@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { Badge, Button, Col, Dropdown, DropdownMenu, DropdownToggle, Row } from 'react-bootstrap'
+import { Badge, Button, Dropdown, DropdownMenu, DropdownToggle } from 'react-bootstrap'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
 import SimplebarReactClient from '@/components/wrappers/SimplebarReactClient'
 import NotificationListItem from '@/components/notifications/NotificationListItem'
@@ -21,62 +21,69 @@ const Notifications = () => {
         )}
       </DropdownToggle>
       <DropdownMenu className="py-0 dropdown-notifications">
-        <div className="dropdown-notifications-header p-3 border-bottom border-dashed">
-          <Row className="align-items-center g-2">
-            <Col>
-              <h6 className="m-0 fs-16 fw-semibold">Notifications</h6>
+        <div className="dropdown-notifications-header">
+          <div className="dropdown-notifications-header__main">
+            <span className="dropdown-notifications-header__icon" aria-hidden="true">
+              <IconifyIcon icon="bx:bell" />
+            </span>
+            <div className="min-w-0">
+              <h6 className="dropdown-notifications-header__title">Notifications</h6>
               {unreadCount > 0 ? (
-                <p className="mb-0 mt-1 text-muted small">
-                  You have{' '}
-                  <Badge bg="primary" pill>
+                <p className="dropdown-notifications-header__subtitle mb-0">
+                  <Badge bg="primary" pill className="me-1">
                     {unreadCount}
-                  </Badge>{' '}
+                  </Badge>
                   unread {unreadCount === 1 ? 'notification' : 'notifications'}
                 </p>
               ) : (
-                <p className="mb-0 mt-1 text-muted small">You&apos;re all caught up</p>
+                <p className="dropdown-notifications-header__subtitle mb-0">You&apos;re all caught up</p>
               )}
-            </Col>
-            <Col xs="auto">
-              <button type="button" className="btn btn-link btn-sm p-0 text-decoration-none" onClick={handleClearAll} disabled={!unreadCount}>
-                Mark all read
-              </button>
-            </Col>
-          </Row>
+            </div>
+          </div>
+          {unreadCount > 0 && (
+            <button
+              type="button"
+              className="dropdown-notifications-header__action"
+              onClick={handleClearAll}
+              aria-label="Mark all notifications as read">
+              <IconifyIcon icon="lucide:check-check" className="dropdown-notifications-header__action-icon" aria-hidden="true" />
+              Mark all read
+            </button>
+          )}
         </div>
-        <SimplebarReactClient style={{ maxHeight: 360 }}>
+
+        <SimplebarReactClient className="dropdown-notifications-body">
           {loadError ? (
-            <div className="text-center text-danger py-4 px-3">
+            <div className="dropdown-notifications-state dropdown-notifications-state--error">
+              <IconifyIcon icon="bx:error-circle" className="dropdown-notifications-state__icon" />
               <p className="mb-2 small">{loadError}</p>
               <Button size="sm" variant="outline-danger" onClick={() => load(true)}>
                 Retry
               </Button>
             </div>
           ) : notifications.length ? (
-            notifications.map((n) => <NotificationListItem key={n._id} notification={n} onRead={handleMarkRead} onNavigate={navigate} />)
+            <div className="dropdown-notifications-list">
+              {notifications.map((notification) => (
+                <NotificationListItem key={notification._id} notification={notification} onRead={handleMarkRead} onNavigate={navigate} />
+              ))}
+            </div>
           ) : (
-            <div className="text-center text-muted py-5 px-3">
-              <IconifyIcon icon="bx:bell-off" className="fs-32 mb-2 d-block mx-auto opacity-50" />
+            <div className="dropdown-notifications-state">
+              <IconifyIcon icon="bx:bell-off" className="dropdown-notifications-state__icon" />
               <p className="mb-0 small">No notifications yet</p>
             </div>
           )}
         </SimplebarReactClient>
-        <div className="dropdown-notifications-footer text-center py-3 px-3 d-grid gap-2">
-          <Link to="/pages/notifications" className="d-block">
-            <Button size="sm" variant="soft-secondary" className="icons-center w-100">
-              View all notifications
-              <IconifyIcon icon="bx:right-arrow-alt" className="ms-2" />
-            </Button>
-          </Link>
-          <Link to="/ecommerce/student-projects" className="d-block">
-            <Button size="sm" variant="soft-primary" className="icons-center w-100">
-              View student projects
-              <IconifyIcon icon="bx:right-arrow-alt" className="ms-2" />
-            </Button>
+
+        <div className="dropdown-notifications-footer">
+          <Link to="/pages/notifications" className="dropdown-notifications-footer__link">
+            View all notifications
+            <IconifyIcon icon="bx:chevron-right" />
           </Link>
         </div>
       </DropdownMenu>
     </Dropdown>
   )
 }
+
 export default Notifications

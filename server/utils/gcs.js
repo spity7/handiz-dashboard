@@ -80,6 +80,15 @@ async function uploadCourseThumbnail(fileBuffer, originalName) {
   return uploadImage(buffer, fileName, mimeType);
 }
 
+async function uploadCourseHeroImage(
+  fileBuffer,
+  originalName,
+  variant = "desktop",
+) {
+  const subfolder = variant === "mobile" ? "hero/mobile" : "hero/desktop";
+  return uploadCourseImage(fileBuffer, originalName, subfolder);
+}
+
 async function uploadCourseImage(
   fileBuffer,
   originalName,
@@ -152,6 +161,7 @@ module.exports = {
   bucket,
   deleteImage,
   uploadCourseThumbnail,
+  uploadCourseHeroImage,
   uploadCourseImage,
   uploadCourseFile,
 };

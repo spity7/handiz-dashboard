@@ -43,6 +43,16 @@ const courseSchema = new mongoose.Schema(
         message: "Course thumbnail is required",
       },
     },
+    heroImageDesktopUrl: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    heroImageMobileUrl: {
+      type: String,
+      trim: true,
+      default: "",
+    },
     status: {
       type: String,
       enum: COURSE_STATUS_VALUES,
@@ -80,6 +90,10 @@ const courseSchema = new mongoose.Schema(
       default: COURSE_LEVEL.BEGINNER,
     },
     tags: [{ type: String, trim: true }],
+    heroHighlights: {
+      type: [{ type: String, trim: true }],
+      default: [],
+    },
     order: {
       type: Number,
       default: 999,

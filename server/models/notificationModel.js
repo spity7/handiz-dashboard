@@ -17,6 +17,7 @@ const notificationSchema = new mongoose.Schema(
         "course_enrolled",
         "course_completed",
         "course_new_lesson",
+        "course_instructor_assigned",
         "payment_received",
       ],
       required: true,

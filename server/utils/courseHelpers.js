@@ -333,6 +333,30 @@ const permanentlyDeleteCourseContent = async (course) => {
       );
     }
   }
+
+  if (course.heroImageDesktopUrl) {
+    try {
+      await deleteImage(course.heroImageDesktopUrl);
+    } catch (err) {
+      console.warn(
+        "Failed to delete course desktop hero image:",
+        course.heroImageDesktopUrl,
+        err.message,
+      );
+    }
+  }
+
+  if (course.heroImageMobileUrl) {
+    try {
+      await deleteImage(course.heroImageMobileUrl);
+    } catch (err) {
+      console.warn(
+        "Failed to delete course mobile hero image:",
+        course.heroImageMobileUrl,
+        err.message,
+      );
+    }
+  }
 };
 
 const recalculateCourseStats = async (courseId) => {
@@ -749,6 +773,52 @@ const notifyCourseEnrolled = async (userId, course) => {
   });
 };
 
+const buildCourseInstructorAssignedContent = (course) => {
+  const courseTitle = course?.title || "a course";
+
+  if (course?.status === COURSE_STATUS.PUBLISHED) {
+    return {
+      title: "You were assigned as a course instructor",
+      message: `You are the instructor for "${courseTitle}", which is published on Handiz.`,
+      link: buildLmsUrl(`/courses/${course.slug}`),
+    };
+  }
+
+  if (course?.status === COURSE_STATUS.ARCHIVED) {
+    return {
+      title: "You were assigned as a course instructor",
+      message: `You are the instructor for "${courseTitle}", which is currently archived.`,
+      link: "",
+    };
+  }
+
+  return {
+    title: "You were assigned as a course instructor",
+    message: `You are the instructor for "${courseTitle}", which is still in draft. An admin will publish it when it is ready.`,
+    link: "",
+  };
+};
+
+const notifyCourseInstructorAssigned = async (
+  instructorId,
+  course,
+  { assignedBy } = {},
+) => {
+  if (!instructorId || !course?._id) return;
+  if (assignedBy && String(assignedBy) === String(instructorId)) return;
+
+  const { title, message, link } = buildCourseInstructorAssignedContent(course);
+
+  await upsertUnreadNotification({
+    recipientId: instructorId,
+    type: "course_instructor_assigned",
+    title,
+    message,
+    link,
+    relatedCourseId: course._id,
+  });
+};
+
 module.exports = {
   slugify,
   generateUniqueSlug,
@@ -786,6 +856,7 @@ module.exports = {
   sanitizeLessonForClient,
   sanitizeLessonPlayback,
   notifyCourseEnrolled,
+  notifyCourseInstructorAssigned,
   generateCertificateNumber,
   computeSalePrice,
   getCourseCheckoutAmount,
