@@ -30,6 +30,7 @@ const {
   parseCallbackUrl,
   buildCallbackUrl,
 } = require("../utils/whish");
+const { buildLmsUrl, getLmsSiteUrl } = require("../utils/lmsUrls");
 
 const fulfillPaidEnrollmentFromOrder = async (
   order,
@@ -78,7 +79,7 @@ const fulfillPaidEnrollmentFromOrder = async (
     type: "payment_received",
     title: "Payment received",
     message: `Your payment for "${course.title}" was successful.`,
-    link: `/courses/${course.slug}/learn`,
+    link: buildLmsUrl(`/courses/${course.slug}`),
     relatedCourseId: course._id,
   });
 
@@ -98,14 +99,6 @@ const fulfillPaidEnrollment = async ({
   const order = await Order.findOne(orderQuery);
   if (!order) return null;
   return fulfillPaidEnrollmentFromOrder(order, { transactionId });
-};
-
-const getLmsSiteUrl = () => {
-  const fromEnv = process.env.LMS_SITE_URL;
-  if (fromEnv) return fromEnv.replace(/\/$/, "");
-  return process.env.NODE_ENV === "development"
-    ? "http://localhost:3001"
-    : "https://learn.handiz.org";
 };
 
 const getApiBaseUrl = () =>

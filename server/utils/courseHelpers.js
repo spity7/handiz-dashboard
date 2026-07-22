@@ -29,6 +29,7 @@ const {
   serializeCourseForResponse,
 } = require("./coursePricing");
 const { upsertUnreadNotification } = require("./helpers/notificationService");
+const { buildLmsUrl } = require("./lmsUrls");
 const { deleteImage } = require("./gcs");
 const {
   deleteVideo: deleteVdocipherVideo,
@@ -379,8 +380,16 @@ const courseStatsSideEffects = (stats) =>
       }
     : {};
 
-const getPublishedLessonsForCourse = async (courseId) =>
-  Lesson.find({ courseId, isPublished: true }).sort({ order: 1 });
+const getPublishedLessonsForCourse = async (courseId) => {
+  const [modules, lessons] = await Promise.all([
+    CourseModule.find({ courseId }).sort({ order: 1 }),
+    Lesson.find({ courseId, isPublished: true }).sort({ order: 1 }),
+  ]);
+
+  return modules.flatMap((mod) =>
+    lessons.filter((lesson) => String(lesson.moduleId) === String(mod._id)),
+  );
+};
 
 const buildSequentialLockMap = async (enrollment, courseId) => {
   const lockMap = new Map();
@@ -426,7 +435,12 @@ const recalculateEnrollmentProgress = async (enrollmentId) => {
   const totalLessons = lessons.length;
 
   if (totalLessons === 0) {
-    await Enrollment.findByIdAndUpdate(enrollmentId, { progressPercent: 0 });
+    const updates = { progressPercent: 0 };
+    if (enrollment.status === ENROLLMENT_STATUS.COMPLETED) {
+      updates.status = ENROLLMENT_STATUS.ACTIVE;
+      updates.completedAt = null;
+    }
+    await Enrollment.findByIdAndUpdate(enrollmentId, updates);
     return 0;
   }
 
@@ -445,6 +459,12 @@ const recalculateEnrollmentProgress = async (enrollmentId) => {
   ) {
     updates.status = ENROLLMENT_STATUS.COMPLETED;
     updates.completedAt = new Date();
+  } else if (
+    progressPercent < 100 &&
+    enrollment.status === ENROLLMENT_STATUS.COMPLETED
+  ) {
+    updates.status = ENROLLMENT_STATUS.ACTIVE;
+    updates.completedAt = null;
   }
 
   await Enrollment.findByIdAndUpdate(enrollmentId, updates);
@@ -454,6 +474,67 @@ const recalculateEnrollmentProgress = async (enrollmentId) => {
   }
 
   return progressPercent;
+};
+
+const recalculateAllEnrollmentsForCourse = async (courseId) => {
+  const enrollments = await Enrollment.find({
+    courseId,
+    status: {
+      $in: [ENROLLMENT_STATUS.ACTIVE, ENROLLMENT_STATUS.COMPLETED],
+    },
+  }).select("_id");
+
+  await Promise.all(
+    enrollments.map((enrollment) =>
+      recalculateEnrollmentProgress(enrollment._id),
+    ),
+  );
+};
+
+const refreshEnrollmentProgress = async (enrollment) => {
+  if (!enrollment) return null;
+  if (
+    ![ENROLLMENT_STATUS.ACTIVE, ENROLLMENT_STATUS.COMPLETED].includes(
+      enrollment.status,
+    )
+  ) {
+    return enrollment;
+  }
+
+  await recalculateEnrollmentProgress(enrollment._id);
+  return Enrollment.findById(enrollment._id);
+};
+
+const getContinueLessonForEnrollment = async (enrollment) => {
+  if (!enrollment) return null;
+
+  const lessons = await getPublishedLessonsForCourse(enrollment.courseId);
+  if (lessons.length === 0) return null;
+
+  const completedIds = new Set(
+    (
+      await LessonProgress.find({
+        enrollmentId: enrollment._id,
+        completed: true,
+        lessonId: { $in: lessons.map((lesson) => lesson._id) },
+      }).select("lessonId")
+    ).map((progress) => String(progress.lessonId)),
+  );
+
+  const firstIncomplete = lessons.find(
+    (lesson) => !completedIds.has(String(lesson._id)),
+  );
+
+  return firstIncomplete || lessons[lessons.length - 1];
+};
+
+const serializeEnrollmentForClient = async (enrollment) => {
+  if (!enrollment) return null;
+
+  const obj = enrollment.toObject ? enrollment.toObject() : { ...enrollment };
+  const continueLesson = await getContinueLessonForEnrollment(enrollment);
+  obj.continueLessonSlug = continueLesson?.slug || null;
+  return obj;
 };
 
 const generateCertificateNumber = () =>
@@ -508,7 +589,7 @@ const issueCertificateIfNeeded = async (enrollment) => {
       type: "course_completed",
       title: "Course completed!",
       message: `Congratulations! You completed "${course?.title || "your course"}".`,
-      link: `/my-courses`,
+      link: buildLmsUrl(`/my-courses?certificate=${enrollment._id}`),
       relatedCourseId: enrollment.courseId,
     });
   }
@@ -663,7 +744,7 @@ const notifyCourseEnrolled = async (userId, course) => {
     type: "course_enrolled",
     title: "Enrollment confirmed",
     message: `You are enrolled in "${course.title}".`,
-    link: `/courses/${course.slug}/learn`,
+    link: buildLmsUrl(`/courses/${course.slug}`),
     relatedCourseId: course._id,
   });
 };
@@ -695,6 +776,10 @@ module.exports = {
   buildSequentialLockMap,
   isLessonSequentiallyLocked,
   recalculateEnrollmentProgress,
+  recalculateAllEnrollmentsForCourse,
+  refreshEnrollmentProgress,
+  getContinueLessonForEnrollment,
+  serializeEnrollmentForClient,
   issueCertificateIfNeeded,
   buildCurriculum,
   validateCourseCanPublish,

@@ -87,19 +87,26 @@ const getPlaybackOtp = async (videoId, { ttl, annotate } = {}) => {
 };
 
 /**
- * Dynamic watermark text shown on video (deters screen recording).
+ * Subtle static watermark for VdoCipher OTP playback (traceability without blocking content).
+ * annotate must be a JSON-stringified array of watermark objects (see VdoCipher docs).
  */
 const buildWatermarkAnnotate = (user) => {
   if (process.env.VDOCIPHER_WATERMARK !== "1" || !user) return undefined;
 
-  const name =
-    [user.firstname, user.lastname].filter(Boolean).join(" ").trim() ||
-    user.username ||
-    "Student";
-  const email = user.email || "";
-  const date = new Date().toISOString().slice(0, 10);
+  const text = String(user.email || user.username || "").trim();
+  if (!text) return undefined;
 
-  return email ? `${name}\n${email}\n${date}` : `${name}\n${date}`;
+  return JSON.stringify([
+    {
+      type: "text",
+      text,
+      alpha: "0.22",
+      color: "0xCCCCCC",
+      size: "11",
+      x: "72",
+      y: "92",
+    },
+  ]);
 };
 
 const deleteVideo = async (videoId) => {

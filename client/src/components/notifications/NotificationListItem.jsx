@@ -2,6 +2,7 @@ import clsx from 'clsx'
 import { DropdownItem } from 'react-bootstrap'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
 import { timeSince } from '@/utils/date'
+import { navigateToNotificationLink } from '@/utils/notificationLinks'
 
 const NOTIFICATION_META = {
   project_pending: {
@@ -51,8 +52,8 @@ const NotificationListItem = ({ notification, onRead, variant = 'dropdown', onNa
     if (isUnread && onRead) {
       await onRead(notification._id)
     }
-    if (notification.link && onNavigate) {
-      onNavigate(notification.link)
+    if (notification.link) {
+      navigateToNotificationLink(notification.link, onNavigate)
     }
   }
 

@@ -78,7 +78,16 @@ const instructorSelectStyles = {
   },
 }
 
-const InstructorSelect = ({ value, onChange, selectedUser = null, disabled = false }) => {
+const InstructorSelect = ({
+  value,
+  onChange,
+  selectedUser = null,
+  disabled = false,
+  inputId = 'course-instructor-select',
+  placeholder = 'Select an instructor',
+  loadingText = 'Loading instructors…',
+  noOptionsMessage = 'No instructors found',
+}) => {
   const { getEmployees } = useGlobalContext()
   const [employees, setEmployees] = useState([])
   const [loading, setLoading] = useState(true)
@@ -120,11 +129,11 @@ const InstructorSelect = ({ value, onChange, selectedUser = null, disabled = fal
       {loading ? (
         <div className="instructor-select__loading">
           <Spinner animation="border" size="sm" />
-          <span>Loading instructors…</span>
+          <span>{loadingText}</span>
         </div>
       ) : (
         <ReactSelect
-          inputId="course-instructor-select"
+          inputId={inputId}
           classNamePrefix="react-select"
           classNames={{
             option: ({ isFocused, isSelected }) =>
@@ -138,8 +147,8 @@ const InstructorSelect = ({ value, onChange, selectedUser = null, disabled = fal
           formatOptionLabel={formatOptionLabel}
           isSearchable
           isDisabled={disabled || flatOptions.length === 0}
-          placeholder="Select an instructor"
-          noOptionsMessage={() => 'No instructors found'}
+          placeholder={placeholder}
+          noOptionsMessage={() => noOptionsMessage}
           filterOption={(option, inputValue) => {
             const query = inputValue.trim().toLowerCase()
             if (!query) return true

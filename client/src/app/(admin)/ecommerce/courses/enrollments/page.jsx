@@ -6,6 +6,7 @@ import ProjectsListTableSkeleton from '@/components/skeletons/ProjectsListTableS
 import { useGlobalContext } from '@/context/useGlobalContext'
 import useFetchList from '@/hooks/useFetchList'
 import Swal from 'sweetalert2'
+import StudentSelect from '../components/StudentSelect'
 
 const CourseEnrollments = () => {
   const { getAllEnrollments, getAllCourses, adminCreateEnrollment, revokeEnrollment } = useGlobalContext()
@@ -32,15 +33,15 @@ const CourseEnrollments = () => {
 
   const handleCreate = async (event) => {
     event.preventDefault()
-    if (!form.userId.trim() || !form.courseId) {
-      Swal.fire('Missing fields', 'User ID and course are required.', 'warning')
+    if (!form.userId || !form.courseId) {
+      Swal.fire('Missing fields', 'Student and course are required.', 'warning')
       return
     }
 
     setSaving(true)
     try {
       await adminCreateEnrollment({
-        userId: form.userId.trim(),
+        userId: form.userId,
         courseId: form.courseId,
       })
       setShowCreate(false)
@@ -165,14 +166,9 @@ const CourseEnrollments = () => {
         <Form onSubmit={handleCreate}>
           <Modal.Body>
             <Form.Group className="mb-3">
-              <Form.Label>User ID</Form.Label>
-              <Form.Control
-                value={form.userId}
-                onChange={(event) => setForm((current) => ({ ...current, userId: event.target.value }))}
-                placeholder="MongoDB user _id"
-                required
-              />
-              <Form.Text>Paste the student&apos;s user ID from the Users section.</Form.Text>
+              <Form.Label>Student</Form.Label>
+              <StudentSelect value={form.userId} onChange={(userId) => setForm((current) => ({ ...current, userId }))} />
+              <Form.Text>Search by name, email, or username.</Form.Text>
             </Form.Group>
             <Form.Group>
               <Form.Label>Course</Form.Label>

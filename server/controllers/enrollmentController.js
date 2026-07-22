@@ -11,6 +11,8 @@ const {
   buildCurriculum,
   sanitizeLessonForClient,
   notifyCourseEnrolled,
+  serializeEnrollmentForClient,
+  recalculateEnrollmentProgress,
 } = require("../utils/courseHelpers");
 const { canAccessLesson, isStaff } = require("../utils/courseAccess");
 const { isEffectivelyFree } = require("../utils/coursePricing");
@@ -90,7 +92,17 @@ exports.getMyEnrollments = async (req, res) => {
       Boolean(enrollment.courseId),
     );
 
-    res.status(200).json({ enrollments: visibleEnrollments });
+    const serializedEnrollments = await Promise.all(
+      visibleEnrollments.map(async (enrollment) => {
+        await recalculateEnrollmentProgress(enrollment._id);
+        const refreshed = await Enrollment.findById(enrollment._id)
+          .populate("courseId")
+          .populate("lastLessonId", "title slug");
+        return serializeEnrollmentForClient(refreshed);
+      }),
+    );
+
+    res.status(200).json({ enrollments: serializedEnrollments });
   } catch (error) {
     console.error("getMyEnrollments error:", error);
     res.status(500).json({ message: "Server error fetching enrollments" });
@@ -116,7 +128,14 @@ exports.getEnrollmentById = async (req, res) => {
       return res.status(404).json({ message: "Course is no longer available" });
     }
 
-    const course = enrollment.courseId;
+    await recalculateEnrollmentProgress(enrollment._id);
+    const refreshedEnrollment = await Enrollment.findById(enrollment._id)
+      .populate("courseId")
+      .populate("lastLessonId", "title slug");
+    const course = refreshedEnrollment?.courseId;
+    if (!course || !refreshedEnrollment) {
+      return res.status(404).json({ message: "Course is no longer available" });
+    }
     const curriculum = await buildCurriculum(course._id, {
       hideEmptyModules: true,
     });
@@ -124,7 +143,11 @@ exports.getEnrollmentById = async (req, res) => {
     const sanitizedCurriculum = curriculum.map((mod) => ({
       ...mod,
       lessons: mod.lessons.map((lesson) => {
-        const hasAccess = canAccessLesson(req.user, lesson, enrollment);
+        const hasAccess = canAccessLesson(
+          req.user,
+          lesson,
+          refreshedEnrollment,
+        );
         return sanitizeLessonForClient(lesson, {
           hasAccess,
           isStaff: isStaff(req.user),
@@ -132,7 +155,10 @@ exports.getEnrollmentById = async (req, res) => {
       }),
     }));
 
-    res.status(200).json({ enrollment, curriculum: sanitizedCurriculum });
+    res.status(200).json({
+      enrollment: await serializeEnrollmentForClient(refreshedEnrollment),
+      curriculum: sanitizedCurriculum,
+    });
   } catch (error) {
     console.error("getEnrollmentById error:", error);
     res.status(500).json({ message: "Server error fetching enrollment" });
@@ -146,7 +172,17 @@ exports.getCourseEnrollments = async (req, res) => {
       .populate("lastLessonId", "title slug")
       .sort({ enrolledAt: -1 });
 
-    res.status(200).json({ enrollments });
+    const serializedEnrollments = await Promise.all(
+      enrollments.map(async (enrollment) => {
+        await recalculateEnrollmentProgress(enrollment._id);
+        const refreshed = await Enrollment.findById(enrollment._id)
+          .populate("userId", "firstname lastname email username")
+          .populate("lastLessonId", "title slug");
+        return serializeEnrollmentForClient(refreshed);
+      }),
+    );
+
+    res.status(200).json({ enrollments: serializedEnrollments });
   } catch (error) {
     console.error("getCourseEnrollments error:", error);
     res.status(500).json({ message: "Server error fetching enrollments" });

@@ -3,7 +3,11 @@ const Course = require("../models/courseModel");
 const Enrollment = require("../models/enrollmentModel");
 const LessonProgress = require("../models/lessonProgressModel");
 const { ENROLLMENT_STATUS } = require("../constants/enrollmentStatus");
-const { recalculateEnrollmentProgress } = require("../utils/courseHelpers");
+const {
+  recalculateEnrollmentProgress,
+  refreshEnrollmentProgress,
+  serializeEnrollmentForClient,
+} = require("../utils/courseHelpers");
 const { canAccessLesson } = require("../utils/courseAccess");
 
 const COMPLETION_THRESHOLD = 0.9;
@@ -113,10 +117,14 @@ exports.getLessonProgress = async (req, res) => {
       return res.status(404).json({ message: "Not enrolled in this course" });
     }
 
+    const refreshedEnrollment = await refreshEnrollmentProgress(enrollment);
     const progress = await LessonProgress.find({
-      enrollmentId: enrollment._id,
+      enrollmentId: refreshedEnrollment._id,
     });
-    res.status(200).json({ progress, enrollment });
+    res.status(200).json({
+      progress,
+      enrollment: await serializeEnrollmentForClient(refreshedEnrollment),
+    });
   } catch (error) {
     console.error("getLessonProgress error:", error);
     res.status(500).json({ message: "Server error fetching progress" });

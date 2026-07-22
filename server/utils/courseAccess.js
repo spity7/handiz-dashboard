@@ -1,20 +1,20 @@
-const { ROLES } = require("../constants/permissions");
+const { hasPermission } = require("../constants/permissions");
 const { ENROLLMENT_STATUS } = require("../constants/enrollmentStatus");
 const { COURSE_STATUS } = require("../constants/courseStatus");
 
-const isStaff = (user) =>
-  user?.role === ROLES.ADMIN || user?.role === ROLES.EDITOR;
+const canManageCourses = (user) => hasPermission(user?.role, "courses:manage");
+
+// Course preview / bypass privileges align with courses:manage (Admin only).
+const isStaff = (user) => canManageCourses(user);
 
 const hasActiveEnrollment = (enrollment) =>
   enrollment?.status === ENROLLMENT_STATUS.ACTIVE ||
   enrollment?.status === ENROLLMENT_STATUS.COMPLETED;
 
-const canManageCourses = (user) => isStaff(user);
-
 const canAccessLesson = (user, lesson, enrollment) => {
   if (!lesson) return false;
   if (lesson.isPreview) return true;
-  if (isStaff(user)) return true;
+  if (canManageCourses(user)) return true;
   if (!user || !enrollment) return false;
   return hasActiveEnrollment(enrollment);
 };

@@ -43,6 +43,9 @@ const {
   validateCourseCanPublish,
   buildSequentialLockMap,
   isLessonSequentiallyLocked,
+  refreshEnrollmentProgress,
+  serializeEnrollmentForClient,
+  recalculateAllEnrollmentsForCourse,
 } = require("../utils/courseHelpers");
 const {
   getPlaybackOtp,
@@ -288,6 +291,9 @@ exports.getCourseBySlug = async (req, res) => {
         userId: req.user._id,
         courseId: course._id,
       });
+      if (enrollment) {
+        enrollment = await refreshEnrollmentProgress(enrollment);
+      }
     }
 
     const staff = isStaff(req.user);
@@ -313,7 +319,7 @@ exports.getCourseBySlug = async (req, res) => {
     res.status(200).json({
       course: serializeCourseForResponse(course, { forAdmin: staff }),
       curriculum: sanitizedCurriculum,
-      enrollment,
+      enrollment: await serializeEnrollmentForClient(enrollment),
       isEnrolled:
         !!enrollment && ["active", "completed"].includes(enrollment.status),
       isStaff: staff,
@@ -747,6 +753,7 @@ exports.deleteModule = async (req, res) => {
     }
     await module.deleteOne();
     const stats = await recalculateCourseStats(course._id);
+    await recalculateAllEnrollmentsForCourse(course._id);
 
     res.status(200).json({
       message: "Module deleted",
@@ -866,6 +873,7 @@ exports.createLesson = async (req, res) => {
       throw createError;
     }
     await recalculateCourseStats(course._id);
+    await recalculateAllEnrollmentsForCourse(course._id);
 
     res.status(201).json({ message: "Lesson created", lesson });
   } catch (error) {
@@ -990,6 +998,7 @@ exports.updateLesson = async (req, res) => {
 
     await lesson.save();
     const stats = await recalculateCourseStats(lesson.courseId);
+    await recalculateAllEnrollmentsForCourse(course._id);
 
     res.status(200).json({
       message: "Lesson updated",
@@ -1017,6 +1026,7 @@ exports.deleteLesson = async (req, res) => {
     const courseId = lesson.courseId;
     await removeLessonCompletely(lesson);
     const stats = await recalculateCourseStats(courseId);
+    await recalculateAllEnrollmentsForCourse(courseId);
 
     res.status(200).json({
       message: "Lesson deleted",
@@ -1102,6 +1112,9 @@ exports.getLessonBySlug = async (req, res) => {
         userId: req.user._id,
         courseId: course._id,
       });
+      if (enrollment) {
+        enrollment = await refreshEnrollmentProgress(enrollment);
+      }
     }
 
     const staff = isStaff(req.user);
@@ -1167,7 +1180,7 @@ exports.getLessonBySlug = async (req, res) => {
       lesson: lessonObj,
       playback,
       quiz,
-      enrollment,
+      enrollment: await serializeEnrollmentForClient(enrollment),
     });
   } catch (error) {
     console.error("getLessonBySlug error:", error);
