@@ -11,10 +11,14 @@ import { THUMBNAIL_ACCEPT_STRING, readThumbnailInput } from '@/utils/imageFile'
 import SelectFormInput from '@/components/form/SelectFormInput'
 import { renameKeys } from '@/utils/rename-object-keys'
 import 'react-quill/dist/quill.snow.css'
+import useConfirmFormSubmit from '@/hooks/useConfirmFormSubmit'
+import { buildFormConfirmOptions } from '@/utils/formConfirm'
+import useRegisterUnsavedFormDirty from '@/hooks/useRegisterUnsavedFormDirty'
 
 const EditCompetition = () => {
   const { id } = useParams()
   const navigate = useNavigate()
+  const confirmFormSubmit = useConfirmFormSubmit()
   const { getCompetitionById, updateCompetition, deleteCompetitionGalleryImage } = useGlobalContext()
 
   const [competition, setCompetition] = useState(null)
@@ -53,6 +57,22 @@ const EditCompetition = () => {
     fetchCompetition()
   }, [id, getCompetitionById])
 
+  const competitionFormSnapshot = competition
+    ? {
+        title: competition.title,
+        prize: competition.prize,
+        deadline: competition.deadline,
+        side: competition.side,
+        category: competition.category,
+        link: competition.link,
+        description: competition.description,
+        order: competition.order ?? 999,
+      }
+    : null
+
+  const competitionFormCurrent = { title, prize, deadline, side, category, link, description, order }
+  useRegisterUnsavedFormDirty(competitionFormSnapshot, competitionFormCurrent, { extraDirty: Boolean(thumbnail) })
+
   const handleFileChange = (e) => {
     readThumbnailInput(e, {
       onValid: (file) => {
@@ -68,29 +88,31 @@ const EditCompetition = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    try {
-      setLoading(true)
+    await confirmFormSubmit(buildFormConfirmOptions('update', { subject: 'this competition' }), async () => {
+      try {
+        setLoading(true)
 
-      const formData = new FormData()
-      formData.append('title', title)
-      formData.append('prize', prize)
-      formData.append('deadline', deadline)
-      formData.append('side', side)
-      formData.append('category', category)
-      formData.append('link', link)
-      formData.append('description', description)
-      formData.append('order', order)
+        const formData = new FormData()
+        formData.append('title', title)
+        formData.append('prize', prize)
+        formData.append('deadline', deadline)
+        formData.append('side', side)
+        formData.append('category', category)
+        formData.append('link', link)
+        formData.append('description', description)
+        formData.append('order', order)
 
-      if (thumbnail) formData.append('thumbnail', thumbnail)
+        if (thumbnail) formData.append('thumbnail', thumbnail)
 
-      await updateCompetition(id, formData)
-      alert('Competition updated successfully!')
-      navigate('/ecommerce/competitions')
-    } catch (error) {
-      alert(error?.response?.data?.message || 'Update failed')
-    } finally {
-      setLoading(false)
-    }
+        await updateCompetition(id, formData)
+        alert('Competition updated successfully!')
+        navigate('/ecommerce/competitions')
+      } catch (error) {
+        alert(error?.response?.data?.message || 'Update failed')
+      } finally {
+        setLoading(false)
+      }
+    })
   }
 
   const handleDeleteOldImage = async (imageUrl) => {
@@ -109,7 +131,7 @@ const EditCompetition = () => {
     setState((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]))
   }
 
-  if (!competition) return <ProjectFormSkeleton variant="vertex" title="Edit Competition" subName="Handiz" />
+  if (!competition) return <ProjectFormSkeleton variant="standard" title="Edit Competition" subName="Handiz" />
 
   return (
     <>

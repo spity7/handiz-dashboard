@@ -11,10 +11,14 @@ import { THUMBNAIL_ACCEPT_STRING, readThumbnailInput } from '@/utils/imageFile'
 import SelectFormInput from '@/components/form/SelectFormInput'
 import { renameKeys } from '@/utils/rename-object-keys'
 import 'react-quill/dist/quill.snow.css'
+import useConfirmFormSubmit from '@/hooks/useConfirmFormSubmit'
+import { buildFormConfirmOptions } from '@/utils/formConfirm'
+import useRegisterUnsavedFormDirty from '@/hooks/useRegisterUnsavedFormDirty'
 
 const EditOffice = () => {
   const { id } = useParams()
   const navigate = useNavigate()
+  const confirmFormSubmit = useConfirmFormSubmit()
   const { getOfficeById, updateOffice } = useGlobalContext()
 
   const [office, setOffice] = useState(null)
@@ -57,6 +61,36 @@ const EditOffice = () => {
     fetchOffice()
   }, [id, getOfficeById])
 
+  const officeFormSnapshot = office
+    ? {
+        title: office.title,
+        location: office.location || [],
+        locationMap: office.locationMap,
+        email: office.email,
+        instagram: office.instagram,
+        linkedin: office.linkedin,
+        order: office.order ?? 999,
+        teamNb: office.teamNb ?? 0,
+        category: office.category || [],
+        status: office.status || [],
+      }
+    : null
+
+  const officeFormCurrent = {
+    title,
+    location,
+    locationMap,
+    email,
+    instagram,
+    linkedin,
+    order,
+    teamNb,
+    category,
+    status,
+  }
+
+  useRegisterUnsavedFormDirty(officeFormSnapshot, officeFormCurrent, { extraDirty: Boolean(thumbnail) })
+
   const handleFileChange = (e) => {
     readThumbnailInput(e, {
       onValid: (file) => {
@@ -72,55 +106,55 @@ const EditOffice = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    try {
-      setLoading(true)
-      if (location.length === 0) {
-        alert('Please select at least one  Location')
-        setLoading(false)
-        return
-      }
-      if (category.length === 0) {
-        alert('Please select at least one  Category')
-        setLoading(false)
-        return
-      }
-      if (status.length === 0) {
-        alert('Please select at least one  Status')
-        setLoading(false)
-        return
-      }
-
-      const formData = new FormData()
-      formData.append('title', title)
-      formData.append('locationMap', locationMap)
-      formData.append('email', email)
-      formData.append('instagram', instagram)
-      formData.append('linkedin', linkedin)
-
-      formData.append('order', order)
-      formData.append('teamNb', teamNb)
-
-      if (thumbnail) formData.append('thumbnail', thumbnail)
-
-      location.forEach((c) => formData.append('location', c))
-      category.forEach((c) => formData.append('category', c))
-      status.forEach((s) => formData.append('status', s))
-
-      await updateOffice(id, formData)
-      alert('Office updated successfully!')
-      navigate('/ecommerce/offices')
-    } catch (error) {
-      alert(error?.response?.data?.message || 'Update failed')
-    } finally {
-      setLoading(false)
+    if (location.length === 0) {
+      alert('Please select at least one  Location')
+      return
     }
+    if (category.length === 0) {
+      alert('Please select at least one  Category')
+      return
+    }
+    if (status.length === 0) {
+      alert('Please select at least one  Status')
+      return
+    }
+
+    await confirmFormSubmit(buildFormConfirmOptions('update', { subject: 'this office' }), async () => {
+      try {
+        setLoading(true)
+
+        const formData = new FormData()
+        formData.append('title', title)
+        formData.append('locationMap', locationMap)
+        formData.append('email', email)
+        formData.append('instagram', instagram)
+        formData.append('linkedin', linkedin)
+
+        formData.append('order', order)
+        formData.append('teamNb', teamNb)
+
+        if (thumbnail) formData.append('thumbnail', thumbnail)
+
+        location.forEach((c) => formData.append('location', c))
+        category.forEach((c) => formData.append('category', c))
+        status.forEach((s) => formData.append('status', s))
+
+        await updateOffice(id, formData)
+        alert('Office updated successfully!')
+        navigate('/ecommerce/offices')
+      } catch (error) {
+        alert(error?.response?.data?.message || 'Update failed')
+      } finally {
+        setLoading(false)
+      }
+    })
   }
 
   const toggleCheckbox = (value, state, setState) => {
     setState((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]))
   }
 
-  if (!office) return <ProjectFormSkeleton variant="vertex" title="Edit Office" subName="Handiz" />
+  if (!office) return <ProjectFormSkeleton variant="standard" title="Edit Office" subName="Handiz" />
 
   return (
     <>

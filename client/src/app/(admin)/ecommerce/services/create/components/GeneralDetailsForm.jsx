@@ -7,6 +7,15 @@ import * as yup from 'yup'
 import TextFormInput from '@/components/form/TextFormInput'
 import 'react-quill/dist/quill.snow.css'
 import { useGlobalContext } from '@/context/useGlobalContext'
+import useConfirmFormSubmit from '@/hooks/useConfirmFormSubmit'
+import { buildFormConfirmOptions } from '@/utils/formConfirm'
+import useRegisterRhfFormDirty from '@/hooks/useRegisterRhfFormDirty'
+
+const SERVICE_FORM_DEFAULTS = {
+  name: '',
+  descQuill: '',
+  icon: null,
+}
 
 const generalFormSchema = yup.object({
   name: yup.string().required('Service name is required'),
@@ -28,6 +37,7 @@ const normalizeQuillValue = (value) => {
 
 const GeneralDetailsForm = () => {
   const { createService } = useGlobalContext()
+  const confirmFormSubmit = useConfirmFormSubmit()
   const [loading, setLoading] = useState(false)
   const [preview, setPreview] = useState(null)
 
@@ -36,39 +46,42 @@ const GeneralDetailsForm = () => {
     handleSubmit,
     register,
     reset,
+    watch,
     formState: { errors },
   } = useForm({
+    mode: 'onChange',
     resolver: yupResolver(generalFormSchema),
-    defaultValues: {
-      name: '',
-      descQuill: '',
-      icon: null,
-    },
+    defaultValues: SERVICE_FORM_DEFAULTS,
   })
 
+  const formValues = watch()
+  useRegisterRhfFormDirty(SERVICE_FORM_DEFAULTS, formValues)
+
   const onSubmit = async (data) => {
-    try {
-      setLoading(true)
-      const formData = new FormData()
-      formData.append('name', data.name)
-      formData.append('description', data.descQuill)
-      formData.append('icon', data.icon[0])
+    await confirmFormSubmit(buildFormConfirmOptions('create', { subject: 'this service' }), async () => {
+      try {
+        setLoading(true)
+        const formData = new FormData()
+        formData.append('name', data.name)
+        formData.append('description', data.descQuill)
+        formData.append('icon', data.icon[0])
 
-      await createService(formData)
+        await createService(formData)
 
-      alert('Service created successfully!')
+        alert('Service created successfully!')
 
-      reset({
-        name: '',
-        descQuill: '',
-        icon: null,
-      })
-      setPreview(null)
-    } catch (error) {
-      alert(error?.response?.data?.message || 'Failed to create service')
-    } finally {
-      setLoading(false)
-    }
+        reset({
+          name: '',
+          descQuill: '',
+          icon: null,
+        })
+        setPreview(null)
+      } catch (error) {
+        alert(error?.response?.data?.message || 'Failed to create service')
+      } finally {
+        setLoading(false)
+      }
+    })
   }
 
   const handleFileChange = (e) => {

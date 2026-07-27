@@ -12,6 +12,16 @@ import ComponentContainerCard from '@/components/ComponentContainerCard'
 import ProjectFormSkeleton from '@/components/skeletons/ProjectFormSkeleton'
 import { sortOthersLast } from '@/utils/sortOthersLast'
 import { Link } from 'react-router-dom'
+import useConfirmFormSubmit from '@/hooks/useConfirmFormSubmit'
+import { buildFormConfirmOptions } from '@/utils/formConfirm'
+import useRegisterRhfFormDirty from '@/hooks/useRegisterRhfFormDirty'
+
+const AI_TOOL_FORM_DEFAULTS = {
+  title: '',
+  categoryId: '',
+  descQuill: '',
+  order: 999,
+}
 
 const normalizeQuillValue = (value) => {
   if (!value || value === '<p><br></p>' || value === '<br/>') return ''
@@ -39,6 +49,7 @@ const generalFormSchema = yup.object({
 
 const GeneralDetailsForm = () => {
   const { createAiTool, getAiPromptCategories } = useGlobalContext()
+  const confirmFormSubmit = useConfirmFormSubmit()
   const [loading, setLoading] = useState(false)
   const [thumbnailFile, setThumbnailFile] = useState(null)
   const [resetDropzones, setResetDropzones] = useState(false)
@@ -67,55 +78,58 @@ const GeneralDetailsForm = () => {
     control,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm({
+    mode: 'onChange',
     resolver: yupResolver(generalFormSchema),
-    defaultValues: {
-      title: '',
-      categoryId: '',
-      descQuill: '',
-      order: 999,
-    },
+    defaultValues: AI_TOOL_FORM_DEFAULTS,
   })
 
+  const formValues = watch()
+  useRegisterRhfFormDirty(AI_TOOL_FORM_DEFAULTS, formValues, { extraDirty: Boolean(thumbnailFile) })
+
   const onSubmit = async (data) => {
-    try {
-      setLoading(true)
-      if (!thumbnailFile) {
-        alert('Thumbnail image is required')
-        return
-      }
-
-      const formData = new FormData()
-      formData.append('title', data.title)
-      formData.append('category', data.categoryId)
-      formData.append('description', data.descQuill)
-      formData.append('thumbnail', thumbnailFile)
-      formData.append('order', data.order)
-
-      await createAiTool(formData)
-
-      alert('AI Prompt created successfully!')
-
-      reset({
-        title: '',
-        categoryId: '',
-        descQuill: '',
-        order: 999,
-      })
-
-      setThumbnailFile(null)
-      setResetDropzones(true)
-      setTimeout(() => setResetDropzones(false), 0)
-    } catch (error) {
-      alert(apiErrorMessage(error, 'Failed to create AI Prompt'))
-    } finally {
-      setLoading(false)
+    if (!thumbnailFile) {
+      alert('Thumbnail image is required')
+      return
     }
+
+    await confirmFormSubmit(buildFormConfirmOptions('create', { subject: 'this AI prompt' }), async () => {
+      try {
+        setLoading(true)
+
+        const formData = new FormData()
+        formData.append('title', data.title)
+        formData.append('category', data.categoryId)
+        formData.append('description', data.descQuill)
+        formData.append('thumbnail', thumbnailFile)
+        formData.append('order', data.order)
+
+        await createAiTool(formData)
+
+        alert('AI Prompt created successfully!')
+
+        reset({
+          title: '',
+          categoryId: '',
+          descQuill: '',
+          order: 999,
+        })
+
+        setThumbnailFile(null)
+        setResetDropzones(true)
+        setTimeout(() => setResetDropzones(false), 0)
+      } catch (error) {
+        alert(apiErrorMessage(error, 'Failed to create AI Prompt'))
+      } finally {
+        setLoading(false)
+      }
+    })
   }
 
   if (categoriesLoading) {
-    return <ProjectFormSkeleton variant="vertex" showLayout={false} />
+    return <ProjectFormSkeleton variant="standard" showLayout={false} />
   }
 
   return (

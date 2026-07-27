@@ -13,6 +13,18 @@ import { useGlobalContext } from '@/context/useGlobalContext'
 import ThumbnailDropzoneInput from '@/components/form/ThumbnailDropzoneInput'
 import DropzoneFormInput from '@/components/form/DropzoneFormInput'
 import ProjectFormSkeleton from '@/components/skeletons/ProjectFormSkeleton'
+import useConfirmFormSubmit from '@/hooks/useConfirmFormSubmit'
+import { buildFormConfirmOptions } from '@/utils/formConfirm'
+import useRegisterRhfFormDirty from '@/hooks/useRegisterRhfFormDirty'
+
+const PROJECT_FORM_DEFAULTS = {
+  name: '',
+  title: '',
+  category: '',
+  descQuill: '',
+  location: '',
+  order: 999,
+}
 
 const generalFormSchema = yup.object({
   name: yup.string().required('Project name is required'),
@@ -30,6 +42,7 @@ const normalizeQuillValue = (value) => {
 
 const GeneralDetailsForm = () => {
   const { createProject } = useGlobalContext()
+  const confirmFormSubmit = useConfirmFormSubmit()
   const [loading, setLoading] = useState(false)
   const [thumbnailFile, setThumbnailFile] = useState(null)
   const [galleryFiles, setGalleryFiles] = useState([])
@@ -60,73 +73,76 @@ const GeneralDetailsForm = () => {
     control,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm({
+    mode: 'onChange',
     resolver: yupResolver(generalFormSchema),
-    defaultValues: {
-      name: '',
-      title: '',
-      category: '',
-      descQuill: '',
-      location: '',
-      order: 999,
-    },
+    defaultValues: PROJECT_FORM_DEFAULTS,
+  })
+
+  const formValues = watch()
+  useRegisterRhfFormDirty(PROJECT_FORM_DEFAULTS, formValues, {
+    extraDirty: Boolean(thumbnailFile) || galleryFiles.length > 0,
   })
 
   const onSubmit = async (data) => {
-    try {
-      setLoading(true)
-      if (!thumbnailFile) {
-        alert('Thumbnail image is required')
-        return
-      }
-
-      const formData = new FormData()
-      formData.append('name', data.name)
-      formData.append('title', data.title)
-
-      // ✅ Convert value to label before sending
-      const selectedCategory = projectCategories.find((cat) => cat.value === data.category)
-      const categoryName = selectedCategory ? selectedCategory.label : data.category
-      formData.append('category', categoryName)
-
-      formData.append('description', data.descQuill)
-      formData.append('location', data.location)
-      formData.append('thumbnail', thumbnailFile)
-      formData.append('order', data.order)
-
-      // ✅ multiple gallery files (optional)
-      galleryFiles.forEach((file) => formData.append('gallery', file))
-
-      console.log([...formData.entries()])
-
-      await createProject(formData)
-
-      alert('Project created successfully!')
-
-      // ✅ Clear all form fields properly
-      reset({
-        name: '',
-        title: '',
-        category: '',
-        descQuill: '',
-        location: '',
-        order: 999,
-      })
-
-      setThumbnailFile(null)
-      setGalleryFiles([])
-      setResetDropzones(true)
-      setTimeout(() => setResetDropzones(false), 0) // reset flag
-    } catch (error) {
-      alert(error?.response?.data?.message || '❌ Failed to create project')
-    } finally {
-      setLoading(false)
+    if (!thumbnailFile) {
+      alert('Thumbnail image is required')
+      return
     }
+
+    await confirmFormSubmit(buildFormConfirmOptions('create', { subject: 'this project' }), async () => {
+      try {
+        setLoading(true)
+
+        const formData = new FormData()
+        formData.append('name', data.name)
+        formData.append('title', data.title)
+
+        // ✅ Convert value to label before sending
+        const selectedCategory = projectCategories.find((cat) => cat.value === data.category)
+        const categoryName = selectedCategory ? selectedCategory.label : data.category
+        formData.append('category', categoryName)
+
+        formData.append('description', data.descQuill)
+        formData.append('location', data.location)
+        formData.append('thumbnail', thumbnailFile)
+        formData.append('order', data.order)
+
+        // ✅ multiple gallery files (optional)
+        galleryFiles.forEach((file) => formData.append('gallery', file))
+
+        console.log([...formData.entries()])
+
+        await createProject(formData)
+
+        alert('Project created successfully!')
+
+        // ✅ Clear all form fields properly
+        reset({
+          name: '',
+          title: '',
+          category: '',
+          descQuill: '',
+          location: '',
+          order: 999,
+        })
+
+        setThumbnailFile(null)
+        setGalleryFiles([])
+        setResetDropzones(true)
+        setTimeout(() => setResetDropzones(false), 0) // reset flag
+      } catch (error) {
+        alert(error?.response?.data?.message || '❌ Failed to create project')
+      } finally {
+        setLoading(false)
+      }
+    })
   }
 
   if (categoriesLoading) {
-    return <ProjectFormSkeleton variant="vertex" showLayout={false} />
+    return <ProjectFormSkeleton variant="standard" showLayout={false} />
   }
 
   return (

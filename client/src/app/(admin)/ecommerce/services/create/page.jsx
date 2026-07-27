@@ -6,7 +6,7 @@ import PageMetaData from '@/components/PageTitle'
 const CreateService = () => {
   return (
     <>
-      <PageBreadcrumb title="Create Service" subName="Vertex" />
+      <PageBreadcrumb title="Create Service" subName="Handiz" />
       <PageMetaData title="Create Service" />
 
       <Row>

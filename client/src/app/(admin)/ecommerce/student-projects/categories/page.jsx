@@ -7,6 +7,7 @@ import IconifyIcon from '@/components/wrappers/IconifyIcon'
 import StudentProjectFieldTableSkeleton from '@/components/skeletons/StudentProjectFieldTableSkeleton'
 import { useGlobalContext } from '@/context/useGlobalContext'
 import Swal from 'sweetalert2'
+import useConfirmFieldForm from '@/hooks/useConfirmFieldForm'
 
 const apiErrorMessage = (error, fallback) => {
   const data = error?.response?.data
@@ -26,6 +27,7 @@ const StudentProjectCategoriesPage = () => {
   const [editingId, setEditingId] = useState(null)
   const [editName, setEditName] = useState('')
   const [savingEdit, setSavingEdit] = useState(false)
+  const confirmField = useConfirmFieldForm('project category')
 
   const load = useCallback(async () => {
     try {
@@ -50,17 +52,19 @@ const StudentProjectCategoriesPage = () => {
       Swal.fire('Validation', 'Enter a category name', 'warning')
       return
     }
-    try {
-      setSavingNew(true)
-      await createStudentProjectCategory(name)
-      setNewName('')
-      await load()
-      Swal.fire('Created', 'Category added.', 'success')
-    } catch (error) {
-      Swal.fire('Error', apiErrorMessage(error, 'Create failed'), 'error')
-    } finally {
-      setSavingNew(false)
-    }
+    await confirmField('create', async () => {
+      try {
+        setSavingNew(true)
+        await createStudentProjectCategory(name)
+        setNewName('')
+        await load()
+        Swal.fire('Created', 'Category added.', 'success')
+      } catch (error) {
+        Swal.fire('Error', apiErrorMessage(error, 'Create failed'), 'error')
+      } finally {
+        setSavingNew(false)
+      }
+    })
   }
 
   const startEdit = (c) => {
@@ -79,17 +83,19 @@ const StudentProjectCategoriesPage = () => {
       Swal.fire('Validation', 'Name cannot be empty', 'warning')
       return
     }
-    try {
-      setSavingEdit(true)
-      await updateStudentProjectCategory(id, name)
-      cancelEdit()
-      await load()
-      Swal.fire('Saved', 'Category updated.', 'success')
-    } catch (error) {
-      Swal.fire('Error', apiErrorMessage(error, 'Update failed'), 'error')
-    } finally {
-      setSavingEdit(false)
-    }
+    await confirmField('update', async () => {
+      try {
+        setSavingEdit(true)
+        await updateStudentProjectCategory(id, name)
+        cancelEdit()
+        await load()
+        Swal.fire('Saved', 'Category updated.', 'success')
+      } catch (error) {
+        Swal.fire('Error', apiErrorMessage(error, 'Update failed'), 'error')
+      } finally {
+        setSavingEdit(false)
+      }
+    })
   }
 
   const handleDelete = async (c) => {

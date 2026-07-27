@@ -9,7 +9,11 @@ import PageBreadcrumb from '@/components/layout/PageBreadcrumb'
 import PageMetaData from '@/components/PageTitle'
 import TextFormInput from '@/components/form/TextFormInput'
 import { useAuthContext } from '@/context/useAuthContext'
+import useConfirmFormSubmit from '@/hooks/useConfirmFormSubmit'
+import useRegisterUnsavedFormDirty from '@/hooks/useRegisterUnsavedFormDirty'
+import { buildFormConfirmOptions } from '@/utils/formConfirm'
 import { isProfileComplete, instagramUrlSchema, mobileCountryCodeSchema, mobileLocalNumberSchema, splitMobileFields } from '@/utils/profileComplete'
+import useGuardedAction from '@/hooks/useGuardedAction'
 
 const accountSchema = yup.object({
   mobileCountryCode: mobileCountryCodeSchema(yup),
@@ -24,8 +28,10 @@ const AccountPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const redirectFrom = location.state?.from || '/ecommerce/student-projects'
   const profileAlreadyComplete = isProfileComplete(user)
+  const confirmFormSubmit = useConfirmFormSubmit()
+  const guardAction = useGuardedAction()
 
-  const { control, handleSubmit, reset } = useForm({
+  const { control, handleSubmit, reset, watch } = useForm({
     resolver: yupResolver(accountSchema),
     defaultValues: {
       mobileCountryCode: '+961',
@@ -33,6 +39,17 @@ const AccountPage = () => {
       instagramUrl: '',
     },
   })
+
+  const profileSnapshot = user
+    ? {
+        mobileCountryCode: splitMobileFields(user).mobileCountryCode || '+961',
+        mobileNumber: splitMobileFields(user).mobileNumber || '',
+        instagramUrl: user.instagramUrl || '',
+      }
+    : null
+
+  const formValues = watch()
+  useRegisterUnsavedFormDirty(profileSnapshot, formValues, { enabled: Boolean(user) })
 
   useEffect(() => {
     if (!user) return
@@ -47,21 +64,23 @@ const AccountPage = () => {
   const onSubmit = async (data) => {
     if (!user?._id) return
 
-    setIsSubmitting(true)
-    try {
-      await updateProfile(user._id, {
-        mobileCountryCode: data.mobileCountryCode,
-        mobileNumber: data.mobileNumber,
-        instagramUrl: data.instagramUrl,
-      })
-      toast.success('Account details saved.')
-      navigate(redirectFrom, { replace: true })
-    } catch (error) {
-      const msg = error?.response?.data?.error || error?.message || 'Failed to save account details.'
-      toast.error(msg)
-    } finally {
-      setIsSubmitting(false)
-    }
+    await confirmFormSubmit(buildFormConfirmOptions('save', { subject: 'your account details' }), async () => {
+      setIsSubmitting(true)
+      try {
+        await updateProfile(user._id, {
+          mobileCountryCode: data.mobileCountryCode,
+          mobileNumber: data.mobileNumber,
+          instagramUrl: data.instagramUrl,
+        })
+        toast.success('Account details saved.')
+        navigate(redirectFrom, { replace: true })
+      } catch (error) {
+        const msg = error?.response?.data?.error || error?.message || 'Failed to save account details.'
+        toast.error(msg)
+      } finally {
+        setIsSubmitting(false)
+      }
+    })
   }
 
   if (loading) {
@@ -122,7 +141,7 @@ const AccountPage = () => {
                       {isSubmitting ? 'Saving...' : 'Save account details'}
                     </Button>
                     {profileAlreadyComplete && (
-                      <Button type="button" variant="light" onClick={() => navigate(-1)}>
+                      <Button type="button" variant="light" onClick={() => guardAction(() => navigate(-1))}>
                         Cancel
                       </Button>
                     )}

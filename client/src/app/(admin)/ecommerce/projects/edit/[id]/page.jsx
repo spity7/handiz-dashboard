@@ -12,10 +12,14 @@ import SelectFormInput from '@/components/form/SelectFormInput'
 import { renameKeys } from '@/utils/rename-object-keys'
 import 'react-quill/dist/quill.snow.css'
 import { getAllProjectCategories } from '@/helpers/data'
+import useConfirmFormSubmit from '@/hooks/useConfirmFormSubmit'
+import { buildFormConfirmOptions } from '@/utils/formConfirm'
+import useRegisterUnsavedFormDirty from '@/hooks/useRegisterUnsavedFormDirty'
 
 const EditProject = () => {
   const { id } = useParams()
   const navigate = useNavigate()
+  const confirmFormSubmit = useConfirmFormSubmit()
   const { getProjectById, updateProject, deleteProjectGalleryImage } = useGlobalContext()
 
   const [project, setProject] = useState(null)
@@ -78,6 +82,34 @@ const EditProject = () => {
     if (projectCategories.length > 0) fetchProject()
   }, [id, getProjectById, projectCategories])
 
+  const projectFormSnapshot =
+    project && projectCategories.length > 0
+      ? {
+          name: project.name,
+          title: project.title,
+          description: project.description,
+          category: projectCategories.find((cat) => cat.label === project.category)?.value ?? '',
+          location: project.location,
+          order: project.order ?? 999,
+          gallery: project.gallery || [],
+        }
+      : null
+
+  const projectFormCurrent = {
+    name,
+    title,
+    description,
+    category,
+    location,
+    order,
+    gallery: existingGallery,
+  }
+
+  useRegisterUnsavedFormDirty(projectFormSnapshot, projectFormCurrent, {
+    enabled: Boolean(project),
+    extraDirty: Boolean(thumbnail) || galleryFiles.length > 0,
+  })
+
   const handleFileChange = (e) => {
     readThumbnailInput(e, {
       onValid: (file) => {
@@ -95,32 +127,34 @@ const EditProject = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    try {
-      setLoading(true)
-      const formData = new FormData()
-      formData.append('name', name)
-      formData.append('title', title)
-      formData.append('description', description)
+    await confirmFormSubmit(buildFormConfirmOptions('update', { subject: 'this project' }), async () => {
+      try {
+        setLoading(true)
+        const formData = new FormData()
+        formData.append('name', name)
+        formData.append('title', title)
+        formData.append('description', description)
 
-      // ✅ Convert selected category value -> label (to match backend)
-      const selectedCategory = projectCategories.find((cat) => cat.value === category)
-      const categoryName = selectedCategory ? selectedCategory.label : category
-      formData.append('category', categoryName)
+        // ✅ Convert selected category value -> label (to match backend)
+        const selectedCategory = projectCategories.find((cat) => cat.value === category)
+        const categoryName = selectedCategory ? selectedCategory.label : category
+        formData.append('category', categoryName)
 
-      formData.append('location', location)
-      formData.append('order', order)
+        formData.append('location', location)
+        formData.append('order', order)
 
-      if (thumbnail) formData.append('thumbnail', thumbnail)
-      galleryFiles.forEach((file) => formData.append('gallery', file))
+        if (thumbnail) formData.append('thumbnail', thumbnail)
+        galleryFiles.forEach((file) => formData.append('gallery', file))
 
-      await updateProject(id, formData)
-      alert('Project updated successfully!')
-      navigate('/ecommerce/projects')
-    } catch (error) {
-      alert(error?.response?.data?.message || 'Update failed')
-    } finally {
-      setLoading(false)
-    }
+        await updateProject(id, formData)
+        alert('Project updated successfully!')
+        navigate('/ecommerce/projects')
+      } catch (error) {
+        alert(error?.response?.data?.message || 'Update failed')
+      } finally {
+        setLoading(false)
+      }
+    })
   }
 
   const handleDeleteOldImage = async (imageUrl) => {
@@ -135,12 +169,12 @@ const EditProject = () => {
     }
   }
 
-  if (!project || categoriesLoading) return <ProjectFormSkeleton variant="vertex" title="Edit Project" subName="Vertex" />
+  if (!project || categoriesLoading) return <ProjectFormSkeleton variant="standard" title="Edit Project" subName="Handiz" />
 
   return (
     <>
       <PageMetaData title="Edit Project" />
-      <PageBreadcrumb title="Edit Project" subName="Vertex" />
+      <PageBreadcrumb title="Edit Project" subName="Handiz" />
       <Row>
         <Col>
           <Card>

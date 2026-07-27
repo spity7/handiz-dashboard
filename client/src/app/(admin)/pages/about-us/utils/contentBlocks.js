@@ -1,4 +1,12 @@
+import { normalizeRichTextForCompare } from '@/utils/formDirtyCompare'
+
 export const createBlockId = () => Date.now() + Math.random().toString(36)
+
+export const serializeContentBlocksForCompare = (blocks = []) =>
+  blocks.map((block) => ({
+    type: block.type,
+    content: typeof File !== 'undefined' && block.content instanceof File ? '__file__' : normalizeRichTextForCompare(String(block.content ?? '')),
+  }))
 
 export const buildContentBlocksFormData = (dynamicBlocks) => {
   const formData = new FormData()

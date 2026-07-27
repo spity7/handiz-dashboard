@@ -30,7 +30,7 @@ const ProjectsListTable = ({ projects, isLoading = false, onRefresh }) => {
   }
 
   if (isLoading) {
-    return <ProjectsListTableSkeleton variant="vertex" />
+    return <ProjectsListTableSkeleton variant="standard" />
   }
 
   const columns = [
@@ -91,7 +91,7 @@ const ProjectsListTable = ({ projects, isLoading = false, onRefresh }) => {
           <IconifyIcon icon="bx:folder-open" className="fs-32" />
         </div>
         <h5 className="projects-list-empty__title">No projects yet</h5>
-        <p className="projects-list-empty__description">Create your first Vertex project to get started.</p>
+        <p className="projects-list-empty__description">Create your first project to get started.</p>
         <div className="projects-list-empty__actions">
           <Link to="/ecommerce/projects/create" className="btn btn-primary">
             <IconifyIcon icon="bx:plus" className="me-1" />

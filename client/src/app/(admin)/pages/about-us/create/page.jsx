@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Card, CardBody, Col, Row } from 'react-bootstrap'
 import PageBreadcrumb from '@/components/layout/PageBreadcrumb'
@@ -7,7 +7,12 @@ import ContentBlocksFormSkeleton from '@/components/skeletons/ContentBlocksFormS
 import { useGlobalContext } from '@/context/useGlobalContext'
 import DynamicContentBlocksEditor from '../components/DynamicContentBlocksEditor'
 import useDynamicContentBlocks from '../hooks/useDynamicContentBlocks'
-import { buildContentBlocksFormData } from '../utils/contentBlocks'
+import { buildContentBlocksFormData, serializeContentBlocksForCompare } from '../utils/contentBlocks'
+import useConfirmFormSubmit from '@/hooks/useConfirmFormSubmit'
+import { buildFormConfirmOptions } from '@/utils/formConfirm'
+import useRegisterUnsavedFormDirty from '@/hooks/useRegisterUnsavedFormDirty'
+
+const ABOUT_US_BLOCKS_DEFAULTS = { blocks: [] }
 
 const CreateAboutUs = () => {
   const navigate = useNavigate()
@@ -15,6 +20,10 @@ const CreateAboutUs = () => {
   const [loading, setLoading] = useState(false)
   const [checking, setChecking] = useState(true)
   const { dynamicBlocks, addBlock, updateBlock, removeBlock, moveBlock } = useDynamicContentBlocks()
+  const confirmFormSubmit = useConfirmFormSubmit()
+
+  const blocksCurrent = useMemo(() => ({ blocks: serializeContentBlocksForCompare(dynamicBlocks) }), [dynamicBlocks])
+  useRegisterUnsavedFormDirty(ABOUT_US_BLOCKS_DEFAULTS, blocksCurrent, { trackingMode: 'defaults' })
 
   useEffect(() => {
     const ensureCanCreate = async () => {
@@ -35,17 +44,19 @@ const CreateAboutUs = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
 
-    try {
-      setLoading(true)
-      const formData = buildContentBlocksFormData(dynamicBlocks)
-      const result = await createAboutUs(formData)
-      alert('About Us page created successfully!')
-      navigate(`/pages/about-us/edit/${result.aboutUs._id}`, { replace: true })
-    } catch (error) {
-      alert(error?.response?.data?.message || 'Create failed')
-    } finally {
-      setLoading(false)
-    }
+    await confirmFormSubmit(buildFormConfirmOptions('create', { subject: 'the About Us page' }), async () => {
+      try {
+        setLoading(true)
+        const formData = buildContentBlocksFormData(dynamicBlocks)
+        const result = await createAboutUs(formData)
+        alert('About Us page created successfully!')
+        navigate(`/pages/about-us/edit/${result.aboutUs._id}`, { replace: true })
+      } catch (error) {
+        alert(error?.response?.data?.message || 'Create failed')
+      } finally {
+        setLoading(false)
+      }
+    })
   }
 
   if (checking) {

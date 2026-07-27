@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button, Card, CardBody, Col, Row } from 'react-bootstrap'
 import PageBreadcrumb from '@/components/layout/PageBreadcrumb'
@@ -7,7 +7,10 @@ import ContentBlocksFormSkeleton from '@/components/skeletons/ContentBlocksFormS
 import { useGlobalContext } from '@/context/useGlobalContext'
 import DynamicContentBlocksEditor from '../../components/DynamicContentBlocksEditor'
 import useDynamicContentBlocks from '../../hooks/useDynamicContentBlocks'
-import { buildContentBlocksFormData, mapContentBlocksFromApi } from '../../utils/contentBlocks'
+import { buildContentBlocksFormData, mapContentBlocksFromApi, serializeContentBlocksForCompare } from '../../utils/contentBlocks'
+import useConfirmFormSubmit from '@/hooks/useConfirmFormSubmit'
+import { buildFormConfirmOptions } from '@/utils/formConfirm'
+import useRegisterUnsavedFormDirty from '@/hooks/useRegisterUnsavedFormDirty'
 
 const EditAboutUs = () => {
   const { id } = useParams()
@@ -15,13 +18,24 @@ const EditAboutUs = () => {
   const { getAboutUsById, updateAboutUs } = useGlobalContext()
   const [loading, setLoading] = useState(false)
   const [fetching, setFetching] = useState(true)
+  const [loadedBlocksSnapshot, setLoadedBlocksSnapshot] = useState(null)
   const { dynamicBlocks, setDynamicBlocks, addBlock, updateBlock, removeBlock, moveBlock } = useDynamicContentBlocks()
+  const confirmFormSubmit = useConfirmFormSubmit()
+
+  const blocksSnapshot = useMemo(
+    () => (loadedBlocksSnapshot ? { blocks: serializeContentBlocksForCompare(loadedBlocksSnapshot) } : null),
+    [loadedBlocksSnapshot],
+  )
+  const blocksCurrent = useMemo(() => ({ blocks: serializeContentBlocksForCompare(dynamicBlocks) }), [dynamicBlocks])
+  useRegisterUnsavedFormDirty(blocksSnapshot, blocksCurrent, { enabled: Boolean(loadedBlocksSnapshot) })
 
   useEffect(() => {
     const fetchAboutUs = async () => {
       try {
         const data = await getAboutUsById(id)
-        setDynamicBlocks(mapContentBlocksFromApi(data.contentBlocks))
+        const blocks = mapContentBlocksFromApi(data.contentBlocks)
+        setLoadedBlocksSnapshot(blocks)
+        setDynamicBlocks(blocks)
       } catch (error) {
         alert('Failed to load About Us page')
       } finally {
@@ -34,16 +48,18 @@ const EditAboutUs = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
 
-    try {
-      setLoading(true)
-      const formData = buildContentBlocksFormData(dynamicBlocks)
-      await updateAboutUs(id, formData)
-      alert('About Us page updated successfully!')
-    } catch (error) {
-      alert(error?.response?.data?.message || 'Update failed')
-    } finally {
-      setLoading(false)
-    }
+    await confirmFormSubmit(buildFormConfirmOptions('update', { subject: 'the About Us page' }), async () => {
+      try {
+        setLoading(true)
+        const formData = buildContentBlocksFormData(dynamicBlocks)
+        await updateAboutUs(id, formData)
+        alert('About Us page updated successfully!')
+      } catch (error) {
+        alert(error?.response?.data?.message || 'Update failed')
+      } finally {
+        setLoading(false)
+      }
+    })
   }
 
   if (fetching) {

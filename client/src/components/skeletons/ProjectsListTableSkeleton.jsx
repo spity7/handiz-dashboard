@@ -29,7 +29,7 @@ const ActionCellSkeleton = () => (
 
 const VARIANT_HEADERS = {
   student: null,
-  vertex: 'Project Name',
+  standard: 'Project Name',
   'media-order': 'Title',
   'media-meta-order': 'Title',
 }

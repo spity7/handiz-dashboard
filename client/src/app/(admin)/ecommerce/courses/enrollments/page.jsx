@@ -1,12 +1,17 @@
-import { useCallback, useEffect, useState } from 'react'
-import { Badge, Button, Card, CardBody, Col, Form, Modal, Row, Table } from 'react-bootstrap'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Badge, Button, Card, CardBody, Col, Form, Modal, Row } from 'react-bootstrap'
 import PageBreadcrumb from '@/components/layout/PageBreadcrumb'
 import PageMetaData from '@/components/PageTitle'
+import ReactTable from '@/components/Table'
 import ProjectsListTableSkeleton from '@/components/skeletons/ProjectsListTableSkeleton'
 import { useGlobalContext } from '@/context/useGlobalContext'
 import useFetchList from '@/hooks/useFetchList'
 import Swal from 'sweetalert2'
+import useConfirmFieldForm from '@/hooks/useConfirmFieldForm'
 import StudentSelect from '../components/StudentSelect'
+import LmsListEmptyState from '../components/LmsListEmptyState'
+import useConfirmFormSubmit from '@/hooks/useConfirmFormSubmit'
+import { buildFormConfirmOptions } from '@/utils/formConfirm'
 
 const CourseEnrollments = () => {
   const { getAllEnrollments, getAllCourses, adminCreateEnrollment, revokeEnrollment } = useGlobalContext()
@@ -16,6 +21,7 @@ const CourseEnrollments = () => {
   const [courses, setCourses] = useState([])
   const [form, setForm] = useState({ userId: '', courseId: '' })
   const [saving, setSaving] = useState(false)
+  const confirmFormSubmit = useConfirmFormSubmit()
 
   const fetchEnrollments = useCallback(async () => {
     const response = await getAllEnrollments({ page, limit: 100 })
@@ -31,6 +37,88 @@ const CourseEnrollments = () => {
       .catch(() => setCourses([]))
   }, [getAllCourses])
 
+  const handleRevoke = useCallback(
+    async (enrollment) => {
+      const result = await Swal.fire({
+        title: 'Revoke enrollment?',
+        text: `Remove ${enrollment.userId?.email || 'this student'} from "${enrollment.courseId?.title || 'the course'}"?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Revoke',
+        confirmButtonColor: '#dc3545',
+      })
+
+      if (!result.isConfirmed) return
+
+      try {
+        await revokeEnrollment(enrollment._id)
+        refresh()
+        Swal.fire('Revoked', 'Enrollment has been revoked.', 'success')
+      } catch (error) {
+        Swal.fire('Error', error?.response?.data?.message || 'Could not revoke enrollment.', 'error')
+      }
+    },
+    [revokeEnrollment, refresh],
+  )
+
+  const columns = useMemo(
+    () => [
+      {
+        id: 'student',
+        header: 'Student',
+        cell: ({ row: { original: enrollment } }) => (
+          <>
+            {enrollment.userId?.firstname} {enrollment.userId?.lastname}
+            <br />
+            <small>{enrollment.userId?.email}</small>
+          </>
+        ),
+      },
+      {
+        id: 'course',
+        header: 'Course',
+        cell: ({ row: { original: enrollment } }) => enrollment.courseId?.title,
+      },
+      {
+        id: 'status',
+        header: 'Status',
+        cell: ({ row: { original: enrollment } }) => (
+          <Badge bg={enrollment.status === 'completed' ? 'success' : enrollment.status === 'revoked' ? 'secondary' : 'primary'}>
+            {enrollment.status}
+          </Badge>
+        ),
+      },
+      {
+        id: 'progress',
+        header: 'Progress',
+        cell: ({ row: { original: enrollment } }) => `${enrollment.progressPercent}%`,
+      },
+      {
+        id: 'source',
+        header: 'Source',
+        cell: ({ row: { original: enrollment } }) => enrollment.source,
+      },
+      {
+        id: 'enrolled',
+        header: 'Enrolled',
+        cell: ({ row: { original: enrollment } }) => new Date(enrollment.enrolledAt).toLocaleDateString(),
+      },
+      {
+        id: 'actions',
+        header: 'Actions',
+        cell: ({ row: { original: enrollment } }) =>
+          enrollment.status !== 'revoked' ? (
+            <Button size="sm" variant="outline-danger" onClick={() => handleRevoke(enrollment)}>
+              Revoke
+            </Button>
+          ) : null,
+      },
+    ],
+    [handleRevoke],
+  )
+
+  const emptyState = <LmsListEmptyState preset="enrollments" inTable onPrimaryAction={() => setShowCreate(true)} />
+
   const handleCreate = async (event) => {
     event.preventDefault()
     if (!form.userId || !form.courseId) {
@@ -38,42 +126,23 @@ const CourseEnrollments = () => {
       return
     }
 
-    setSaving(true)
-    try {
-      await adminCreateEnrollment({
-        userId: form.userId,
-        courseId: form.courseId,
-      })
-      setShowCreate(false)
-      setForm({ userId: '', courseId: '' })
-      refresh()
-      Swal.fire('Enrolled', 'The student has been enrolled.', 'success')
-    } catch (error) {
-      Swal.fire('Error', error?.response?.data?.message || 'Could not create enrollment.', 'error')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const handleRevoke = async (enrollment) => {
-    const result = await Swal.fire({
-      title: 'Revoke enrollment?',
-      text: `Remove ${enrollment.userId?.email || 'this student'} from "${enrollment.courseId?.title || 'the course'}"?`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'Revoke',
-      confirmButtonColor: '#dc3545',
+    await confirmFormSubmit(buildFormConfirmOptions('enroll'), async () => {
+      setSaving(true)
+      try {
+        await adminCreateEnrollment({
+          userId: form.userId,
+          courseId: form.courseId,
+        })
+        setShowCreate(false)
+        setForm({ userId: '', courseId: '' })
+        refresh()
+        Swal.fire('Enrolled', 'The student has been enrolled.', 'success')
+      } catch (error) {
+        Swal.fire('Error', error?.response?.data?.message || 'Could not create enrollment.', 'error')
+      } finally {
+        setSaving(false)
+      }
     })
-
-    if (!result.isConfirmed) return
-
-    try {
-      await revokeEnrollment(enrollment._id)
-      refresh()
-      Swal.fire('Revoked', 'Enrollment has been revoked.', 'success')
-    } catch (error) {
-      Swal.fire('Error', error?.response?.data?.message || 'Could not revoke enrollment.', 'error')
-    }
   }
 
   return (
@@ -93,46 +162,16 @@ const CourseEnrollments = () => {
                 <ProjectsListTableSkeleton />
               ) : (
                 <>
-                  <div className="table-responsive">
-                    <Table hover>
-                      <thead>
-                        <tr>
-                          <th>Student</th>
-                          <th>Course</th>
-                          <th>Status</th>
-                          <th>Progress</th>
-                          <th>Source</th>
-                          <th>Enrolled</th>
-                          <th>Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {enrollments.map((e) => (
-                          <tr key={e._id}>
-                            <td>
-                              {e.userId?.firstname} {e.userId?.lastname}
-                              <br />
-                              <small>{e.userId?.email}</small>
-                            </td>
-                            <td>{e.courseId?.title}</td>
-                            <td>
-                              <Badge bg={e.status === 'completed' ? 'success' : e.status === 'revoked' ? 'secondary' : 'primary'}>{e.status}</Badge>
-                            </td>
-                            <td>{e.progressPercent}%</td>
-                            <td>{e.source}</td>
-                            <td>{new Date(e.enrolledAt).toLocaleDateString()}</td>
-                            <td>
-                              {e.status !== 'revoked' && (
-                                <Button size="sm" variant="outline-danger" onClick={() => handleRevoke(e)}>
-                                  Revoke
-                                </Button>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </Table>
-                  </div>
+                  <ReactTable
+                    columns={columns}
+                    data={enrollments}
+                    rowsPerPageList={[5, 10, 20, 50]}
+                    pageSize={10}
+                    tableClass="text-nowrap mb-0 align-middle"
+                    theadClass="bg-light bg-opacity-50"
+                    showPagination={enrollments.length > 0}
+                    emptyState={emptyState}
+                  />
                   {pagination.totalPages > 1 && (
                     <div className="d-flex justify-content-between align-items-center mt-3">
                       <small className="text-muted">

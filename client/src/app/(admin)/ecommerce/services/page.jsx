@@ -17,7 +17,7 @@ const Services = () => {
   return (
     <>
       <PageMetaData title="Services List" />
-      <PageBreadcrumb title="Services List" subName="Vertex" />
+      <PageBreadcrumb title="Services List" subName="Handiz" />
       <Row>
         <Col>
           <Card>
@@ -33,7 +33,7 @@ const Services = () => {
             </CardBody>
             <div>
               {loading ? (
-                <ProjectsListTableSkeleton variant="vertex" />
+                <ProjectsListTableSkeleton variant="standard" />
               ) : servicesList.length > 0 ? (
                 <ServicesListTable services={servicesList} onRefresh={refresh} />
               ) : (

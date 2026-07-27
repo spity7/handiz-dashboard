@@ -1,3 +1,6 @@
+const {
+  normalizeMarketingVideosInput,
+} = require("../utils/courseMarketingVideos");
 const Course = require("../models/courseModel");
 const CourseModule = require("../models/courseModuleModel");
 const Lesson = require("../models/lessonModel");
@@ -397,6 +400,7 @@ exports.createCourse = async (req, res) => {
       level,
       tags,
       heroHighlights,
+      marketingVideos,
       order,
       isFree,
       price,
@@ -499,6 +503,15 @@ exports.createCourse = async (req, res) => {
 
     const resolvedInstructorId = instructorId || req.user._id;
 
+    let parsedMarketingVideos = [];
+    if (marketingVideos !== undefined && marketingVideos !== "") {
+      const marketingResult = normalizeMarketingVideosInput(marketingVideos);
+      if (marketingResult.error) {
+        return res.status(400).json({ message: marketingResult.error });
+      }
+      parsedMarketingVideos = marketingResult.videos;
+    }
+
     const course = await Course.create({
       title,
       slug,
@@ -510,6 +523,7 @@ exports.createCourse = async (req, res) => {
       level,
       tags: parseJsonField(tags, []) || [],
       heroHighlights: parseJsonField(heroHighlights, []) || [],
+      marketingVideos: parsedMarketingVideos,
       order: order ? Number(order) : 999,
       status: resolvedStatus,
       pricing,
@@ -568,6 +582,7 @@ exports.updateCourse = async (req, res) => {
       level,
       tags,
       heroHighlights,
+      marketingVideos,
       order,
       isFree,
       price,
@@ -597,6 +612,13 @@ exports.updateCourse = async (req, res) => {
     if (heroHighlights !== undefined) {
       course.heroHighlights =
         parseJsonField(heroHighlights, course.heroHighlights) || [];
+    }
+    if (marketingVideos !== undefined) {
+      const marketingResult = normalizeMarketingVideosInput(marketingVideos);
+      if (marketingResult.error) {
+        return res.status(400).json({ message: marketingResult.error });
+      }
+      course.marketingVideos = marketingResult.videos;
     }
     if (order !== undefined) course.order = Number(order);
 

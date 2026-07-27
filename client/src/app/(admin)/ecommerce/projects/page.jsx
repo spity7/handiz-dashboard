@@ -14,7 +14,7 @@ const Projects = () => {
   return (
     <>
       <PageMetaData title="Projects List" />
-      <PageBreadcrumb title="Projects List" subName="Vertex" />
+      <PageBreadcrumb title="Projects List" subName="Handiz" />
       <Row>
         <Col>
           <Card>

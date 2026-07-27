@@ -4,6 +4,7 @@ import { Badge, Button, Form, Spinner } from 'react-bootstrap'
 import { Link } from 'react-router-dom'
 import Swal from 'sweetalert2'
 import ReactTable from '@/components/Table'
+import LmsListEmptyState from './LmsListEmptyState'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
 import { useGlobalContext } from '@/context/useGlobalContext'
 import { formatUsd, getPublicPriceDisplay } from '@/utils/coursePricing'
@@ -537,18 +538,7 @@ const CoursesListTable = ({ courses, onRefresh, refreshing = false }) => {
 
   const emptyState =
     isFilteredEmpty || isFullyEmpty ? (
-      <div className="text-center p-4">
-        {isFilteredEmpty ? (
-          <>
-            <p className="text-muted mb-3">No courses match the current filters.</p>
-            <Button variant="outline-primary" size="sm" onClick={clearFilters}>
-              Clear filters
-            </Button>
-          </>
-        ) : (
-          <span>No courses found. Create your first course.</span>
-        )}
-      </div>
+      <LmsListEmptyState preset="courses" variant={isFilteredEmpty ? 'filtered' : 'empty'} inTable onClearFilters={clearFilters} />
     ) : null
 
   return (

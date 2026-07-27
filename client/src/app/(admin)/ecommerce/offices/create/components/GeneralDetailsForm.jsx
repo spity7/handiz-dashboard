@@ -11,6 +11,22 @@ import 'react-quill/dist/quill.snow.css'
 import { useGlobalContext } from '@/context/useGlobalContext'
 import ThumbnailDropzoneInput from '@/components/form/ThumbnailDropzoneInput'
 import ComponentContainerCard from '@/components/ComponentContainerCard'
+import useConfirmFormSubmit from '@/hooks/useConfirmFormSubmit'
+import { buildFormConfirmOptions } from '@/utils/formConfirm'
+import useRegisterRhfFormDirty from '@/hooks/useRegisterRhfFormDirty'
+
+const OFFICE_FORM_DEFAULTS = {
+  title: '',
+  location: [],
+  locationMap: '',
+  email: '',
+  instagram: '',
+  linkedin: '',
+  order: 999,
+  teamNb: 0,
+  category: [],
+  status: [],
+}
 
 const generalFormSchema = yup.object({
   title: yup.string().required('Office title is required'),
@@ -32,6 +48,7 @@ const normalizeQuillValue = (value) => {
 
 const GeneralDetailsForm = () => {
   const { createOffice } = useGlobalContext()
+  const confirmFormSubmit = useConfirmFormSubmit()
   const [loading, setLoading] = useState(false)
   const [thumbnailFile, setThumbnailFile] = useState(null)
   const [resetDropzones, setResetDropzones] = useState(false)
@@ -40,72 +57,69 @@ const GeneralDetailsForm = () => {
     control,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm({
+    mode: 'onChange',
     resolver: yupResolver(generalFormSchema),
-    defaultValues: {
-      title: '',
-      location: [],
-      locationMap: '',
-      email: '',
-      instagram: '',
-      linkedin: '',
-      order: 999,
-      teamNb: 0,
-      category: [],
-      status: [],
-    },
+    defaultValues: OFFICE_FORM_DEFAULTS,
   })
 
+  const formValues = watch()
+  useRegisterRhfFormDirty(OFFICE_FORM_DEFAULTS, formValues, { extraDirty: Boolean(thumbnailFile) })
+
   const onSubmit = async (data) => {
-    try {
-      setLoading(true)
-      if (!thumbnailFile) {
-        alert('Thumbnail image is required')
-        return
-      }
-
-      const formData = new FormData()
-      formData.append('title', data.title)
-      formData.append('locationMap', data.locationMap)
-      formData.append('email', data.email)
-      formData.append('instagram', data.instagram)
-      formData.append('linkedin', data.linkedin)
-
-      formData.append('thumbnail', thumbnailFile)
-      formData.append('order', data.order)
-      formData.append('teamNb', data.teamNb)
-
-      data.category.forEach((value) => formData.append('category', value))
-      data.location.forEach((value) => formData.append('location', value))
-      data.status.forEach((value) => formData.append('status', value))
-
-      await createOffice(formData)
-
-      alert('Office created successfully!')
-
-      // ✅ Clear all form fields properly
-      reset({
-        title: '',
-        location: [],
-        locationMap: '',
-        email: '',
-        instagram: '',
-        linkedin: '',
-        order: 999,
-        teamNb: 0,
-        category: [],
-        status: [],
-      })
-
-      setThumbnailFile(null)
-      setResetDropzones(true)
-      setTimeout(() => setResetDropzones(false), 0) // reset flag
-    } catch (error) {
-      alert(error?.response?.data?.message || '❌ Failed to create Office')
-    } finally {
-      setLoading(false)
+    if (!thumbnailFile) {
+      alert('Thumbnail image is required')
+      return
     }
+
+    await confirmFormSubmit(buildFormConfirmOptions('create', { subject: 'this office' }), async () => {
+      try {
+        setLoading(true)
+
+        const formData = new FormData()
+        formData.append('title', data.title)
+        formData.append('locationMap', data.locationMap)
+        formData.append('email', data.email)
+        formData.append('instagram', data.instagram)
+        formData.append('linkedin', data.linkedin)
+
+        formData.append('thumbnail', thumbnailFile)
+        formData.append('order', data.order)
+        formData.append('teamNb', data.teamNb)
+
+        data.category.forEach((value) => formData.append('category', value))
+        data.location.forEach((value) => formData.append('location', value))
+        data.status.forEach((value) => formData.append('status', value))
+
+        await createOffice(formData)
+
+        alert('Office created successfully!')
+
+        // ✅ Clear all form fields properly
+        reset({
+          title: '',
+          location: [],
+          locationMap: '',
+          email: '',
+          instagram: '',
+          linkedin: '',
+          order: 999,
+          teamNb: 0,
+          category: [],
+          status: [],
+        })
+
+        setThumbnailFile(null)
+        setResetDropzones(true)
+        setTimeout(() => setResetDropzones(false), 0) // reset flag
+      } catch (error) {
+        alert(error?.response?.data?.message || '❌ Failed to create Office')
+      } finally {
+        setLoading(false)
+      }
+    })
   }
 
   const toggleCheckboxValue = (value, field) => {

@@ -19,6 +19,13 @@ import RequireProfileComplete from '@/components/auth/RequireProfileComplete'
 import { sortOthersLast } from '@/utils/sortOthersLast'
 import { renameKeys } from '@/utils/rename-object-keys'
 import 'react-quill/dist/quill.snow.css'
+import useRegisterUnsavedFormDirty from '@/hooks/useRegisterUnsavedFormDirty'
+
+const serializeContentBlocks = (blocks) =>
+  (blocks || []).map((block) => ({
+    type: block.type,
+    content: typeof block.content === 'string' ? block.content : block.content ? '__file__' : '',
+  }))
 
 const EditProject = () => {
   const { id } = useParams()
@@ -71,6 +78,7 @@ const EditProject = () => {
   const [locationsLoading, setLocationsLoading] = useState(true)
   const [universities, setUniversities] = useState([])
   const [universitiesLoading, setUniversitiesLoading] = useState(true)
+  const [loadedSnapshot, setLoadedSnapshot] = useState(null)
 
   const addBlock = (type) => {
     setDynamicBlocks((prev) => [
@@ -129,6 +137,25 @@ const EditProject = () => {
             })),
           )
         }
+
+        setLoadedSnapshot({
+          title: data.title,
+          student: data.student,
+          area: data.area,
+          description: data.description,
+          order: data.order ?? 999,
+          concept: data.concept || [],
+          category: data.category || [],
+          type: data.type || [],
+          year: data.year || [],
+          location: data.location || [],
+          university: data.university || [],
+          googleMapUrl: data.googleMapUrl || '',
+          thesisUrl: data.thesisUrl || '',
+          fileUrl: data.fileUrl || '',
+          contentBlocks: serializeContentBlocks(data.contentBlocks),
+          gallery: data.gallery || [],
+        })
       } catch (error) {
         alert('Failed to load project')
       }
@@ -216,6 +243,30 @@ const EditProject = () => {
     getStudentProjectLocations,
     getStudentProjectUniversities,
   ])
+
+  const currentSnapshot = {
+    title,
+    student,
+    area,
+    description,
+    order,
+    concept,
+    category,
+    type,
+    year,
+    location,
+    university,
+    googleMapUrl,
+    thesisUrl,
+    fileUrl,
+    contentBlocks: serializeContentBlocks(dynamicBlocks),
+    gallery: existingGallery,
+  }
+
+  useRegisterUnsavedFormDirty(loadedSnapshot, currentSnapshot, {
+    enabled: Boolean(loadedSnapshot),
+    extraDirty: Boolean(thumbnail) || galleryFiles.length > 0,
+  })
 
   const handleFileChange = (e) => {
     readThumbnailInput(e, {

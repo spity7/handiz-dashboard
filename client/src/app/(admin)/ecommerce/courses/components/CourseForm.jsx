@@ -1,12 +1,15 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import { Badge, Button, Card, Col, Form, InputGroup, Row, Spinner } from 'react-bootstrap'
 import { useNavigate } from 'react-router-dom'
 import Swal from 'sweetalert2'
 import ThumbnailDropzoneInput from '@/components/form/ThumbnailDropzoneInput'
 import RequiredFormLabel from '@/components/form/RequiredFormLabel'
 import { useAuthContext } from '@/context/useAuthContext'
+import { useUnsavedFormChanges } from '@/context/UnsavedFormChangesContext'
 import { useGlobalContext } from '@/context/useGlobalContext'
 import InstructorSelect from './InstructorSelect'
+import CourseMarketingVideosEditor from './CourseMarketingVideosEditor'
+import { marketingVideosFormDirty, marketingVideosFromCourse, serializeMarketingVideosForApi } from '../utils/courseMarketingVideos'
 import {
   DISCOUNT_TYPE,
   MIN_PAID_COURSE_PRICE,
@@ -20,6 +23,11 @@ import {
   previewPricing,
   toDatetimeLocalValue,
 } from '@/utils/coursePricing'
+import useConfirmFormSubmit from '@/hooks/useConfirmFormSubmit'
+import { buildFormConfirmOptions } from '@/utils/formConfirm'
+import useRegisterUnsavedFormDirty from '@/hooks/useRegisterUnsavedFormDirty'
+import { formsDiffer } from '@/utils/formDirtyCompare'
+import { pickComparableFormValues } from '@/utils/formFieldCompare'
 
 const apiErrorMessage = (error, fallback) => {
   const data = error?.response?.data
@@ -44,7 +52,12 @@ const normalizeTags = (tags) => {
 }
 
 const normalizePrice = (price, isFree) => {
-  if (isFree && (price === '' || price === null || price === undefined)) return ''
+  if (isFree) {
+    if (price === '' || price === null || price === undefined) return ''
+    const num = Number(price)
+    if (!Number.isFinite(num) || num <= 0) return ''
+    return num
+  }
   const num = Number(price)
   return Number.isFinite(num) ? num : 0
 }
@@ -62,8 +75,29 @@ const normalizeHeroHighlights = (highlights) => {
 
 const serializeHeroHighlights = (highlights) => normalizeHeroHighlights(highlights).join('\n')
 
+const emptyCourseFormValues = (currentUser) => ({
+  title: '',
+  excerpt: '',
+  description: '',
+  level: 'Beginner',
+  heroHighlights: '',
+  order: 999,
+  isFree: true,
+  price: '',
+  discountEnabled: false,
+  discountType: DISCOUNT_TYPE.PERCENT,
+  discountValue: 0,
+  discountHasExpiry: false,
+  discountEndsAt: '',
+  freeHasExpiry: false,
+  freeEndsAt: '',
+  status: 'Draft',
+  tags: '',
+  instructorId: String(currentUser?._id || ''),
+})
+
 const buildFormValuesFromCourse = (course, currentUser) => {
-  if (!course) return null
+  if (!course) return emptyCourseFormValues(currentUser)
 
   const instructorId = typeof course.instructorId === 'object' ? course.instructorId._id : course.instructorId || currentUser?._id || ''
 
@@ -89,38 +123,100 @@ const buildFormValuesFromCourse = (course, currentUser) => {
   }
 }
 
-const courseFormHasChanges = (form, saved, { hasNewThumbnail, hasNewHeroDesktop, hasNewHeroMobile }) => {
-  if (hasNewThumbnail || hasNewHeroDesktop || hasNewHeroMobile) return true
-  if (!saved) return false
+const getComparableFormValues = (form) => ({
+  title: form.title || '',
+  excerpt: form.excerpt || '',
+  description: form.description || '',
+  level: form.level || 'Beginner',
+  heroHighlights: serializeHeroHighlights(form.heroHighlights),
+  order: Number(form.order ?? 999),
+  isFree: Boolean(form.isFree),
+  price: normalizePrice(form.price, form.isFree),
+  discountEnabled: Boolean(form.discountEnabled),
+  discountType: form.discountType || DISCOUNT_TYPE.PERCENT,
+  discountValue: Number(form.discountValue ?? 0),
+  discountHasExpiry: Boolean(form.discountHasExpiry),
+  discountEndsAt: form.discountEndsAt || '',
+  freeHasExpiry: Boolean(form.freeHasExpiry),
+  freeEndsAt: form.freeEndsAt || '',
+  status: form.status || 'Draft',
+  tags: normalizeTags(form.tags),
+  instructorId: String(form.instructorId || ''),
+})
 
-  const scalarFields = ['title', 'excerpt', 'description', 'level', 'status', 'discountType', 'discountEndsAt', 'freeEndsAt']
+const courseFormSavedToRawShape = (saved) => ({
+  title: saved.title ?? '',
+  excerpt: saved.excerpt ?? '',
+  description: saved.description ?? '',
+  level: saved.level ?? 'Beginner',
+  heroHighlights: saved.heroHighlights ?? '',
+  order: saved.order ?? 999,
+  isFree: saved.isFree ?? true,
+  price: saved.price ?? '',
+  discountEnabled: saved.discountEnabled ?? false,
+  discountType: saved.discountType || DISCOUNT_TYPE.PERCENT,
+  discountValue: saved.discountValue ?? 0,
+  discountHasExpiry: saved.discountHasExpiry ?? false,
+  discountEndsAt: saved.discountEndsAt ?? '',
+  freeHasExpiry: saved.freeHasExpiry ?? false,
+  freeEndsAt: saved.freeEndsAt ?? '',
+  status: saved.status ?? 'Draft',
+  tags: typeof saved.tags === 'string' ? saved.tags : normalizeTags(saved.tags),
+  instructorId: saved.instructorId ?? '',
+})
 
-  if (scalarFields.some((key) => String(form[key] ?? '') !== String(saved[key] ?? ''))) {
-    return true
+const buildComparableFromSaved = (saved) => {
+  const keys = Object.keys(saved)
+  const comparable = getComparableFormValues(courseFormSavedToRawShape(saved))
+  return pickComparableFormValues(comparable, keys, saved)
+}
+
+const buildInitialCourseFormState = (course, currentUser) => {
+  const saved = buildFormValuesFromCourse(course, currentUser)
+  return {
+    title: saved.title,
+    excerpt: saved.excerpt,
+    description: saved.description,
+    level: saved.level,
+    heroHighlights: saved.heroHighlights,
+    order: saved.order,
+    isFree: saved.isFree,
+    price: saved.price,
+    discountEnabled: saved.discountEnabled,
+    discountType: saved.discountType,
+    discountValue: saved.discountValue,
+    discountHasExpiry: saved.discountHasExpiry,
+    discountEndsAt: saved.discountEndsAt,
+    freeHasExpiry: saved.freeHasExpiry,
+    freeEndsAt: saved.freeEndsAt,
+    status: saved.status,
+    tags: course ? (course.tags || []).join(', ') : '',
+    instructorId: saved.instructorId,
   }
+}
 
-  if (Boolean(form.isFree) !== Boolean(saved.isFree)) return true
-  if (Boolean(form.discountEnabled) !== Boolean(saved.discountEnabled)) return true
-  if (Boolean(form.discountHasExpiry) !== Boolean(saved.discountHasExpiry)) return true
-  if (Boolean(form.freeHasExpiry) !== Boolean(saved.freeHasExpiry)) return true
-  if (!sameId(form.instructorId, saved.instructorId)) return true
-  if (Number(form.order) !== Number(saved.order)) return true
-  if (normalizePrice(form.price, form.isFree) !== normalizePrice(saved.price, saved.isFree)) return true
-  if (Number(form.discountValue) !== Number(saved.discountValue)) return true
-  if (normalizeTags(form.tags) !== saved.tags) return true
-  if (serializeHeroHighlights(form.heroHighlights) !== saved.heroHighlights) return true
+const courseFormHasChanges = (form, saved, { hasNewThumbnail, hasNewHeroDesktop, hasNewHeroMobile, marketingVideos, savedMarketingVideos }) => {
+  if (hasNewThumbnail || hasNewHeroDesktop || hasNewHeroMobile) return true
+  if (marketingVideosFormDirty(marketingVideos, savedMarketingVideos)) return true
+  if (!saved) return false
+  return formsDiffer(buildComparableFromSaved(saved), buildComparableFromForm(form, saved))
+}
 
-  return false
+const buildComparableFromForm = (form, referenceSaved) => {
+  const keys = Object.keys(referenceSaved)
+  const comparable = getComparableFormValues(form)
+  return pickComparableFormValues(comparable, keys, referenceSaved)
 }
 
 const CourseForm = ({ course = null, onSaved, disabled = false }) => {
   const { createCourse, updateCourse } = useGlobalContext()
-  const { user: currentUser } = useAuthContext()
+  const { user: currentUser, loading: authLoading } = useAuthContext()
+  const { acknowledgeSuccessfulFormSave } = useUnsavedFormChanges()
   const navigate = useNavigate()
+  const confirmFormSubmit = useConfirmFormSubmit()
   const isEditing = Boolean(course?._id)
   const canPublish = (course?.lessonCount ?? 0) > 0
   const showDraftOnlyStatus = !isEditing || (course?.status === 'Draft' && !canPublish)
-  const resolvedInstructorId = typeof course?.instructorId === 'object' ? course.instructorId._id : course?.instructorId || currentUser?._id || ''
   const instructorUser = useMemo(() => {
     if (course?.instructorId && typeof course.instructorId === 'object') return course.instructorId
     if (!isEditing && currentUser) return currentUser
@@ -130,31 +226,25 @@ const CourseForm = ({ course = null, onSaved, disabled = false }) => {
   const [thumbnailFile, setThumbnailFile] = useState(null)
   const [heroImageDesktopFile, setHeroImageDesktopFile] = useState(null)
   const [heroImageMobileFile, setHeroImageMobileFile] = useState(null)
-  const [form, setForm] = useState({
-    title: course?.title || '',
-    excerpt: course?.excerpt || '',
-    description: course?.description || '',
-    level: course?.level || 'Beginner',
-    heroHighlights: serializeHeroHighlights(course?.heroHighlights || []),
-    order: course?.order ?? 999,
-    isFree: course?.pricing?.isFree ?? true,
-    price: course?.pricing?.isFree ? course?.pricing?.price ?? '' : course?.pricing?.price ?? 0,
-    discountEnabled: course?.pricing?.discount?.enabled ?? false,
-    discountType: course?.pricing?.discount?.type || DISCOUNT_TYPE.PERCENT,
-    discountValue: course?.pricing?.discount?.value ?? 0,
-    discountHasExpiry: Boolean(course?.pricing?.discount?.endsAt),
-    discountEndsAt: toDatetimeLocalValue(course?.pricing?.discount?.endsAt),
-    freeHasExpiry: Boolean(course?.pricing?.freeEndsAt),
-    freeEndsAt: toDatetimeLocalValue(course?.pricing?.freeEndsAt),
-    status: course?.status || 'Draft',
-    tags: (course?.tags || []).join(', '),
-    instructorId: resolvedInstructorId,
-  })
+  const [marketingVideos, setMarketingVideos] = useState(() => marketingVideosFromCourse(course?.marketingVideos))
+  const [form, setForm] = useState(() => buildInitialCourseFormState(course, currentUser))
+
+  const savedMarketingVideos = useMemo(() => marketingVideosFromCourse(course?.marketingVideos), [course?._id, course?.marketingVideos])
+
+  useEffect(() => {
+    setMarketingVideos(marketingVideosFromCourse(course?.marketingVideos))
+  }, [course?._id, course?.marketingVideos])
 
   useEffect(() => {
     if (!course?.status) return
     setForm((prev) => (prev.status === course.status ? prev : { ...prev, status: course.status }))
   }, [course?.status])
+
+  useLayoutEffect(() => {
+    if (isEditing || !currentUser?._id) return
+    const nextInstructorId = String(currentUser._id)
+    setForm((prev) => (sameId(prev.instructorId, nextInstructorId) ? prev : { ...prev, instructorId: nextInstructorId }))
+  }, [isEditing, currentUser?._id])
 
   const hasThumbnail = Boolean(thumbnailFile) || Boolean(course?.thumbnailUrl)
   const hasHeroDesktop = Boolean(heroImageDesktopFile) || Boolean(course?.heroImageDesktopUrl)
@@ -191,7 +281,17 @@ const CourseForm = ({ course = null, onSaved, disabled = false }) => {
     ],
   )
 
-  const savedFormValues = useMemo(() => buildFormValuesFromCourse(course, currentUser), [course, currentUser])
+  const currentUserId = currentUser?._id
+
+  const savedFormValues = useMemo(() => buildFormValuesFromCourse(course, currentUser), [course, currentUserId])
+
+  const dirtyReference = savedFormValues
+
+  const dirtySnapshot = useMemo(() => buildComparableFromSaved(dirtyReference), [dirtyReference])
+
+  const dirtyCurrent = useMemo(() => buildComparableFromForm(form, dirtyReference), [form, dirtyReference])
+
+  const createInstructorSynced = !currentUserId || sameId(form.instructorId, currentUserId)
 
   const hasChanges = useMemo(
     () =>
@@ -199,9 +299,21 @@ const CourseForm = ({ course = null, onSaved, disabled = false }) => {
         hasNewThumbnail: Boolean(thumbnailFile),
         hasNewHeroDesktop: Boolean(heroImageDesktopFile),
         hasNewHeroMobile: Boolean(heroImageMobileFile),
+        marketingVideos,
+        savedMarketingVideos,
       }),
-    [form, savedFormValues, thumbnailFile, heroImageDesktopFile, heroImageMobileFile],
+    [form, savedFormValues, thumbnailFile, heroImageDesktopFile, heroImageMobileFile, marketingVideos, savedMarketingVideos],
   )
+
+  useRegisterUnsavedFormDirty(dirtySnapshot, dirtyCurrent, {
+    enabled: !disabled && !authLoading && (isEditing || createInstructorSynced),
+    extraDirty:
+      Boolean(thumbnailFile) ||
+      Boolean(heroImageDesktopFile) ||
+      Boolean(heroImageMobileFile) ||
+      marketingVideosFormDirty(marketingVideos, savedMarketingVideos),
+    trackingMode: isEditing ? 'snapshot' : 'defaults',
+  })
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target
@@ -322,60 +434,70 @@ const CourseForm = ({ course = null, onSaved, disabled = false }) => {
       }
     }
 
-    setLoading(true)
-    try {
-      const formData = new FormData()
-      const freeHasExpiryToSave = form.isFree && canSaveFreeExpiration && form.freeHasExpiry
-      Object.entries(form).forEach(([key, value]) => {
-        if (key === 'freeHasExpiry') {
-          formData.append(key, freeHasExpiryToSave ? 'true' : 'false')
-          return
-        }
-        if (key === 'freeEndsAt') {
-          if (freeHasExpiryToSave && value) formData.append(key, value)
-          return
-        }
-        if (key === 'tags') {
-          formData.append(
-            'tags',
-            JSON.stringify(
-              value
-                .split(',')
-                .map((t) => t.trim())
-                .filter(Boolean),
-            ),
-          )
-        } else if (key === 'heroHighlights') {
-          formData.append('heroHighlights', JSON.stringify(normalizeHeroHighlights(value)))
-        } else if (key === 'instructorId') {
-          if (String(value).trim()) formData.append(key, String(value).trim())
-        } else if (key === 'price' && form.isFree && (value === '' || value === null)) {
-          formData.append(key, '0')
-        } else {
-          formData.append(key, value)
-        }
-      })
-      if (thumbnailFile) formData.append('thumbnail', thumbnailFile)
-      if (heroImageDesktopFile) formData.append('heroImageDesktop', heroImageDesktopFile)
-      if (heroImageMobileFile) formData.append('heroImageMobile', heroImageMobileFile)
+    const submitCourse = async () => {
+      setLoading(true)
+      try {
+        const formData = new FormData()
+        const freeHasExpiryToSave = form.isFree && canSaveFreeExpiration && form.freeHasExpiry
+        Object.entries(form).forEach(([key, value]) => {
+          if (key === 'freeHasExpiry') {
+            formData.append(key, freeHasExpiryToSave ? 'true' : 'false')
+            return
+          }
+          if (key === 'freeEndsAt') {
+            if (freeHasExpiryToSave && value) formData.append(key, value)
+            return
+          }
+          if (key === 'tags') {
+            formData.append(
+              'tags',
+              JSON.stringify(
+                value
+                  .split(',')
+                  .map((t) => t.trim())
+                  .filter(Boolean),
+              ),
+            )
+          } else if (key === 'heroHighlights') {
+            formData.append('heroHighlights', JSON.stringify(normalizeHeroHighlights(value)))
+          } else if (key === 'instructorId') {
+            if (String(value).trim()) formData.append(key, String(value).trim())
+          } else if (key === 'price' && form.isFree && (value === '' || value === null)) {
+            formData.append(key, '0')
+          } else {
+            formData.append(key, value)
+          }
+        })
+        if (thumbnailFile) formData.append('thumbnail', thumbnailFile)
+        if (heroImageDesktopFile) formData.append('heroImageDesktop', heroImageDesktopFile)
+        if (heroImageMobileFile) formData.append('heroImageMobile', heroImageMobileFile)
+        formData.append('marketingVideos', JSON.stringify(serializeMarketingVideosForApi(marketingVideos)))
 
-      if (course?._id) {
-        await updateCourse(course._id, formData)
-        setThumbnailFile(null)
-        setHeroImageDesktopFile(null)
-        setHeroImageMobileFile(null)
-        onSaved?.()
-        await Swal.fire('Saved', 'Course updated successfully.', 'success')
-      } else {
-        const result = await createCourse(formData)
-        await Swal.fire('Created', 'Course created successfully.', 'success')
-        navigate(`/ecommerce/courses/edit/${result.course._id}`)
+        if (course?._id) {
+          await updateCourse(course._id, formData)
+          setThumbnailFile(null)
+          setHeroImageDesktopFile(null)
+          setHeroImageMobileFile(null)
+          acknowledgeSuccessfulFormSave()
+          onSaved?.()
+          await Swal.fire('Saved', 'Course updated successfully.', 'success')
+        } else {
+          const result = await createCourse(formData)
+          setThumbnailFile(null)
+          setHeroImageDesktopFile(null)
+          setHeroImageMobileFile(null)
+          acknowledgeSuccessfulFormSave()
+          await Swal.fire('Created', 'Course created successfully.', 'success')
+          navigate(`/ecommerce/courses/edit/${result.course._id}`)
+        }
+      } catch (error) {
+        Swal.fire('Error', apiErrorMessage(error, 'Failed to save course'), 'error')
+      } finally {
+        setLoading(false)
       }
-    } catch (error) {
-      Swal.fire('Error', apiErrorMessage(error, 'Failed to save course'), 'error')
-    } finally {
-      setLoading(false)
     }
+
+    await confirmFormSubmit(buildFormConfirmOptions(isEditing ? 'update' : 'create', { subject: 'this course' }), submitCourse)
   }
 
   return (
@@ -459,6 +581,8 @@ const CourseForm = ({ course = null, onSaved, disabled = false }) => {
         </Card.Body>
       </Card>
 
+      <CourseMarketingVideosEditor videos={marketingVideos} onChange={setMarketingVideos} />
+
       <Card className="mb-4 border">
         <Card.Header className="bg-light fw-semibold">Course page highlights</Card.Header>
         <Card.Body>
@@ -473,7 +597,7 @@ const CourseForm = ({ course = null, onSaved, disabled = false }) => {
               name="heroHighlights"
               value={form.heroHighlights}
               onChange={handleChange}
-              placeholder={'Under 1 hour of premium content\n1 step-by-step video lesson\nLifetime access\nFuture updates included'}
+              placeholder={'e.g. 10+ step-by-step video lessons\nSelf-paced — learn anytime\nLifetime access\nCertificate of completion'}
             />
             <Form.Text muted>Enter one highlight per line.</Form.Text>
           </Form.Group>
@@ -555,7 +679,7 @@ const CourseForm = ({ course = null, onSaved, disabled = false }) => {
               value={form.instructorId}
               selectedUser={instructorUser}
               disabled={disabled || loading}
-              onChange={(instructorId) => setForm((prev) => ({ ...prev, instructorId }))}
+              onChange={(instructorId) => setForm((prev) => ({ ...prev, instructorId: String(instructorId || '') }))}
             />
           </Form.Group>
         </Col>

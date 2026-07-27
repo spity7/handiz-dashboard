@@ -94,6 +94,21 @@ const courseSchema = new mongoose.Schema(
       type: [{ type: String, trim: true }],
       default: [],
     },
+    marketingVideos: {
+      type: [
+        {
+          url: { type: String, trim: true, default: "" },
+          embedUrl: { type: String, trim: true, default: "" },
+          thumbnailUrl: { type: String, trim: true, default: "" },
+          order: { type: Number, default: 0 },
+        },
+      ],
+      default: [],
+      validate: {
+        validator: (videos) => !videos || videos.length <= 3,
+        message: "A course can have at most 3 marketing videos.",
+      },
+    },
     order: {
       type: Number,
       default: 999,

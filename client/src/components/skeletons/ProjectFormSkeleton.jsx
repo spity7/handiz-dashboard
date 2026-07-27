@@ -20,7 +20,7 @@ const CheckboxFieldSkeleton = () => (
   </div>
 )
 
-const VertexFormSkeleton = () => (
+const StandardFormSkeleton = () => (
   <div className="project-form-skeleton placeholder-glow" aria-hidden="true">
     {Array.from({ length: 5 }, (_, index) => (
       <FormFieldSkeleton key={index} />
@@ -99,7 +99,7 @@ const StudentFormSkeleton = () => (
 )
 
 const ProjectFormSkeleton = ({ variant = 'student', title = 'Edit Project', subName = 'Handiz', showLayout = true }) => {
-  const form = variant === 'vertex' ? <VertexFormSkeleton /> : <StudentFormSkeleton />
+  const form = variant === 'standard' ? <StandardFormSkeleton /> : <StudentFormSkeleton />
 
   if (!showLayout) {
     return (

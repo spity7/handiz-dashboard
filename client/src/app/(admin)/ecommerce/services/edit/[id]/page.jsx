@@ -7,10 +7,14 @@ import ProjectFormSkeleton from '@/components/skeletons/ProjectFormSkeleton'
 import { useGlobalContext } from '@/context/useGlobalContext'
 import ReactQuill from 'react-quill'
 import 'react-quill/dist/quill.snow.css'
+import useConfirmFormSubmit from '@/hooks/useConfirmFormSubmit'
+import { buildFormConfirmOptions } from '@/utils/formConfirm'
+import useRegisterUnsavedFormDirty from '@/hooks/useRegisterUnsavedFormDirty'
 
 const EditService = () => {
   const { id } = useParams()
   const navigate = useNavigate()
+  const confirmFormSubmit = useConfirmFormSubmit()
   const { getServiceById, updateService } = useGlobalContext()
   const [service, setService] = useState(null)
   const [name, setName] = useState('')
@@ -34,6 +38,10 @@ const EditService = () => {
     fetchService()
   }, [id, getServiceById])
 
+  const serviceFormSnapshot = service ? { name: service.name, description: service.description } : null
+  const serviceFormCurrent = { name, description }
+  useRegisterUnsavedFormDirty(serviceFormSnapshot, serviceFormCurrent, { extraDirty: Boolean(icon) })
+
   const handleFileChange = (e) => {
     const file = e.target.files[0]
     if (file && file.type.startsWith('image/')) {
@@ -49,29 +57,31 @@ const EditService = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    try {
-      setLoading(true)
-      const formData = new FormData()
-      formData.append('name', name)
-      formData.append('description', description)
-      if (icon) formData.append('icon', icon)
+    await confirmFormSubmit(buildFormConfirmOptions('update', { subject: 'this service' }), async () => {
+      try {
+        setLoading(true)
+        const formData = new FormData()
+        formData.append('name', name)
+        formData.append('description', description)
+        if (icon) formData.append('icon', icon)
 
-      await updateService(id, formData)
-      alert('Service updated successfully!')
-      navigate('/ecommerce/services')
-    } catch (error) {
-      alert(error?.response?.data?.message || 'Update failed')
-    } finally {
-      setLoading(false)
-    }
+        await updateService(id, formData)
+        alert('Service updated successfully!')
+        navigate('/ecommerce/services')
+      } catch (error) {
+        alert(error?.response?.data?.message || 'Update failed')
+      } finally {
+        setLoading(false)
+      }
+    })
   }
 
-  if (!service) return <ProjectFormSkeleton variant="vertex" title="Edit Service" subName="Vertex" />
+  if (!service) return <ProjectFormSkeleton variant="standard" title="Edit Service" subName="Handiz" />
 
   return (
     <>
       <PageMetaData title="Edit Service" />
-      <PageBreadcrumb title="Edit Service" subName="Vertex" />
+      <PageBreadcrumb title="Edit Service" subName="Handiz" />
       <Row>
         <Col>
           <Card>

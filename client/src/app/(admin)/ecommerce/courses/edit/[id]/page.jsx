@@ -12,6 +12,10 @@ import LessonContentBlocksEditor, { mapContentBlocksFromApi } from '../../compon
 import { buildContentBlocksFormData, getLessonVideoBadge, getVideoStatusLabel, validateLessonForm } from '../../components/lessonFormUtils'
 import CurriculumReorderDock from '../../components/CurriculumReorderDock'
 import { uploadVideoToVdocipher } from '@/utils/uploadVideoToVdocipher'
+import useConfirmFormSubmit from '@/hooks/useConfirmFormSubmit'
+import { buildFormConfirmOptions } from '@/utils/formConfirm'
+import useGuardedAction from '@/hooks/useGuardedAction'
+import useRegisterUnsavedFormChanges from '@/hooks/useRegisterUnsavedFormChanges'
 
 const apiErrorMessage = (error, fallback) => {
   const data = error?.response?.data
@@ -85,6 +89,8 @@ const ReorderGrip = ({ onDragStart, onDragEnd }) => (
 
 const EditCourse = () => {
   const { id } = useParams()
+  const confirmFormSubmit = useConfirmFormSubmit()
+  const guardAction = useGuardedAction()
   const {
     getCourseById,
     getCourseAnalytics,
@@ -137,6 +143,8 @@ const EditCourse = () => {
   const [lastMovedId, setLastMovedId] = useState(null)
   const [dragItem, setDragItem] = useState(null)
   const [dropTarget, setDropTarget] = useState(null)
+  const [moduleFormBaseline, setModuleFormBaseline] = useState(null)
+  const lessonOpenSnapshotRef = useRef('')
 
   const displayCurriculum = reorderMode ? draftCurriculum : curriculum
   const actionsLocked = reorderMode || savingReorder || refreshing || Boolean(deletingModuleId) || Boolean(deletingLessonId)
@@ -146,7 +154,47 @@ const EditCourse = () => {
     return JSON.stringify(serializeCurriculumOrder(draftCurriculum)) !== JSON.stringify(serializeCurriculumOrder(reorderBaseline))
   }, [reorderMode, draftCurriculum, reorderBaseline])
 
+  const getLessonDraftSnapshot = useCallback(
+    () =>
+      JSON.stringify({
+        lessonForm,
+        quizPassingScore,
+        quizQuestions,
+        contentBlockCount: contentBlocks.length,
+        existingResources,
+        hasVideoFile: Boolean(videoFile),
+        resourceFileCount: resourceFiles.length,
+      }),
+    [lessonForm, quizPassingScore, quizQuestions, contentBlocks, existingResources, videoFile, resourceFiles],
+  )
+
+  const moduleModalDirty = showModuleModal && moduleFormBaseline && JSON.stringify(moduleForm) !== JSON.stringify(moduleFormBaseline)
+
+  const lessonModalDirty = showLessonModal && lessonOpenSnapshotRef.current && getLessonDraftSnapshot() !== lessonOpenSnapshotRef.current
+
+  useRegisterUnsavedFormChanges(Boolean(hasReorderChanges || moduleModalDirty || lessonModalDirty))
+
   const expandedAccordionKeys = useMemo(() => displayCurriculum.map((_, idx) => String(idx)), [displayCurriculum])
+
+  const [accordionActiveKey, setAccordionActiveKey] = useState(null)
+  const defaultAccordionExpandedRef = useRef(false)
+
+  useEffect(() => {
+    defaultAccordionExpandedRef.current = false
+    setAccordionActiveKey(null)
+  }, [id])
+
+  useEffect(() => {
+    if (displayCurriculum.length === 0) {
+      setAccordionActiveKey(null)
+      defaultAccordionExpandedRef.current = false
+      return
+    }
+    if (!defaultAccordionExpandedRef.current) {
+      setAccordionActiveKey('0')
+      defaultAccordionExpandedRef.current = true
+    }
+  }, [displayCurriculum.length])
 
   const curriculumStats = useMemo(() => {
     const modules = displayCurriculum.length
@@ -197,13 +245,23 @@ const EditCourse = () => {
 
   const openModuleModal = (mod = null) => {
     if (actionsLocked) return
-    setEditingModule(mod)
-    setModuleForm({
+    const nextForm = {
       title: mod?.title || '',
       description: mod?.description || '',
       order: mod?.order ?? curriculum.length,
-    })
+    }
+    setEditingModule(mod)
+    setModuleForm(nextForm)
+    setModuleFormBaseline(nextForm)
     setShowModuleModal(true)
+  }
+
+  const closeModuleModal = () => {
+    if (savingModule) return
+    guardAction(() => {
+      setShowModuleModal(false)
+      setModuleFormBaseline(null)
+    })
   }
 
   const saveModule = async () => {
@@ -212,21 +270,31 @@ const EditCourse = () => {
       return
     }
 
-    try {
-      setSavingModule(true)
-      if (editingModule) {
-        await updateCourseModule(id, editingModule._id, moduleForm)
-      } else {
-        await createCourseModule(id, moduleForm)
-      }
-      setShowModuleModal(false)
-      await loadCourse()
-      await Swal.fire('Saved', editingModule ? 'Module updated successfully.' : 'Module added successfully.', 'success')
-    } catch (error) {
-      Swal.fire('Error', apiErrorMessage(error, 'Failed to save module'), 'error')
-    } finally {
-      setSavingModule(false)
-    }
+    const isUpdate = Boolean(editingModule)
+    await confirmFormSubmit(
+      buildFormConfirmOptions(isUpdate ? 'update' : 'add', {
+        subject: 'module',
+        text: isUpdate ? 'You are about to update this module.' : 'You are about to add a new module to the curriculum.',
+      }),
+      async () => {
+        try {
+          setSavingModule(true)
+          if (editingModule) {
+            await updateCourseModule(id, editingModule._id, moduleForm)
+          } else {
+            await createCourseModule(id, moduleForm)
+          }
+          setShowModuleModal(false)
+          setModuleFormBaseline(null)
+          await loadCourse()
+          await Swal.fire('Saved', editingModule ? 'Module updated successfully.' : 'Module added successfully.', 'success')
+        } catch (error) {
+          Swal.fire('Error', apiErrorMessage(error, 'Failed to save module'), 'error')
+        } finally {
+          setSavingModule(false)
+        }
+      },
+    )
   }
 
   const handleDeleteModule = async (moduleId) => {
@@ -270,39 +338,63 @@ const EditCourse = () => {
     const mod = curriculum.find((item) => item._id === moduleId)
     const nextOrder = mod?.lessons?.length ?? 0
 
-    setActiveModuleId(moduleId)
-    setEditingLesson(lesson)
-    setLessonForm({
+    const nextLessonForm = {
       title: lesson?.title || '',
       type: lesson?.type || 'video',
       isPreview: lesson?.isPreview || false,
       isPublished: lesson?.isPublished !== false,
       durationSeconds: lesson?.video?.durationSeconds || 0,
-    })
+    }
+    const nextExistingResources = lesson?.resources || []
+    const nextContentBlocks = mapContentBlocksFromApi(lesson?.contentBlocks || [])
+    const nextQuizPassingScore = lesson?.quiz?.passingScore ?? 70
+    const nextQuizQuestions = lesson?.quiz?.questions?.length
+      ? lesson.quiz.questions.map((q) => ({
+          prompt: q.prompt || '',
+          options: q.options?.length ? [...q.options] : ['', '', '', ''],
+          correctIndex: q.correctIndex ?? 0,
+        }))
+      : []
+
+    setActiveModuleId(moduleId)
+    setEditingLesson(lesson)
+    setLessonForm(nextLessonForm)
     setVideoFile(null)
     setResourceFiles([])
-    setExistingResources(lesson?.resources || [])
-    setContentBlocks(mapContentBlocksFromApi(lesson?.contentBlocks || []))
-    setQuizPassingScore(lesson?.quiz?.passingScore ?? 70)
-    setQuizQuestions(
-      lesson?.quiz?.questions?.length
-        ? lesson.quiz.questions.map((q) => ({
-            prompt: q.prompt || '',
-            options: q.options?.length ? [...q.options] : ['', '', '', ''],
-            correctIndex: q.correctIndex ?? 0,
-          }))
-        : [],
-    )
+    setExistingResources(nextExistingResources)
+    setContentBlocks(nextContentBlocks)
+    setQuizPassingScore(nextQuizPassingScore)
+    setQuizQuestions(nextQuizQuestions)
+
+    lessonOpenSnapshotRef.current = JSON.stringify({
+      lessonForm: nextLessonForm,
+      quizPassingScore: nextQuizPassingScore,
+      quizQuestions: nextQuizQuestions,
+      contentBlockCount: nextContentBlocks.length,
+      existingResources: nextExistingResources,
+      hasVideoFile: false,
+      resourceFileCount: 0,
+    })
     setShowLessonModal(true)
   }
 
+  const closeLessonModal = () => {
+    if (savingLesson) return
+    guardAction(() => {
+      setShowLessonModal(false)
+      lessonOpenSnapshotRef.current = ''
+    })
+  }
+
   const startReorder = () => {
-    const snapshot = cloneCurriculum(curriculum)
-    setReorderBaseline(snapshot)
-    setDraftCurriculum(snapshot)
-    setReorderMode(true)
-    setDragItem(null)
-    setDropTarget(null)
+    guardAction(() => {
+      const snapshot = cloneCurriculum(curriculum)
+      setReorderBaseline(snapshot)
+      setDraftCurriculum(snapshot)
+      setReorderMode(true)
+      setDragItem(null)
+      setDropTarget(null)
+    })
   }
 
   const cancelReorder = () => {
@@ -325,11 +417,13 @@ const EditCourse = () => {
       })
       return
     }
-    setDraftCurriculum([])
-    setReorderBaseline([])
-    setReorderMode(false)
-    setDragItem(null)
-    setDropTarget(null)
+    guardAction(() => {
+      setDraftCurriculum([])
+      setReorderBaseline([])
+      setReorderMode(false)
+      setDragItem(null)
+      setDropTarget(null)
+    })
   }
 
   const resetReorder = () => {
@@ -339,30 +433,32 @@ const EditCourse = () => {
   }
 
   const confirmReorder = async () => {
-    setSavingReorder(true)
-    try {
-      const payload = draftCurriculum.map((mod, modIndex) => ({
-        _id: mod._id,
-        order: modIndex,
-        lessons: (mod.lessons || []).map((lesson, lessonIndex) => ({
-          _id: lesson._id,
-          order: lessonIndex,
-        })),
-      }))
-      const result = await reorderCurriculum(id, payload)
-      setCurriculum(result.curriculum || draftCurriculum)
-      setReorderMode(false)
-      setDraftCurriculum([])
-      setReorderBaseline([])
-      setDragItem(null)
-      setDropTarget(null)
-      await loadCourse()
-      await Swal.fire('Saved', 'Curriculum order updated.', 'success')
-    } catch (error) {
-      Swal.fire('Error', apiErrorMessage(error, 'Failed to reorder curriculum'), 'error')
-    } finally {
-      setSavingReorder(false)
-    }
+    await confirmFormSubmit(buildFormConfirmOptions('reorder'), async () => {
+      setSavingReorder(true)
+      try {
+        const payload = draftCurriculum.map((mod, modIndex) => ({
+          _id: mod._id,
+          order: modIndex,
+          lessons: (mod.lessons || []).map((lesson, lessonIndex) => ({
+            _id: lesson._id,
+            order: lessonIndex,
+          })),
+        }))
+        const result = await reorderCurriculum(id, payload)
+        setCurriculum(result.curriculum || draftCurriculum)
+        setReorderMode(false)
+        setDraftCurriculum([])
+        setReorderBaseline([])
+        setDragItem(null)
+        setDropTarget(null)
+        await loadCourse()
+        await Swal.fire('Saved', 'Curriculum order updated.', 'success')
+      } catch (error) {
+        Swal.fire('Error', apiErrorMessage(error, 'Failed to reorder curriculum'), 'error')
+      } finally {
+        setSavingReorder(false)
+      }
+    })
   }
 
   const moveModule = (moduleIndex, direction) => {
@@ -465,82 +561,93 @@ const EditCourse = () => {
       return
     }
 
-    let uploadedVideoId = null
+    const isUpdate = Boolean(editingLesson)
+    await confirmFormSubmit(
+      buildFormConfirmOptions(isUpdate ? 'update' : 'add', {
+        subject: 'lesson',
+        text: isUpdate ? 'You are about to update this lesson.' : 'You are about to add a new lesson to the module.',
+        confirmLabel: isUpdate ? 'Save' : 'Add',
+      }),
+      async () => {
+        let uploadedVideoId = null
 
-    try {
-      setSavingLesson(true)
-      setLessonSavePhase('saving')
-      const formData = new FormData()
-      const mod = curriculum.find((item) => item._id === activeModuleId)
-      const lessonOrder = editingLesson ? editingLesson.order : mod?.lessons?.length ?? 0
-
-      formData.append('moduleId', activeModuleId)
-      formData.append('title', lessonForm.title)
-      formData.append('type', lessonForm.type)
-      formData.append('order', String(lessonOrder))
-      formData.append('isPreview', String(lessonForm.isPreview))
-      formData.append('isPublished', String(lessonForm.isPublished))
-
-      if (lessonForm.type === 'video' && lessonForm.durationSeconds) {
-        formData.append('durationSeconds', String(lessonForm.durationSeconds))
-      }
-
-      if (lessonForm.type === 'text' || lessonForm.type === 'download') {
-        const blocksPayload = buildContentBlocksFormData(contentBlocks, formData)
-        formData.append('contentBlocks', JSON.stringify(blocksPayload))
-      }
-
-      if (lessonForm.type === 'download') {
-        formData.append('resources', JSON.stringify(existingResources))
-        resourceFiles.forEach((file) => formData.append('resources', file))
-      }
-
-      if (videoFile && lessonForm.type === 'video') {
-        setLessonSavePhase('uploading')
-        uploadedVideoId = await uploadVideoToVdocipher(videoFile, {
-          title: lessonForm.title,
-          courseId: id,
-          moduleTitle: mod?.title,
-          getCredentials: getVdocipherUploadCredentials,
-        })
-        formData.append('vdoCipherVideoId', uploadedVideoId)
-        setLessonSavePhase('saving')
-      }
-
-      let lessonId = editingLesson?._id
-      let lessonResult = null
-      if (editingLesson) {
-        lessonResult = await updateLesson(id, editingLesson._id, formData)
-      } else {
-        lessonResult = await createLesson(id, formData)
-        lessonId = lessonResult.lesson._id
-      }
-
-      if (lessonForm.type === 'quiz' && lessonId) {
-        await upsertQuiz(id, lessonId, {
-          passingScore: quizPassingScore,
-          questions: JSON.stringify(quizQuestions),
-        })
-      }
-
-      setShowLessonModal(false)
-      await loadCourse()
-      const revertNotice = courseRevertNotice(lessonResult)
-      const savedMessage = editingLesson ? 'Lesson updated successfully.' : 'Lesson added successfully.'
-      await Swal.fire('Saved', revertNotice ? `${savedMessage}\n\n${revertNotice}` : savedMessage, 'success')
-    } catch (error) {
-      if (uploadedVideoId) {
         try {
-          await deleteVdocipherVideo(uploadedVideoId)
-        } catch (cleanupError) {
-          console.warn('Failed to roll back VdoCipher upload:', cleanupError)
+          setSavingLesson(true)
+          setLessonSavePhase('saving')
+          const formData = new FormData()
+          const mod = curriculum.find((item) => item._id === activeModuleId)
+          const lessonOrder = editingLesson ? editingLesson.order : mod?.lessons?.length ?? 0
+
+          formData.append('moduleId', activeModuleId)
+          formData.append('title', lessonForm.title)
+          formData.append('type', lessonForm.type)
+          formData.append('order', String(lessonOrder))
+          formData.append('isPreview', String(lessonForm.isPreview))
+          formData.append('isPublished', String(lessonForm.isPublished))
+
+          if (lessonForm.type === 'video' && lessonForm.durationSeconds) {
+            formData.append('durationSeconds', String(lessonForm.durationSeconds))
+          }
+
+          if (lessonForm.type === 'text' || lessonForm.type === 'download') {
+            const blocksPayload = buildContentBlocksFormData(contentBlocks, formData)
+            formData.append('contentBlocks', JSON.stringify(blocksPayload))
+          }
+
+          if (lessonForm.type === 'download') {
+            formData.append('resources', JSON.stringify(existingResources))
+            resourceFiles.forEach((file) => formData.append('resources', file))
+          }
+
+          if (videoFile && lessonForm.type === 'video') {
+            setLessonSavePhase('uploading')
+            uploadedVideoId = await uploadVideoToVdocipher(videoFile, {
+              title: lessonForm.title,
+              courseId: id,
+              moduleTitle: mod?.title,
+              getCredentials: getVdocipherUploadCredentials,
+            })
+            formData.append('vdoCipherVideoId', uploadedVideoId)
+            setLessonSavePhase('saving')
+          }
+
+          let lessonId = editingLesson?._id
+          let lessonResult = null
+          if (editingLesson) {
+            lessonResult = await updateLesson(id, editingLesson._id, formData)
+          } else {
+            lessonResult = await createLesson(id, formData)
+            lessonId = lessonResult.lesson._id
+          }
+
+          if (lessonForm.type === 'quiz' && lessonId) {
+            await upsertQuiz(id, lessonId, {
+              passingScore: quizPassingScore,
+              questions: JSON.stringify(quizQuestions),
+            })
+          }
+
+          setShowLessonModal(false)
+          lessonOpenSnapshotRef.current = ''
+          await loadCourse()
+          const revertNotice = courseRevertNotice(lessonResult)
+          const savedMessage = editingLesson ? 'Lesson updated successfully.' : 'Lesson added successfully.'
+          await Swal.fire('Saved', revertNotice ? `${savedMessage}\n\n${revertNotice}` : savedMessage, 'success')
+        } catch (error) {
+          if (uploadedVideoId) {
+            try {
+              await deleteVdocipherVideo(uploadedVideoId)
+            } catch (cleanupError) {
+              console.warn('Failed to roll back VdoCipher upload:', cleanupError)
+            }
+          }
+          Swal.fire('Error', apiErrorMessage(error, 'Failed to save lesson'), 'error')
+        } finally {
+          setSavingLesson(false)
+          setLessonSavePhase('idle')
         }
-      }
-      Swal.fire('Error', apiErrorMessage(error, 'Failed to save lesson'), 'error')
-    } finally {
-      setSavingLesson(false)
-      setLessonSavePhase('idle')
-    }
+      },
+    )
   }
 
   const handleDeleteLesson = async (lessonId) => {
@@ -679,7 +786,7 @@ const EditCourse = () => {
                   type="button"
                   className="course-curriculum-header__btn course-curriculum-header__btn--primary"
                   disabled={actionsLocked}
-                  onClick={() => openModuleModal()}>
+                  onClick={() => guardAction(() => openModuleModal())}>
                   <IconifyIcon icon="bx:plus" className="course-curriculum-header__btn-icon" />
                   Add Module
                 </button>
@@ -699,7 +806,7 @@ const EditCourse = () => {
                   type="button"
                   className="course-curriculum-header__btn course-curriculum-header__btn--primary"
                   disabled={actionsLocked}
-                  onClick={() => openModuleModal()}>
+                  onClick={() => guardAction(() => openModuleModal())}>
                   <IconifyIcon icon="bx:plus" className="course-curriculum-header__btn-icon" />
                   Add Module
                 </button>
@@ -710,8 +817,8 @@ const EditCourse = () => {
               className="course-curriculum-accordion"
               flush
               alwaysOpen={reorderMode}
-              activeKey={reorderMode ? expandedAccordionKeys : undefined}
-              onSelect={reorderMode ? () => {} : undefined}>
+              activeKey={reorderMode ? expandedAccordionKeys : accordionActiveKey}
+              onSelect={reorderMode ? () => {} : (eventKey) => setAccordionActiveKey(eventKey)}>
               {displayCurriculum.map((mod, idx) => {
                 const moduleDragging = dragItem?.kind === 'module' && dragItem.moduleIndex === idx
                 const moduleDropOver = isDropTarget('module', idx)
@@ -784,11 +891,19 @@ const EditCourse = () => {
                     <Accordion.Body>
                       {!reorderMode && (
                         <div className="course-curriculum-module-actions">
-                          <Button size="sm" variant="outline-primary" disabled={actionsLocked} onClick={() => openModuleModal(mod)}>
+                          <Button
+                            size="sm"
+                            variant="outline-primary"
+                            disabled={actionsLocked}
+                            onClick={() => guardAction(() => openModuleModal(mod))}>
                             <IconifyIcon icon="bx:edit" className="me-1" />
                             Edit module
                           </Button>
-                          <Button size="sm" variant="outline-success" disabled={actionsLocked} onClick={() => openLessonModal(mod._id)}>
+                          <Button
+                            size="sm"
+                            variant="outline-success"
+                            disabled={actionsLocked}
+                            onClick={() => guardAction(() => openLessonModal(mod._id))}>
                             <IconifyIcon icon="bx:plus" className="me-1" />
                             Add lesson
                           </Button>
@@ -796,7 +911,7 @@ const EditCourse = () => {
                             size="sm"
                             variant="outline-danger"
                             disabled={actionsLocked || deletingModuleId === mod._id}
-                            onClick={() => handleDeleteModule(mod._id)}>
+                            onClick={() => guardAction(() => handleDeleteModule(mod._id))}>
                             {deletingModuleId === mod._id ? (
                               <Spinner animation="border" size="sm" />
                             ) : (
@@ -812,7 +927,7 @@ const EditCourse = () => {
                         {(mod.lessons || []).length === 0 && !reorderMode ? (
                           <div className="course-curriculum-lessons-empty">
                             <p className="mb-2">This module has no lessons yet.</p>
-                            <Button size="sm" variant="soft-primary" onClick={() => openLessonModal(mod._id)}>
+                            <Button size="sm" variant="soft-primary" onClick={() => guardAction(() => openLessonModal(mod._id))}>
                               <IconifyIcon icon="bx:plus" className="me-1" />
                               Add first lesson
                             </Button>
@@ -909,7 +1024,7 @@ const EditCourse = () => {
                                       title="Edit lesson"
                                       aria-label={`Edit ${lesson.title}`}
                                       disabled={actionsLocked}
-                                      onClick={() => openLessonModal(mod._id, lesson)}>
+                                      onClick={() => guardAction(() => openLessonModal(mod._id, lesson))}>
                                       <IconifyIcon icon="bx:edit" />
                                     </Button>
                                     <Button
@@ -919,7 +1034,7 @@ const EditCourse = () => {
                                       aria-label={`Delete ${lesson.title}`}
                                       className={deletingLessonId === lesson._id ? 'course-action-btn--loading' : ''}
                                       disabled={actionsLocked || deletingLessonId === lesson._id}
-                                      onClick={() => handleDeleteLesson(lesson._id)}>
+                                      onClick={() => guardAction(() => handleDeleteLesson(lesson._id))}>
                                       {deletingLessonId === lesson._id ? <Spinner animation="border" size="sm" /> : <IconifyIcon icon="bx:trash" />}
                                     </Button>
                                   </div>
@@ -962,7 +1077,7 @@ const EditCourse = () => {
         />
       )}
 
-      <Modal show={showModuleModal} onHide={() => !savingModule && setShowModuleModal(false)} backdrop={savingModule ? 'static' : true}>
+      <Modal show={showModuleModal} onHide={closeModuleModal} backdrop={savingModule ? 'static' : true}>
         <Modal.Header closeButton={!savingModule}>
           <Modal.Title>{editingModule ? 'Edit Module' : 'Add Module'}</Modal.Title>
         </Modal.Header>
@@ -990,7 +1105,7 @@ const EditCourse = () => {
           </fieldset>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowModuleModal(false)} disabled={savingModule}>
+          <Button variant="secondary" onClick={closeModuleModal} disabled={savingModule}>
             Cancel
           </Button>
           <Button onClick={saveModule} disabled={savingModule}>
@@ -1006,7 +1121,7 @@ const EditCourse = () => {
         </Modal.Footer>
       </Modal>
 
-      <Modal show={showLessonModal} onHide={() => !savingLesson && setShowLessonModal(false)} backdrop={savingLesson ? 'static' : true} size="lg">
+      <Modal show={showLessonModal} onHide={closeLessonModal} backdrop={savingLesson ? 'static' : true} size="lg">
         <Modal.Header closeButton={!savingLesson}>
           <Modal.Title>{editingLesson ? 'Edit Lesson' : 'Add Lesson'}</Modal.Title>
         </Modal.Header>
@@ -1177,7 +1292,7 @@ const EditCourse = () => {
           </fieldset>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowLessonModal(false)} disabled={savingLesson}>
+          <Button variant="secondary" onClick={closeLessonModal} disabled={savingLesson}>
             Cancel
           </Button>
           <Button onClick={saveLesson} disabled={savingLesson}>

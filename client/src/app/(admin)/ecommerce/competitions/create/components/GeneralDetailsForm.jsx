@@ -11,6 +11,20 @@ import 'react-quill/dist/quill.snow.css'
 import { useGlobalContext } from '@/context/useGlobalContext'
 import ThumbnailDropzoneInput from '@/components/form/ThumbnailDropzoneInput'
 import ComponentContainerCard from '@/components/ComponentContainerCard'
+import useConfirmFormSubmit from '@/hooks/useConfirmFormSubmit'
+import { buildFormConfirmOptions } from '@/utils/formConfirm'
+import useRegisterRhfFormDirty from '@/hooks/useRegisterRhfFormDirty'
+
+const COMPETITION_FORM_DEFAULTS = {
+  title: '',
+  link: '',
+  prize: '',
+  deadline: '',
+  category: '',
+  side: '',
+  descQuill: '',
+  order: 999,
+}
 
 const generalFormSchema = yup.object({
   title: yup.string().required('Competition title is required'),
@@ -30,6 +44,7 @@ const normalizeQuillValue = (value) => {
 
 const GeneralDetailsForm = () => {
   const { createCompetition } = useGlobalContext()
+  const confirmFormSubmit = useConfirmFormSubmit()
   const [loading, setLoading] = useState(false)
   const [thumbnailFile, setThumbnailFile] = useState(null)
   const [resetDropzones, setResetDropzones] = useState(false)
@@ -38,65 +53,64 @@ const GeneralDetailsForm = () => {
     control,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm({
+    mode: 'onChange',
     resolver: yupResolver(generalFormSchema),
-    defaultValues: {
-      title: '',
-      link: '',
-      prize: '',
-      deadline: '',
-      category: '',
-      side: '',
-      descQuill: '',
-      order: 999,
-    },
+    defaultValues: COMPETITION_FORM_DEFAULTS,
   })
 
+  const formValues = watch()
+  useRegisterRhfFormDirty(COMPETITION_FORM_DEFAULTS, formValues, { extraDirty: Boolean(thumbnailFile) })
+
   const onSubmit = async (data) => {
-    try {
-      setLoading(true)
-      if (!thumbnailFile) {
-        alert('Thumbnail image is required')
-        return
-      }
-
-      const formData = new FormData()
-      formData.append('title', data.title)
-      formData.append('prize', data.prize)
-      formData.append('deadline', data.deadline)
-      formData.append('category', data.category)
-      formData.append('side', data.side)
-      formData.append('link', data.link)
-
-      formData.append('description', data.descQuill)
-      formData.append('thumbnail', thumbnailFile)
-      formData.append('order', data.order)
-
-      await createCompetition(formData)
-
-      alert('Competition created successfully!')
-
-      // ✅ Clear all form fields properly
-      reset({
-        title: '',
-        prize: '',
-        deadline: '',
-        category: '',
-        side: '',
-        link: '',
-        descQuill: '',
-        order: 999,
-      })
-
-      setThumbnailFile(null)
-      setResetDropzones(true)
-      setTimeout(() => setResetDropzones(false), 0) // reset flag
-    } catch (error) {
-      alert(error?.response?.data?.message || '❌ Failed to create competition')
-    } finally {
-      setLoading(false)
+    if (!thumbnailFile) {
+      alert('Thumbnail image is required')
+      return
     }
+
+    await confirmFormSubmit(buildFormConfirmOptions('create', { subject: 'this competition' }), async () => {
+      try {
+        setLoading(true)
+
+        const formData = new FormData()
+        formData.append('title', data.title)
+        formData.append('prize', data.prize)
+        formData.append('deadline', data.deadline)
+        formData.append('category', data.category)
+        formData.append('side', data.side)
+        formData.append('link', data.link)
+
+        formData.append('description', data.descQuill)
+        formData.append('thumbnail', thumbnailFile)
+        formData.append('order', data.order)
+
+        await createCompetition(formData)
+
+        alert('Competition created successfully!')
+
+        // ✅ Clear all form fields properly
+        reset({
+          title: '',
+          prize: '',
+          deadline: '',
+          category: '',
+          side: '',
+          link: '',
+          descQuill: '',
+          order: 999,
+        })
+
+        setThumbnailFile(null)
+        setResetDropzones(true)
+        setTimeout(() => setResetDropzones(false), 0) // reset flag
+      } catch (error) {
+        alert(error?.response?.data?.message || '❌ Failed to create competition')
+      } finally {
+        setLoading(false)
+      }
+    })
   }
 
   return (

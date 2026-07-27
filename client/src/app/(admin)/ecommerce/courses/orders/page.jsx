@@ -1,10 +1,12 @@
-import { useCallback } from 'react'
-import { Badge, Card, CardBody, Col, Row, Table } from 'react-bootstrap'
+import { useCallback, useMemo } from 'react'
+import { Badge, Card, CardBody, Col, Row } from 'react-bootstrap'
 import PageBreadcrumb from '@/components/layout/PageBreadcrumb'
 import PageMetaData from '@/components/PageTitle'
+import ReactTable from '@/components/Table'
 import ProjectsListTableSkeleton from '@/components/skeletons/ProjectsListTableSkeleton'
 import { useGlobalContext } from '@/context/useGlobalContext'
 import useFetchList from '@/hooks/useFetchList'
+import LmsListEmptyState from '../components/LmsListEmptyState'
 
 const statusVariant = (status) => {
   if (status === 'paid') return 'success'
@@ -19,6 +21,40 @@ const CourseOrders = () => {
   const { items: orders, loading } = useFetchList(fetchOrders)
 
   const totalRevenue = orders.filter((o) => o.status === 'paid').reduce((sum, o) => sum + (o.amount || 0), 0)
+
+  const columns = useMemo(
+    () => [
+      {
+        id: 'student',
+        header: 'Student',
+        cell: ({ row: { original: order } }) => order.userId?.email,
+      },
+      {
+        id: 'course',
+        header: 'Course',
+        cell: ({ row: { original: order } }) => order.courseId?.title,
+      },
+      {
+        id: 'amount',
+        header: 'Amount',
+        cell: ({ row: { original: order } }) => `${order.currency} ${order.amount}`,
+      },
+      {
+        id: 'status',
+        header: 'Status',
+        cell: ({ row: { original: order } }) => <Badge bg={statusVariant(order.status)}>{order.status}</Badge>,
+      },
+      {
+        id: 'date',
+        header: 'Date',
+        cell: ({ row: { original: order } }) =>
+          order.paidAt ? new Date(order.paidAt).toLocaleDateString() : new Date(order.createdAt).toLocaleDateString(),
+      },
+    ],
+    [],
+  )
+
+  const emptyState = <LmsListEmptyState preset="orders" inTable />
 
   return (
     <>
@@ -49,34 +85,16 @@ const CourseOrders = () => {
               {loading ? (
                 <ProjectsListTableSkeleton />
               ) : (
-                <div className="table-responsive">
-                  <Table hover>
-                    <thead>
-                      <tr>
-                        <th>Student</th>
-                        <th>Course</th>
-                        <th>Amount</th>
-                        <th>Status</th>
-                        <th>Date</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {orders.map((o) => (
-                        <tr key={o._id}>
-                          <td>{o.userId?.email}</td>
-                          <td>{o.courseId?.title}</td>
-                          <td>
-                            {o.currency} {o.amount}
-                          </td>
-                          <td>
-                            <Badge bg={statusVariant(o.status)}>{o.status}</Badge>
-                          </td>
-                          <td>{o.paidAt ? new Date(o.paidAt).toLocaleDateString() : new Date(o.createdAt).toLocaleDateString()}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
-                </div>
+                <ReactTable
+                  columns={columns}
+                  data={orders}
+                  rowsPerPageList={[5, 10, 20, 50]}
+                  pageSize={10}
+                  tableClass="text-nowrap mb-0 align-middle"
+                  theadClass="bg-light bg-opacity-50"
+                  showPagination={orders.length > 0}
+                  emptyState={emptyState}
+                />
               )}
             </CardBody>
           </Card>

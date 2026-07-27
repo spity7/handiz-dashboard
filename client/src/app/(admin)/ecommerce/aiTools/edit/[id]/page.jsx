@@ -10,6 +10,9 @@ import 'react-quill/dist/quill.snow.css'
 import ComponentContainerCard from '@/components/ComponentContainerCard'
 import { sortOthersLast } from '@/utils/sortOthersLast'
 import { THUMBNAIL_ACCEPT_STRING, readThumbnailInput } from '@/utils/imageFile'
+import useConfirmFormSubmit from '@/hooks/useConfirmFormSubmit'
+import { buildFormConfirmOptions } from '@/utils/formConfirm'
+import useRegisterUnsavedFormDirty from '@/hooks/useRegisterUnsavedFormDirty'
 
 const normalizeQuillValue = (value) => {
   if (!value || value === '<p><br></p>' || value === '<br/>') return ''
@@ -28,6 +31,7 @@ const apiErrorMessage = (error, fallback) => {
 const EditAiTool = () => {
   const { id } = useParams()
   const navigate = useNavigate()
+  const confirmFormSubmit = useConfirmFormSubmit()
   const { getAiToolById, updateAiTool, getAiPromptCategories } = useGlobalContext()
 
   const [aiTool, setAiTool] = useState(null)
@@ -80,6 +84,23 @@ const EditAiTool = () => {
     fetchAiTool()
   }, [id, getAiToolById])
 
+  const aiToolFormSnapshot = aiTool
+    ? {
+        title: aiTool.title,
+        categoryId:
+          aiTool.category && typeof aiTool.category === 'object' && aiTool.category._id != null
+            ? String(aiTool.category._id)
+            : aiTool.category != null
+              ? String(aiTool.category)
+              : '',
+        description: aiTool.description ?? '',
+        order: aiTool.order ?? 999,
+      }
+    : null
+
+  const aiToolFormCurrent = { title, categoryId, description, order }
+  useRegisterUnsavedFormDirty(aiToolFormSnapshot, aiToolFormCurrent, { extraDirty: Boolean(thumbnail) })
+
   const handleFileChange = (e) => {
     readThumbnailInput(e, {
       onValid: (file) => {
@@ -105,28 +126,30 @@ const EditAiTool = () => {
       return
     }
 
-    try {
-      setLoading(true)
+    await confirmFormSubmit(buildFormConfirmOptions('update', { subject: 'this AI prompt' }), async () => {
+      try {
+        setLoading(true)
 
-      const formData = new FormData()
-      formData.append('title', title)
-      formData.append('category', categoryId)
-      formData.append('description', description)
-      formData.append('order', order)
+        const formData = new FormData()
+        formData.append('title', title)
+        formData.append('category', categoryId)
+        formData.append('description', description)
+        formData.append('order', order)
 
-      if (thumbnail) formData.append('thumbnail', thumbnail)
+        if (thumbnail) formData.append('thumbnail', thumbnail)
 
-      await updateAiTool(id, formData)
-      alert('AI Prompt updated successfully!')
-      navigate('/ecommerce/aiTools')
-    } catch (error) {
-      alert(apiErrorMessage(error, 'Update failed'))
-    } finally {
-      setLoading(false)
-    }
+        await updateAiTool(id, formData)
+        alert('AI Prompt updated successfully!')
+        navigate('/ecommerce/aiTools')
+      } catch (error) {
+        alert(apiErrorMessage(error, 'Update failed'))
+      } finally {
+        setLoading(false)
+      }
+    })
   }
 
-  if (!aiTool || categoriesLoading) return <ProjectFormSkeleton variant="vertex" title="Edit AI Prompt" subName="Handiz" />
+  if (!aiTool || categoriesLoading) return <ProjectFormSkeleton variant="standard" title="Edit AI Prompt" subName="Handiz" />
 
   return (
     <>

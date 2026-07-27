@@ -13,6 +13,7 @@ import 'react-quill/dist/quill.snow.css'
 import { useGlobalContext } from '@/context/useGlobalContext'
 import { useAuthContext } from '@/context/useAuthContext'
 import useConfirmAction from '@/hooks/useConfirmAction'
+import useRegisterRhfFormDirty from '@/hooks/useRegisterRhfFormDirty'
 import { ROLES } from '@/constants/roles'
 import ThumbnailDropzoneInput from '@/components/form/ThumbnailDropzoneInput'
 import DropzoneFormInput from '@/components/form/DropzoneFormInput'
@@ -21,6 +22,23 @@ import StudentProjectFieldManageLink from '../../components/StudentProjectFieldM
 import ProjectFormSkeleton from '@/components/skeletons/ProjectFormSkeleton'
 import CheckboxGroupSkeleton from '@/components/skeletons/CheckboxGroupSkeleton'
 import { sortOthersLast } from '@/utils/sortOthersLast'
+
+const STUDENT_PROJECT_FORM_DEFAULTS = {
+  title: '',
+  student: '',
+  area: '',
+  descQuill: '',
+  order: 999,
+  concept: [],
+  type: [],
+  category: [],
+  year: [],
+  location: [],
+  university: [],
+  googleMapUrl: '',
+  thesisUrl: '',
+  fileUrl: '',
+}
 
 const generalFormSchema = yup.object({
   title: yup.string().required('Project title is required'),
@@ -228,25 +246,17 @@ const GeneralDetailsForm = () => {
     control,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm({
+    mode: 'onChange',
     resolver: yupResolver(generalFormSchema),
-    defaultValues: {
-      title: '',
-      student: '',
-      area: '',
-      descQuill: '',
-      order: 999,
-      concept: [],
-      type: [],
-      category: [],
-      year: [],
-      location: [],
-      university: [],
-      googleMapUrl: '',
-      thesisUrl: '',
-      fileUrl: '',
-    },
+    defaultValues: STUDENT_PROJECT_FORM_DEFAULTS,
+  })
+
+  const formValues = watch()
+  useRegisterRhfFormDirty(STUDENT_PROJECT_FORM_DEFAULTS, formValues, {
+    extraDirty: Boolean(thumbnailFile) || galleryFiles.length > 0 || dynamicBlocks.length > 0,
   })
 
   const onInvalid = (formErrors) => {
