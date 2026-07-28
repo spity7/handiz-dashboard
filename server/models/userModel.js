@@ -74,6 +74,33 @@ const userSchema = mongoose.Schema(
       default: null,
       trim: true,
     },
+    avatarUrl: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    bio: {
+      type: String,
+      default: "",
+      trim: true,
+      maxlength: [2000, "Bio cannot exceed 2000 characters"],
+    },
+    location: {
+      type: String,
+      default: "",
+      trim: true,
+      maxlength: [200, "Location cannot exceed 200 characters"],
+    },
+    facebookUrl: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    xUrl: {
+      type: String,
+      default: "",
+      trim: true,
+    },
   },
   {
     timestamps: true,

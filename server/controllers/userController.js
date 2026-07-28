@@ -16,6 +16,8 @@ const {
   isValidLocalMobileNumber,
   normalizeInstagramUrl,
   isValidInstagramUrl,
+  isValidHttpUrl,
+  normalizeOptionalHttpUrl,
   formatUserAuthResponse,
 } = require("../utils/userProfile");
 
@@ -457,6 +459,11 @@ exports.updateProfile = async (req, res) => {
       mobileCountryCode,
       mobileNumber,
       instagramUrl,
+      avatarUrl,
+      bio,
+      location,
+      facebookUrl,
+      xUrl,
     } = req.body;
 
     if (req.user.role !== ROLES.ADMIN && String(req.user._id) !== String(id)) {
@@ -534,6 +541,42 @@ exports.updateProfile = async (req, res) => {
         });
       }
       updates.instagramUrl = normalizeInstagramUrl(trimmedInstagram);
+    }
+
+    if (avatarUrl !== undefined) {
+      const normalized = normalizeOptionalHttpUrl(avatarUrl);
+      if (normalized && !isValidHttpUrl(normalized)) {
+        return res
+          .status(400)
+          .json({ error: "Please enter a valid avatar URL." });
+      }
+      updates.avatarUrl = normalized;
+    }
+
+    if (bio !== undefined) {
+      updates.bio = String(bio).trim();
+    }
+
+    if (location !== undefined) {
+      updates.location = String(location).trim();
+    }
+
+    if (facebookUrl !== undefined) {
+      const normalized = normalizeOptionalHttpUrl(facebookUrl);
+      if (normalized && !isValidHttpUrl(normalized)) {
+        return res
+          .status(400)
+          .json({ error: "Please enter a valid Facebook URL." });
+      }
+      updates.facebookUrl = normalized;
+    }
+
+    if (xUrl !== undefined) {
+      const normalized = normalizeOptionalHttpUrl(xUrl);
+      if (normalized && !isValidHttpUrl(normalized)) {
+        return res.status(400).json({ error: "Please enter a valid X URL." });
+      }
+      updates.xUrl = normalized;
     }
 
     if (Object.keys(updates).length === 0) {

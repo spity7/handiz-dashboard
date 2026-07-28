@@ -56,6 +56,22 @@ const isValidInstagramUrl = (value) => {
   }
 };
 
+const isValidHttpUrl = (value) => {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) return true;
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+};
+
+const normalizeOptionalHttpUrl = (value) => {
+  const trimmed = String(value ?? "").trim();
+  return trimmed || "";
+};
+
 const hasCompleteMobile = (user) => {
   const code = user?.mobileCountryCode?.trim();
   const number = user?.mobileNumber?.trim();
@@ -75,6 +91,11 @@ const formatUserAuthResponse = (user) => {
   const mobileCountryCode = user.mobileCountryCode?.trim() || null;
   const mobileNumber = user.mobileNumber?.trim() || null;
   const instagramUrl = user.instagramUrl?.trim() || null;
+  const avatarUrl = user.avatarUrl?.trim() || "";
+  const bio = user.bio?.trim() || "";
+  const location = user.location?.trim() || "";
+  const facebookUrl = user.facebookUrl?.trim() || "";
+  const xUrl = user.xUrl?.trim() || "";
 
   return {
     _id: user._id,
@@ -87,6 +108,11 @@ const formatUserAuthResponse = (user) => {
     mobileCountryCode,
     mobileNumber,
     instagramUrl,
+    avatarUrl,
+    bio,
+    location,
+    facebookUrl,
+    xUrl,
     isProfileComplete: Boolean(hasCompleteMobile(user) && instagramUrl),
   };
 };
@@ -99,6 +125,8 @@ module.exports = {
   hasCompleteMobile,
   normalizeInstagramUrl,
   isValidInstagramUrl,
+  isValidHttpUrl,
+  normalizeOptionalHttpUrl,
   isProfileComplete,
   formatUserAuthResponse,
 };

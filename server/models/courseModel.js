@@ -109,6 +109,16 @@ const courseSchema = new mongoose.Schema(
         message: "A course can have at most 3 marketing videos.",
       },
     },
+    aboutCourseSections: {
+      type: [
+        {
+          title: { type: String, trim: true, default: "" },
+          items: [{ type: String, trim: true }],
+          order: { type: Number, default: 0 },
+        },
+      ],
+      default: [],
+    },
     order: {
       type: Number,
       default: 999,

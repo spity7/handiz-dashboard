@@ -1,6 +1,10 @@
 const {
   normalizeMarketingVideosInput,
 } = require("../utils/courseMarketingVideos");
+const {
+  normalizeAboutCourseSectionsInput,
+} = require("../utils/courseAboutSections");
+const { INSTRUCTOR_PUBLIC_SELECT } = require("../utils/instructorPublicFields");
 const Course = require("../models/courseModel");
 const CourseModule = require("../models/courseModuleModel");
 const Lesson = require("../models/lessonModel");
@@ -216,7 +220,7 @@ exports.getCourses = async (req, res) => {
       ? Course.findWithDeleted(filter)
       : Course.find(filter);
     let courses = await query
-      .populate("instructorId", "firstname lastname email username")
+      .populate("instructorId", INSTRUCTOR_PUBLIC_SELECT)
       .sort({ order: 1, createdAt: -1 });
 
     courses = courses.map((course) =>
@@ -314,7 +318,7 @@ exports.getCourseBySlug = async (req, res) => {
 
     const course = await Course.findOne(filter).populate(
       "instructorId",
-      "firstname lastname email username",
+      INSTRUCTOR_PUBLIC_SELECT,
     );
     if (!course) return res.status(404).json({ message: "Course not found" });
 
@@ -372,7 +376,7 @@ exports.getCourseById = async (req, res) => {
   try {
     const course = await Course.findById(req.params.id).populate(
       "instructorId",
-      "firstname lastname email username",
+      INSTRUCTOR_PUBLIC_SELECT,
     );
     if (!course) return res.status(404).json({ message: "Course not found" });
 
@@ -401,6 +405,7 @@ exports.createCourse = async (req, res) => {
       tags,
       heroHighlights,
       marketingVideos,
+      aboutCourseSections,
       order,
       isFree,
       price,
@@ -512,6 +517,16 @@ exports.createCourse = async (req, res) => {
       parsedMarketingVideos = marketingResult.videos;
     }
 
+    let parsedAboutCourseSections = [];
+    if (aboutCourseSections !== undefined && aboutCourseSections !== "") {
+      const aboutResult =
+        normalizeAboutCourseSectionsInput(aboutCourseSections);
+      if (aboutResult.error) {
+        return res.status(400).json({ message: aboutResult.error });
+      }
+      parsedAboutCourseSections = aboutResult.sections;
+    }
+
     const course = await Course.create({
       title,
       slug,
@@ -524,6 +539,7 @@ exports.createCourse = async (req, res) => {
       tags: parseJsonField(tags, []) || [],
       heroHighlights: parseJsonField(heroHighlights, []) || [],
       marketingVideos: parsedMarketingVideos,
+      aboutCourseSections: parsedAboutCourseSections,
       order: order ? Number(order) : 999,
       status: resolvedStatus,
       pricing,
@@ -583,6 +599,7 @@ exports.updateCourse = async (req, res) => {
       tags,
       heroHighlights,
       marketingVideos,
+      aboutCourseSections,
       order,
       isFree,
       price,
@@ -619,6 +636,14 @@ exports.updateCourse = async (req, res) => {
         return res.status(400).json({ message: marketingResult.error });
       }
       course.marketingVideos = marketingResult.videos;
+    }
+    if (aboutCourseSections !== undefined) {
+      const aboutResult =
+        normalizeAboutCourseSectionsInput(aboutCourseSections);
+      if (aboutResult.error) {
+        return res.status(400).json({ message: aboutResult.error });
+      }
+      course.aboutCourseSections = aboutResult.sections;
     }
     if (order !== undefined) course.order = Number(order);
 

@@ -9,7 +9,9 @@ import { useUnsavedFormChanges } from '@/context/UnsavedFormChangesContext'
 import { useGlobalContext } from '@/context/useGlobalContext'
 import InstructorSelect from './InstructorSelect'
 import CourseMarketingVideosEditor from './CourseMarketingVideosEditor'
+import CourseAboutCourseEditor from './CourseAboutCourseEditor'
 import { marketingVideosFormDirty, marketingVideosFromCourse, serializeMarketingVideosForApi } from '../utils/courseMarketingVideos'
+import { aboutCourseSectionsFormDirty, aboutCourseSectionsFromCourse, serializeAboutCourseSectionsForApi } from '../utils/courseAboutSections'
 import {
   DISCOUNT_TYPE,
   MIN_PAID_COURSE_PRICE,
@@ -195,9 +197,14 @@ const buildInitialCourseFormState = (course, currentUser) => {
   }
 }
 
-const courseFormHasChanges = (form, saved, { hasNewThumbnail, hasNewHeroDesktop, hasNewHeroMobile, marketingVideos, savedMarketingVideos }) => {
+const courseFormHasChanges = (
+  form,
+  saved,
+  { hasNewThumbnail, hasNewHeroDesktop, hasNewHeroMobile, marketingVideos, savedMarketingVideos, aboutCourseSections, savedAboutCourseSections },
+) => {
   if (hasNewThumbnail || hasNewHeroDesktop || hasNewHeroMobile) return true
   if (marketingVideosFormDirty(marketingVideos, savedMarketingVideos)) return true
+  if (aboutCourseSectionsFormDirty(aboutCourseSections, savedAboutCourseSections)) return true
   if (!saved) return false
   return formsDiffer(buildComparableFromSaved(saved), buildComparableFromForm(form, saved))
 }
@@ -227,13 +234,22 @@ const CourseForm = ({ course = null, onSaved, disabled = false }) => {
   const [heroImageDesktopFile, setHeroImageDesktopFile] = useState(null)
   const [heroImageMobileFile, setHeroImageMobileFile] = useState(null)
   const [marketingVideos, setMarketingVideos] = useState(() => marketingVideosFromCourse(course?.marketingVideos))
+  const [aboutCourseSections, setAboutCourseSections] = useState(() => aboutCourseSectionsFromCourse(course?.aboutCourseSections))
   const [form, setForm] = useState(() => buildInitialCourseFormState(course, currentUser))
 
   const savedMarketingVideos = useMemo(() => marketingVideosFromCourse(course?.marketingVideos), [course?._id, course?.marketingVideos])
+  const savedAboutCourseSections = useMemo(
+    () => aboutCourseSectionsFromCourse(course?.aboutCourseSections),
+    [course?._id, course?.aboutCourseSections],
+  )
 
   useEffect(() => {
     setMarketingVideos(marketingVideosFromCourse(course?.marketingVideos))
   }, [course?._id, course?.marketingVideos])
+
+  useEffect(() => {
+    setAboutCourseSections(aboutCourseSectionsFromCourse(course?.aboutCourseSections))
+  }, [course?._id, course?.aboutCourseSections])
 
   useEffect(() => {
     if (!course?.status) return
@@ -301,8 +317,20 @@ const CourseForm = ({ course = null, onSaved, disabled = false }) => {
         hasNewHeroMobile: Boolean(heroImageMobileFile),
         marketingVideos,
         savedMarketingVideos,
+        aboutCourseSections,
+        savedAboutCourseSections,
       }),
-    [form, savedFormValues, thumbnailFile, heroImageDesktopFile, heroImageMobileFile, marketingVideos, savedMarketingVideos],
+    [
+      form,
+      savedFormValues,
+      thumbnailFile,
+      heroImageDesktopFile,
+      heroImageMobileFile,
+      marketingVideos,
+      savedMarketingVideos,
+      aboutCourseSections,
+      savedAboutCourseSections,
+    ],
   )
 
   useRegisterUnsavedFormDirty(dirtySnapshot, dirtyCurrent, {
@@ -311,7 +339,8 @@ const CourseForm = ({ course = null, onSaved, disabled = false }) => {
       Boolean(thumbnailFile) ||
       Boolean(heroImageDesktopFile) ||
       Boolean(heroImageMobileFile) ||
-      marketingVideosFormDirty(marketingVideos, savedMarketingVideos),
+      marketingVideosFormDirty(marketingVideos, savedMarketingVideos) ||
+      aboutCourseSectionsFormDirty(aboutCourseSections, savedAboutCourseSections),
     trackingMode: isEditing ? 'snapshot' : 'defaults',
   })
 
@@ -472,6 +501,7 @@ const CourseForm = ({ course = null, onSaved, disabled = false }) => {
         if (heroImageDesktopFile) formData.append('heroImageDesktop', heroImageDesktopFile)
         if (heroImageMobileFile) formData.append('heroImageMobile', heroImageMobileFile)
         formData.append('marketingVideos', JSON.stringify(serializeMarketingVideosForApi(marketingVideos)))
+        formData.append('aboutCourseSections', JSON.stringify(serializeAboutCourseSectionsForApi(aboutCourseSections)))
 
         if (course?._id) {
           await updateCourse(course._id, formData)
@@ -582,6 +612,8 @@ const CourseForm = ({ course = null, onSaved, disabled = false }) => {
       </Card>
 
       <CourseMarketingVideosEditor videos={marketingVideos} onChange={setMarketingVideos} />
+
+      <CourseAboutCourseEditor sections={aboutCourseSections} onChange={setAboutCourseSections} />
 
       <Card className="mb-4 border">
         <Card.Header className="bg-light fw-semibold">Course page highlights</Card.Header>

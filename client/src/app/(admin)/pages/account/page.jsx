@@ -19,6 +19,20 @@ const accountSchema = yup.object({
   mobileCountryCode: mobileCountryCodeSchema(yup),
   mobileNumber: mobileLocalNumberSchema(yup),
   instagramUrl: instagramUrlSchema(yup),
+  avatarUrl: yup
+    .string()
+    .trim()
+    .test('url', 'Enter a valid URL', (v) => !v || /^https?:\/\/.+/i.test(v)),
+  bio: yup.string().trim().max(2000, 'Bio cannot exceed 2000 characters'),
+  location: yup.string().trim().max(200, 'Location cannot exceed 200 characters'),
+  facebookUrl: yup
+    .string()
+    .trim()
+    .test('url', 'Enter a valid URL', (v) => !v || /^https?:\/\/.+/i.test(v)),
+  xUrl: yup
+    .string()
+    .trim()
+    .test('url', 'Enter a valid URL', (v) => !v || /^https?:\/\/.+/i.test(v)),
 })
 
 const AccountPage = () => {
@@ -37,6 +51,11 @@ const AccountPage = () => {
       mobileCountryCode: '+961',
       mobileNumber: '',
       instagramUrl: '',
+      avatarUrl: '',
+      bio: '',
+      location: '',
+      facebookUrl: '',
+      xUrl: '',
     },
   })
 
@@ -45,6 +64,11 @@ const AccountPage = () => {
         mobileCountryCode: splitMobileFields(user).mobileCountryCode || '+961',
         mobileNumber: splitMobileFields(user).mobileNumber || '',
         instagramUrl: user.instagramUrl || '',
+        avatarUrl: user.avatarUrl || '',
+        bio: user.bio || '',
+        location: user.location || '',
+        facebookUrl: user.facebookUrl || '',
+        xUrl: user.xUrl || '',
       }
     : null
 
@@ -58,6 +82,11 @@ const AccountPage = () => {
       mobileCountryCode: mobile.mobileCountryCode || '+961',
       mobileNumber: mobile.mobileNumber,
       instagramUrl: user.instagramUrl || '',
+      avatarUrl: user.avatarUrl || '',
+      bio: user.bio || '',
+      location: user.location || '',
+      facebookUrl: user.facebookUrl || '',
+      xUrl: user.xUrl || '',
     })
   }, [user, reset])
 
@@ -71,6 +100,11 @@ const AccountPage = () => {
           mobileCountryCode: data.mobileCountryCode,
           mobileNumber: data.mobileNumber,
           instagramUrl: data.instagramUrl,
+          avatarUrl: data.avatarUrl || '',
+          bio: data.bio || '',
+          location: data.location || '',
+          facebookUrl: data.facebookUrl || '',
+          xUrl: data.xUrl || '',
         })
         toast.success('Account details saved.')
         navigate(redirectFrom, { replace: true })
@@ -135,6 +169,36 @@ const AccountPage = () => {
                       label="Instagram"
                       placeholder="@yourhandle or https://instagram.com/yourhandle"
                     />
+                  </Col>
+
+                  <Col xs={12}>
+                    <hr className="my-2" />
+                    <h6 className="mb-3">Course instructor profile</h6>
+                    <p className="text-muted small">
+                      Shown in the &quot;About author&quot; block on course detail pages when you are assigned as instructor.
+                    </p>
+                  </Col>
+                  <Col xs={12}>
+                    <TextFormInput control={control} name="avatarUrl" label="Profile photo URL" placeholder="https://…" />
+                  </Col>
+                  <Col xs={12}>
+                    <TextFormInput control={control} name="location" label="Location" placeholder="City, Country" />
+                  </Col>
+                  <Col xs={12}>
+                    <TextFormInput
+                      control={control}
+                      name="bio"
+                      label="Short bio"
+                      placeholder="A few sentences about your experience"
+                      as="textarea"
+                      rows={4}
+                    />
+                  </Col>
+                  <Col md={6}>
+                    <TextFormInput control={control} name="facebookUrl" label="Facebook URL" placeholder="https://facebook.com/…" />
+                  </Col>
+                  <Col md={6}>
+                    <TextFormInput control={control} name="xUrl" label="X (Twitter) URL" placeholder="https://x.com/…" />
                   </Col>
                   <Col xs={12} className="d-flex gap-2">
                     <Button type="submit" variant="primary" disabled={isSubmitting}>

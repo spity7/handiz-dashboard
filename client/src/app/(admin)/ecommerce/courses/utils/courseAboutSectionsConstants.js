@@ -1,0 +1,2 @@
+export const MAX_ABOUT_COURSE_SECTIONS = 10
+export const MAX_ITEMS_PER_SECTION = 15
