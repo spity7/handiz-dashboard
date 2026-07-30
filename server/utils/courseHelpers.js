@@ -242,6 +242,20 @@ const revokeCourseEnrollments = async (courseId) => {
   return enrollments.length;
 };
 
+const restoreEnrollmentFromRevoked = (enrollment) => {
+  if (enrollment.status !== ENROLLMENT_STATUS.REVOKED) {
+    return false;
+  }
+
+  enrollment.status =
+    enrollment.statusBeforeRevoke === ENROLLMENT_STATUS.COMPLETED
+      ? ENROLLMENT_STATUS.COMPLETED
+      : ENROLLMENT_STATUS.ACTIVE;
+  enrollment.revokedReason = null;
+  enrollment.statusBeforeRevoke = null;
+  return true;
+};
+
 const reactivateArchivedCourseEnrollments = async (courseId) => {
   const enrollments = await Enrollment.find({
     courseId,
@@ -252,16 +266,17 @@ const reactivateArchivedCourseEnrollments = async (courseId) => {
   if (enrollments.length === 0) return 0;
 
   await Promise.all(
-    enrollments.map((enrollment) =>
-      Enrollment.findByIdAndUpdate(enrollment._id, {
+    enrollments.map((enrollment) => {
+      const updates = {
         status:
           enrollment.statusBeforeRevoke === ENROLLMENT_STATUS.COMPLETED
             ? ENROLLMENT_STATUS.COMPLETED
             : ENROLLMENT_STATUS.ACTIVE,
         revokedReason: null,
         statusBeforeRevoke: null,
-      }),
-    ),
+      };
+      return Enrollment.findByIdAndUpdate(enrollment._id, updates);
+    }),
   );
 
   await Course.findByIdAndUpdate(courseId, {
@@ -714,7 +729,8 @@ const stripLessonMediaIds = (obj) => {
 const filterStudentContentBlocks = (blocks) => {
   if (!Array.isArray(blocks)) return blocks;
   return blocks.filter(
-    (block) => block.type !== "file" && block.type !== "video",
+    (block) =>
+      block.type !== "file" && block.type !== "video" && block.type !== "code",
   );
 };
 
@@ -727,10 +743,14 @@ const sanitizeLessonForClient = (
   const blocked = !hasAccess || sequentiallyLocked;
 
   if (blocked) {
+    const durationSeconds = Number(obj.video?.durationSeconds) || 0;
     delete obj.video;
     delete obj.resources;
     delete obj.contentBlocks;
     obj.locked = true;
+    if (durationSeconds > 0) {
+      obj.video = { durationSeconds };
+    }
     if (sequentiallyLocked && hasAccess) {
       obj.sequentiallyLocked = true;
     }
@@ -781,6 +801,14 @@ const buildCourseInstructorAssignedContent = (course) => {
       title: "You were assigned as a course instructor",
       message: `You are the instructor for "${courseTitle}", which is published on Handiz.`,
       link: buildLmsUrl(`/courses/${course.slug}`),
+    };
+  }
+
+  if (course?.status === COURSE_STATUS.COMING_SOON) {
+    return {
+      title: "You were assigned as a course instructor",
+      message: `You are the instructor for "${courseTitle}", which is listed as coming soon on Handiz.`,
+      link: "",
     };
   }
 
@@ -835,6 +863,7 @@ module.exports = {
   cleanupLessonRelatedData,
   removeLessonCompletely,
   revokeCourseEnrollments,
+  restoreEnrollmentFromRevoked,
   reactivateArchivedCourseEnrollments,
   releaseCourseSlug,
   restoreOriginalCourseSlug,

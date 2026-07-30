@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from 'react'
-import { Badge, Button, Card, Col, Form, InputGroup, Row, Spinner } from 'react-bootstrap'
+import { Button, Card, Col, Form, InputGroup, Row, Spinner } from 'react-bootstrap'
 import { useNavigate } from 'react-router-dom'
 import Swal from 'sweetalert2'
 import ThumbnailDropzoneInput from '@/components/form/ThumbnailDropzoneInput'
@@ -223,7 +223,6 @@ const CourseForm = ({ course = null, onSaved, disabled = false }) => {
   const confirmFormSubmit = useConfirmFormSubmit()
   const isEditing = Boolean(course?._id)
   const canPublish = (course?.lessonCount ?? 0) > 0
-  const showDraftOnlyStatus = !isEditing || (course?.status === 'Draft' && !canPublish)
   const instructorUser = useMemo(() => {
     if (course?.instructorId && typeof course.instructorId === 'object') return course.instructorId
     if (!isEditing && currentUser) return currentUser
@@ -650,42 +649,38 @@ const CourseForm = ({ course = null, onSaved, disabled = false }) => {
         <Col md={3}>
           <Form.Group className="mb-3">
             <Form.Label>Status</Form.Label>
-            {showDraftOnlyStatus ? (
-              <>
-                <div className="course-status-draft">
-                  <Badge bg="warning" className="course-status-draft__badge">
-                    Draft
-                  </Badge>
-                </div>
-                <Form.Text muted className="d-block mt-1">
-                  {!isEditing
-                    ? 'New courses start as Draft. Add lessons on the next screen, then publish when ready.'
-                    : 'Add at least one published lesson in the curriculum below before you can publish this course.'}
-                </Form.Text>
-              </>
-            ) : (
-              <>
-                <Form.Select name="status" value={form.status} onChange={handleChange}>
-                  <option value="Draft">Draft</option>
-                  <option value="Published" disabled={!canPublish}>
-                    Published
-                  </option>
-                  <option value="Archived">Archived</option>
-                </Form.Select>
-                {!canPublish && form.status === 'Draft' && (
-                  <Form.Text muted className="d-block mt-1">
-                    Publish becomes available after at least one lesson is published.
-                  </Form.Text>
-                )}
-                {course?.publishedAt && (
-                  <Form.Text muted className="d-block mt-1">
-                    First published {formatDiscountEndsAt(course.publishedAt)}
-                    {course.lastPublishedAt &&
-                      course.lastPublishedAt !== course.publishedAt &&
-                      ` · Last published ${formatDiscountEndsAt(course.lastPublishedAt)}`}
-                  </Form.Text>
-                )}
-              </>
+            <Form.Select name="status" value={form.status} onChange={handleChange}>
+              <option value="Draft">Draft</option>
+              <option value="Coming Soon">Coming Soon</option>
+              {isEditing && (
+                <option value="Published" disabled={!canPublish}>
+                  Published
+                </option>
+              )}
+              {isEditing && <option value="Archived">Archived</option>}
+            </Form.Select>
+            {!isEditing && (
+              <Form.Text muted className="d-block mt-1">
+                Choose Coming Soon to list the course on the public catalog before lessons are ready.
+              </Form.Text>
+            )}
+            {isEditing && !canPublish && form.status !== 'Coming Soon' && (
+              <Form.Text muted className="d-block mt-1">
+                Publish becomes available after at least one lesson is published.
+              </Form.Text>
+            )}
+            {form.status === 'Coming Soon' && (
+              <Form.Text muted className="d-block mt-1">
+                Coming soon courses appear on /courses but are not clickable.
+              </Form.Text>
+            )}
+            {course?.publishedAt && (
+              <Form.Text muted className="d-block mt-1">
+                First published {formatDiscountEndsAt(course.publishedAt)}
+                {course.lastPublishedAt &&
+                  course.lastPublishedAt !== course.publishedAt &&
+                  ` · Last published ${formatDiscountEndsAt(course.lastPublishedAt)}`}
+              </Form.Text>
             )}
           </Form.Group>
         </Col>

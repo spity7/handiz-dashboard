@@ -5,24 +5,23 @@ import { yupResolver } from '@hookform/resolvers/yup'
 import { useLocation, useNavigate } from 'react-router-dom'
 import * as yup from 'yup'
 import { toast } from 'react-toastify'
+import Swal from 'sweetalert2'
 import PageBreadcrumb from '@/components/layout/PageBreadcrumb'
 import PageMetaData from '@/components/PageTitle'
 import TextFormInput from '@/components/form/TextFormInput'
+import ThumbnailDropzoneInput from '@/components/form/ThumbnailDropzoneInput'
 import { useAuthContext } from '@/context/useAuthContext'
 import useConfirmFormSubmit from '@/hooks/useConfirmFormSubmit'
 import useRegisterUnsavedFormDirty from '@/hooks/useRegisterUnsavedFormDirty'
 import { buildFormConfirmOptions } from '@/utils/formConfirm'
 import { isProfileComplete, instagramUrlSchema, mobileCountryCodeSchema, mobileLocalNumberSchema, splitMobileFields } from '@/utils/profileComplete'
 import useGuardedAction from '@/hooks/useGuardedAction'
+import { AVATAR_UPLOAD_HELP_TEXT, validateAvatarUploadFile } from '@/utils/avatarUploadLimits'
 
 const accountSchema = yup.object({
   mobileCountryCode: mobileCountryCodeSchema(yup),
   mobileNumber: mobileLocalNumberSchema(yup),
   instagramUrl: instagramUrlSchema(yup),
-  avatarUrl: yup
-    .string()
-    .trim()
-    .test('url', 'Enter a valid URL', (v) => !v || /^https?:\/\/.+/i.test(v)),
   bio: yup.string().trim().max(2000, 'Bio cannot exceed 2000 characters'),
   location: yup.string().trim().max(200, 'Location cannot exceed 200 characters'),
   facebookUrl: yup
@@ -40,6 +39,7 @@ const AccountPage = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [avatarFile, setAvatarFile] = useState(null)
   const redirectFrom = location.state?.from || '/ecommerce/student-projects'
   const profileAlreadyComplete = isProfileComplete(user)
   const confirmFormSubmit = useConfirmFormSubmit()
@@ -51,7 +51,6 @@ const AccountPage = () => {
       mobileCountryCode: '+961',
       mobileNumber: '',
       instagramUrl: '',
-      avatarUrl: '',
       bio: '',
       location: '',
       facebookUrl: '',
@@ -64,7 +63,6 @@ const AccountPage = () => {
         mobileCountryCode: splitMobileFields(user).mobileCountryCode || '+961',
         mobileNumber: splitMobileFields(user).mobileNumber || '',
         instagramUrl: user.instagramUrl || '',
-        avatarUrl: user.avatarUrl || '',
         bio: user.bio || '',
         location: user.location || '',
         facebookUrl: user.facebookUrl || '',
@@ -73,7 +71,10 @@ const AccountPage = () => {
     : null
 
   const formValues = watch()
-  useRegisterUnsavedFormDirty(profileSnapshot, formValues, { enabled: Boolean(user) })
+  useRegisterUnsavedFormDirty(profileSnapshot, formValues, {
+    enabled: Boolean(user),
+    extraDirty: Boolean(avatarFile),
+  })
 
   useEffect(() => {
     if (!user) return
@@ -82,34 +83,51 @@ const AccountPage = () => {
       mobileCountryCode: mobile.mobileCountryCode || '+961',
       mobileNumber: mobile.mobileNumber,
       instagramUrl: user.instagramUrl || '',
-      avatarUrl: user.avatarUrl || '',
       bio: user.bio || '',
       location: user.location || '',
       facebookUrl: user.facebookUrl || '',
       xUrl: user.xUrl || '',
     })
+    setAvatarFile(null)
   }, [user, reset])
 
   const onSubmit = async (data) => {
     if (!user?._id) return
 
+    if (avatarFile) {
+      const uploadErrors = validateAvatarUploadFile(avatarFile)
+      if (uploadErrors.length > 0) {
+        Swal.fire('Upload validation', uploadErrors.join('\n'), 'warning')
+        return
+      }
+    }
+
     await confirmFormSubmit(buildFormConfirmOptions('save', { subject: 'your account details' }), async () => {
       setIsSubmitting(true)
       try {
-        await updateProfile(user._id, {
+        const payload = {
           mobileCountryCode: data.mobileCountryCode,
           mobileNumber: data.mobileNumber,
           instagramUrl: data.instagramUrl,
-          avatarUrl: data.avatarUrl || '',
           bio: data.bio || '',
           location: data.location || '',
           facebookUrl: data.facebookUrl || '',
           xUrl: data.xUrl || '',
-        })
+        }
+
+        if (avatarFile) {
+          const formData = new FormData()
+          Object.entries(payload).forEach(([key, value]) => formData.append(key, value))
+          formData.append('avatar', avatarFile)
+          await updateProfile(user._id, formData)
+        } else {
+          await updateProfile(user._id, payload)
+        }
+
         toast.success('Account details saved.')
         navigate(redirectFrom, { replace: true })
       } catch (error) {
-        const msg = error?.response?.data?.error || error?.message || 'Failed to save account details.'
+        const msg = error?.response?.data?.error || error?.response?.data?.message || error?.message || 'Failed to save account details.'
         toast.error(msg)
       } finally {
         setIsSubmitting(false)
@@ -179,7 +197,24 @@ const AccountPage = () => {
                     </p>
                   </Col>
                   <Col xs={12}>
-                    <TextFormInput control={control} name="avatarUrl" label="Profile photo URL" placeholder="https://…" />
+                    {user?.avatarUrl && !avatarFile && (
+                      <div className="mb-3">
+                        <Form.Label className="d-block">Current profile photo</Form.Label>
+                        <img
+                          src={user.avatarUrl}
+                          alt="Current profile"
+                          className="rounded-circle border"
+                          style={{ width: 96, height: 96, objectFit: 'cover' }}
+                        />
+                      </div>
+                    )}
+                    <ThumbnailDropzoneInput
+                      label="Profile photo"
+                      text="Drop an image here, or click to upload"
+                      showPreview
+                      helpText={AVATAR_UPLOAD_HELP_TEXT}
+                      onFileUpload={(files) => setAvatarFile(files?.[0] ?? null)}
+                    />
                   </Col>
                   <Col xs={12}>
                     <TextFormInput control={control} name="location" label="Location" placeholder="City, Country" />

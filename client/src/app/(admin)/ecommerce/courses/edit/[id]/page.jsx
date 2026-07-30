@@ -9,7 +9,18 @@ import CourseEditPageSkeleton from '@/components/skeletons/CourseEditPageSkeleto
 import { useGlobalContext } from '@/context/useGlobalContext'
 import CourseForm from '../../components/CourseForm'
 import LessonContentBlocksEditor, { mapContentBlocksFromApi } from '../../components/LessonContentBlocksEditor'
-import { buildContentBlocksFormData, getLessonVideoBadge, getVideoStatusLabel, validateLessonForm } from '../../components/lessonFormUtils'
+import {
+  buildContentBlocksFormData,
+  clampPassingScore,
+  getLessonVideoBadge,
+  getVideoStatusLabel,
+  isLessonSaveReady,
+  PASSING_SCORE_DEFAULT,
+  PASSING_SCORE_MAX,
+  PASSING_SCORE_MIN,
+  serializeLessonDraft,
+  validateLessonForm,
+} from '../../components/lessonFormUtils'
 import CurriculumReorderDock from '../../components/CurriculumReorderDock'
 import { uploadVideoToVdocipher } from '@/utils/uploadVideoToVdocipher'
 import useConfirmFormSubmit from '@/hooks/useConfirmFormSubmit'
@@ -135,7 +146,7 @@ const EditCourse = () => {
   const [deletingModuleId, setDeletingModuleId] = useState(null)
   const [deletingLessonId, setDeletingLessonId] = useState(null)
   const [quizQuestions, setQuizQuestions] = useState([])
-  const [quizPassingScore, setQuizPassingScore] = useState(70)
+  const [quizPassingScore, setQuizPassingScore] = useState(PASSING_SCORE_DEFAULT)
   const [reorderMode, setReorderMode] = useState(false)
   const [draftCurriculum, setDraftCurriculum] = useState([])
   const [reorderBaseline, setReorderBaseline] = useState([])
@@ -156,21 +167,43 @@ const EditCourse = () => {
 
   const getLessonDraftSnapshot = useCallback(
     () =>
-      JSON.stringify({
+      serializeLessonDraft({
         lessonForm,
+        activeModuleId,
         quizPassingScore,
         quizQuestions,
-        contentBlockCount: contentBlocks.length,
+        contentBlocks,
         existingResources,
-        hasVideoFile: Boolean(videoFile),
-        resourceFileCount: resourceFiles.length,
+        videoFile,
+        resourceFiles,
       }),
-    [lessonForm, quizPassingScore, quizQuestions, contentBlocks, existingResources, videoFile, resourceFiles],
+    [lessonForm, activeModuleId, quizPassingScore, quizQuestions, contentBlocks, existingResources, videoFile, resourceFiles],
   )
+
+  const isLessonModalDirty = useMemo(() => {
+    if (!showLessonModal || !lessonOpenSnapshotRef.current) return false
+    return getLessonDraftSnapshot() !== lessonOpenSnapshotRef.current
+  }, [showLessonModal, getLessonDraftSnapshot])
+
+  const canSaveLesson = useMemo(
+    () =>
+      isLessonSaveReady({
+        lessonForm,
+        editingLesson,
+        videoFile,
+        quizQuestions,
+        contentBlocks,
+        existingResources,
+        resourceFiles,
+      }),
+    [lessonForm, editingLesson, videoFile, quizQuestions, contentBlocks, existingResources, resourceFiles],
+  )
+
+  const canSubmitLesson = canSaveLesson && (!editingLesson || isLessonModalDirty)
 
   const moduleModalDirty = showModuleModal && moduleFormBaseline && JSON.stringify(moduleForm) !== JSON.stringify(moduleFormBaseline)
 
-  const lessonModalDirty = showLessonModal && lessonOpenSnapshotRef.current && getLessonDraftSnapshot() !== lessonOpenSnapshotRef.current
+  const lessonModalDirty = showLessonModal && isLessonModalDirty
 
   useRegisterUnsavedFormChanges(Boolean(hasReorderChanges || moduleModalDirty || lessonModalDirty))
 
@@ -347,7 +380,7 @@ const EditCourse = () => {
     }
     const nextExistingResources = lesson?.resources || []
     const nextContentBlocks = mapContentBlocksFromApi(lesson?.contentBlocks || [])
-    const nextQuizPassingScore = lesson?.quiz?.passingScore ?? 70
+    const nextQuizPassingScore = clampPassingScore(lesson?.quiz?.passingScore ?? PASSING_SCORE_DEFAULT)
     const nextQuizQuestions = lesson?.quiz?.questions?.length
       ? lesson.quiz.questions.map((q) => ({
           prompt: q.prompt || '',
@@ -366,14 +399,15 @@ const EditCourse = () => {
     setQuizPassingScore(nextQuizPassingScore)
     setQuizQuestions(nextQuizQuestions)
 
-    lessonOpenSnapshotRef.current = JSON.stringify({
+    lessonOpenSnapshotRef.current = serializeLessonDraft({
       lessonForm: nextLessonForm,
+      activeModuleId: moduleId,
       quizPassingScore: nextQuizPassingScore,
       quizQuestions: nextQuizQuestions,
-      contentBlockCount: nextContentBlocks.length,
+      contentBlocks: nextContentBlocks,
       existingResources: nextExistingResources,
-      hasVideoFile: false,
-      resourceFileCount: 0,
+      videoFile: null,
+      resourceFiles: [],
     })
     setShowLessonModal(true)
   }
@@ -555,6 +589,9 @@ const EditCourse = () => {
       videoFile,
       quizQuestions,
       contentBlocks,
+      quizPassingScore,
+      existingResources,
+      resourceFiles,
     })
     if (validationError) {
       Swal.fire('Validation', validationError, 'warning')
@@ -1225,11 +1262,16 @@ const EditCourse = () => {
                   <Form.Label>Passing score (%)</Form.Label>
                   <Form.Control
                     type="number"
-                    min={0}
-                    max={100}
+                    min={PASSING_SCORE_MIN}
+                    max={PASSING_SCORE_MAX}
+                    step={1}
                     value={quizPassingScore}
-                    onChange={(e) => setQuizPassingScore(Number(e.target.value) || 70)}
+                    onChange={(e) => setQuizPassingScore(clampPassingScore(e.target.value, quizPassingScore))}
+                    onBlur={(e) => setQuizPassingScore(clampPassingScore(e.target.value, PASSING_SCORE_DEFAULT))}
                   />
+                  <Form.Text className="text-muted">
+                    Must be between {PASSING_SCORE_MIN} and {PASSING_SCORE_MAX}%.
+                  </Form.Text>
                 </Form.Group>
                 <div className="d-flex justify-content-between mb-2">
                   <Form.Label className="mb-0">Quiz Questions</Form.Label>
@@ -1295,7 +1337,7 @@ const EditCourse = () => {
           <Button variant="secondary" onClick={closeLessonModal} disabled={savingLesson}>
             Cancel
           </Button>
-          <Button onClick={saveLesson} disabled={savingLesson}>
+          <Button onClick={saveLesson} disabled={savingLesson || !canSubmitLesson}>
             {savingLesson ? (
               <>
                 <Spinner animation="border" size="sm" className="me-2" />

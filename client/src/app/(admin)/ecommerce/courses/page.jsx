@@ -8,6 +8,7 @@ import ProjectsListTableSkeleton from '@/components/skeletons/ProjectsListTableS
 import { useGlobalContext } from '@/context/useGlobalContext'
 import useFetchList from '@/hooks/useFetchList'
 import CoursesListTable from './components/CoursesListTable'
+import LmsSectionNav from './components/LmsSectionNav'
 
 const Courses = () => {
   const { getAllCourses } = useGlobalContext()
@@ -21,20 +22,13 @@ const Courses = () => {
       <Row>
         <Col>
           <Card>
-            <CardBody>
-              <div className="d-flex flex-wrap justify-content-between gap-3">
-                <Link to="/ecommerce/courses/create" className="btn btn-primary d-flex align-items-center">
+            <CardBody className="courses-toolbar-card-body">
+              <div className="courses-page-toolbar">
+                <Link to="/ecommerce/courses/create" className="btn btn-primary btn-sm d-inline-flex align-items-center">
                   <IconifyIcon icon="bx:plus" className="me-1" />
                   Create Course
                 </Link>
-                <div className="d-flex gap-2">
-                  <Link to="/ecommerce/courses/enrollments" className="btn btn-outline-secondary">
-                    Enrollments
-                  </Link>
-                  <Link to="/ecommerce/courses/orders" className="btn btn-outline-secondary">
-                    Orders
-                  </Link>
-                </div>
+                <LmsSectionNav />
               </div>
             </CardBody>
             <div className="courses-list-table-container">

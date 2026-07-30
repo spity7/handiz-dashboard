@@ -1,3 +1,13 @@
+export const PASSING_SCORE_MIN = 1
+export const PASSING_SCORE_MAX = 100
+export const PASSING_SCORE_DEFAULT = 70
+
+export const clampPassingScore = (value, fallback = PASSING_SCORE_DEFAULT) => {
+  const num = Number(value)
+  if (Number.isNaN(num)) return fallback
+  return Math.min(PASSING_SCORE_MAX, Math.max(PASSING_SCORE_MIN, num))
+}
+
 export const buildContentBlocksFormData = (blocks, formData) => {
   const payload = []
   let imageIndex = 0
@@ -18,7 +28,86 @@ export const buildContentBlocksFormData = (blocks, formData) => {
   return payload
 }
 
-export const validateLessonForm = ({ lessonForm, editingLesson, videoFile, quizQuestions, contentBlocks }) => {
+const serializeContentBlock = (block) => ({
+  type: block.type,
+  content:
+    block.content instanceof File ? `file:${block.content.name}:${block.content.size}:${block.content.lastModified}` : String(block.content || ''),
+})
+
+const serializeFileRef = (file) => (file ? `file:${file.name}:${file.size}:${file.lastModified}` : null)
+
+export const serializeLessonDraft = ({
+  lessonForm,
+  activeModuleId,
+  quizPassingScore,
+  quizQuestions,
+  contentBlocks,
+  existingResources,
+  videoFile,
+  resourceFiles,
+}) =>
+  JSON.stringify({
+    activeModuleId: activeModuleId || '',
+    lessonForm,
+    quizPassingScore,
+    quizQuestions,
+    contentBlocks: contentBlocks.map(serializeContentBlock),
+    existingResources,
+    videoFile: serializeFileRef(videoFile),
+    resourceFiles: resourceFiles.map(serializeFileRef),
+  })
+
+const hasContentBlocks = (contentBlocks) =>
+  contentBlocks.some((block) => {
+    if (block.type === 'image' && block.content instanceof File) return true
+    return String(block.content || '').trim().length > 0
+  })
+
+const isQuizQuestionComplete = (question) => {
+  if (!question.prompt?.trim()) return false
+
+  const filledOptions = (question.options || []).filter((opt) => String(opt).trim())
+  if (filledOptions.length < 2) return false
+
+  const correct = question.options[question.correctIndex]
+  return Boolean(String(correct || '').trim())
+}
+
+export const isLessonSaveReady = ({
+  lessonForm,
+  editingLesson,
+  videoFile,
+  quizQuestions,
+  contentBlocks,
+  existingResources = [],
+  resourceFiles = [],
+}) => {
+  if (!lessonForm.title?.trim()) return false
+
+  switch (lessonForm.type) {
+    case 'video':
+      return Boolean(videoFile || editingLesson?.video?.vdoCipherVideoId)
+    case 'quiz':
+      return quizQuestions.length > 0 && quizQuestions.every(isQuizQuestionComplete)
+    case 'text':
+      return hasContentBlocks(contentBlocks)
+    case 'download':
+      return hasContentBlocks(contentBlocks) || existingResources.length > 0 || resourceFiles.length > 0
+    default:
+      return false
+  }
+}
+
+export const validateLessonForm = ({
+  lessonForm,
+  editingLesson,
+  videoFile,
+  quizQuestions,
+  contentBlocks,
+  quizPassingScore,
+  existingResources = [],
+  resourceFiles = [],
+}) => {
   if (!lessonForm.title?.trim()) {
     return 'Lesson title is required.'
   }
@@ -31,6 +120,10 @@ export const validateLessonForm = ({ lessonForm, editingLesson, videoFile, quizQ
   }
 
   if (lessonForm.type === 'quiz') {
+    const score = Number(quizPassingScore)
+    if (Number.isNaN(score) || score < PASSING_SCORE_MIN || score > PASSING_SCORE_MAX) {
+      return `Passing score must be between ${PASSING_SCORE_MIN} and ${PASSING_SCORE_MAX}%.`
+    }
     if (!quizQuestions.length) {
       return 'Add at least one quiz question.'
     }
@@ -51,12 +144,12 @@ export const validateLessonForm = ({ lessonForm, editingLesson, videoFile, quizQ
   }
 
   if (lessonForm.type === 'text' || lessonForm.type === 'download') {
-    const hasContent = contentBlocks.some((block) => {
-      if (block.type === 'image' && block.content instanceof File) return true
-      return String(block.content || '').trim().length > 0
-    })
+    const hasContent = hasContentBlocks(contentBlocks)
     if (!hasContent && lessonForm.type === 'text') {
       return 'Add at least one content block for text lessons.'
+    }
+    if (!hasContent && lessonForm.type === 'download' && !existingResources?.length && !resourceFiles?.length) {
+      return 'Add at least one content block or downloadable resource.'
     }
   }
 

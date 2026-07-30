@@ -18,6 +18,7 @@ import StudentProjectFieldManageLink from '../../components/StudentProjectFieldM
 import RequireProfileComplete from '@/components/auth/RequireProfileComplete'
 import { sortOthersLast } from '@/utils/sortOthersLast'
 import { renameKeys } from '@/utils/rename-object-keys'
+import { PROJECT_IMAGE_UPLOAD_HELP_TEXT, formatProjectUploadErrors, validateProjectUploadFiles } from '@/utils/projectUploadLimits'
 import 'react-quill/dist/quill.snow.css'
 import useRegisterUnsavedFormDirty from '@/hooks/useRegisterUnsavedFormDirty'
 
@@ -322,6 +323,20 @@ const EditProject = () => {
         }
         if (!checkOptionalUrl(fileUrl)) {
           alert('File must be a valid http(s) URL')
+          setLoading(false)
+          return
+        }
+
+        const blockImageFiles = dynamicBlocks.filter((block) => block.type === 'image' && block.content instanceof File).map((block) => block.content)
+
+        const uploadErrors = validateProjectUploadFiles({
+          thumbnail,
+          gallery: galleryFiles,
+          blockImages: blockImageFiles,
+        })
+
+        if (uploadErrors.length > 0) {
+          Swal.fire('Upload too large', formatProjectUploadErrors(uploadErrors), 'warning')
           setLoading(false)
           return
         }
@@ -694,6 +709,7 @@ const EditProject = () => {
                     width: 36,
                   }}
                   text="Upload Gallery Images"
+                  helpText={PROJECT_IMAGE_UPLOAD_HELP_TEXT}
                   showPreview
                   onFileUpload={(files) => setGalleryFiles(files)}
                 />

@@ -1,5 +1,6 @@
 const COURSE_STATUS = {
   DRAFT: "Draft",
+  COMING_SOON: "Coming Soon",
   PUBLISHED: "Published",
   ARCHIVED: "Archived",
 };
@@ -43,7 +44,6 @@ const LESSON_CONTENT_BLOCK_TYPES = [
   "quote",
   "video",
   "file",
-  "code",
 ];
 
 module.exports = {

@@ -6,7 +6,6 @@ const BLOCK_TYPES = [
   { value: 'title', label: 'Title' },
   { value: 'description', label: 'Description' },
   { value: 'quote', label: 'Quote' },
-  { value: 'code', label: 'Code' },
   { value: 'image', label: 'Image' },
 ]
 
@@ -89,15 +88,7 @@ const LessonContentBlocksEditor = ({ blocks, onChange }) => {
                 </Button>
               </div>
 
-              {block.type === 'code' ? (
-                <Form.Control
-                  as="textarea"
-                  rows={4}
-                  value={typeof block.content === 'string' ? block.content : ''}
-                  onChange={(e) => updateBlock(index, { content: e.target.value })}
-                  placeholder="Code snippet"
-                />
-              ) : block.type === 'image' ? (
+              {block.type === 'image' ? (
                 <>
                   <Form.Control
                     type="file"

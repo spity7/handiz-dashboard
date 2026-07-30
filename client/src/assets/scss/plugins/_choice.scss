@@ -5,7 +5,6 @@
 @import 'choices.js/public/assets/styles/choices.min.css';
 
 .choices {
-
   // data-type = select-one
   &[data-type*='select-one'] {
     cursor: pointer;
@@ -269,6 +268,23 @@
   color: $input-color !important;
 }
 
+.react-select__value-container,
+.react-select__input-container {
+  color: $input-color !important;
+}
+
+.react-select__input {
+  color: $input-color !important;
+
+  input {
+    color: inherit !important;
+  }
+}
+
+.react-select__placeholder {
+  color: $input-placeholder-color !important;
+}
+
 .react-select__menu {
   filter: drop-shadow(0 10px 8px rgb(0 0 0 / 0.04)) drop-shadow(0 4px 3px rgb(0 0 0 / 0.1));
   background-color: $dropdown-bg !important;
@@ -278,7 +294,7 @@
   margin-top: 0.5rem;
 }
 
-.react-select__option--is-focused {
+.react-select__option--is-focused:not(.react-select__option--is-disabled) {
   background-color: $dropdown-link-hover-bg !important;
 }
 
@@ -296,6 +312,22 @@
 
   &:hover {
     background-color: $dropdown-link-hover-bg;
-    color: $primary
+    color: $primary;
+  }
+}
+
+.react-select__option--is-disabled,
+.react-select__menu .react-select__menu-list .react-select__option--is-disabled,
+.instructor-select__option--disabled {
+  cursor: not-allowed !important;
+
+  &:hover {
+    background-color: transparent !important;
+    color: inherit;
+  }
+
+  .instructor-select-option,
+  .instructor-select-option * {
+    cursor: not-allowed !important;
   }
 }

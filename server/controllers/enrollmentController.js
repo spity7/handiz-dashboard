@@ -13,6 +13,7 @@ const {
   notifyCourseEnrolled,
   serializeEnrollmentForClient,
   recalculateEnrollmentProgress,
+  restoreEnrollmentFromRevoked,
 } = require("../utils/courseHelpers");
 const { canAccessLesson, isStaff } = require("../utils/courseAccess");
 const { isEffectivelyFree } = require("../utils/coursePricing");
@@ -41,10 +42,11 @@ exports.enrollFree = async (req, res) => {
 
     if (existing) {
       if (existing.status === ENROLLMENT_STATUS.REVOKED) {
-        existing.status = ENROLLMENT_STATUS.ACTIVE;
+        restoreEnrollmentFromRevoked(existing);
         existing.source = ENROLLMENT_SOURCE.FREE;
         existing.enrolledAt = new Date();
         await existing.save();
+        await recalculateEnrollmentProgress(existing._id);
         await Course.findByIdAndUpdate(course._id, {
           $inc: { enrollmentCount: 1 },
         });
@@ -208,8 +210,7 @@ exports.adminCreateEnrollment = async (req, res) => {
 
     let enrollment = await Enrollment.findOne({ userId, courseId });
     if (enrollment) {
-      const wasRevoked = enrollment.status === ENROLLMENT_STATUS.REVOKED;
-      enrollment.status = ENROLLMENT_STATUS.ACTIVE;
+      const wasRevoked = restoreEnrollmentFromRevoked(enrollment);
       enrollment.source = ENROLLMENT_SOURCE.ADMIN;
       await enrollment.save();
       if (wasRevoked) {
@@ -217,6 +218,7 @@ exports.adminCreateEnrollment = async (req, res) => {
           $inc: { enrollmentCount: 1 },
         });
       }
+      await recalculateEnrollmentProgress(enrollment._id);
     } else {
       enrollment = await Enrollment.create({
         userId,
@@ -270,15 +272,20 @@ exports.getAllEnrollments = async (req, res) => {
     const page = Math.max(1, Number(req.query.page) || 1);
     const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 100));
     const skip = (page - 1) * limit;
+    const filter = {};
+
+    if (req.query.courseId) {
+      filter.courseId = req.query.courseId;
+    }
 
     const [enrollments, total] = await Promise.all([
-      Enrollment.find()
+      Enrollment.find(filter)
         .populate("userId", "firstname lastname email")
         .populate("courseId", "title slug")
         .sort({ enrolledAt: -1 })
         .skip(skip)
         .limit(limit),
-      Enrollment.countDocuments(),
+      Enrollment.countDocuments(filter),
     ]);
 
     res.status(200).json({

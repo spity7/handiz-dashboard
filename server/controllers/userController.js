@@ -20,6 +20,8 @@ const {
   normalizeOptionalHttpUrl,
   formatUserAuthResponse,
 } = require("../utils/userProfile");
+const { uploadUserAvatar, deleteImage } = require("../utils/gcs");
+const { getImageValidationError } = require("../utils/imageValidation");
 
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
@@ -551,6 +553,22 @@ exports.updateProfile = async (req, res) => {
           .json({ error: "Please enter a valid avatar URL." });
       }
       updates.avatarUrl = normalized;
+    }
+
+    if (req.file) {
+      const imageError = getImageValidationError(req.file, "Profile photo");
+      if (imageError) {
+        return res.status(400).json({ error: imageError });
+      }
+
+      if (currentUser.avatarUrl) {
+        await deleteImage(currentUser.avatarUrl);
+      }
+
+      updates.avatarUrl = await uploadUserAvatar(
+        req.file.buffer,
+        req.file.originalname,
+      );
     }
 
     if (bio !== undefined) {

@@ -1,6 +1,7 @@
 import Swal from 'sweetalert2'
 import DropzoneFormInput from '@/components/form/DropzoneFormInput'
 import { THUMBNAIL_ACCEPT, THUMBNAIL_INVALID_MESSAGE, isImageFile } from '@/utils/imageFile'
+import { PROJECT_IMAGE_UPLOAD_HELP_TEXT } from '@/utils/projectUploadLimits'
 
 const ThumbnailDropzoneInput = ({ onFileUpload, helpText, ...props }) => {
   const handleUpload = (files) => {
@@ -33,7 +34,7 @@ const ThumbnailDropzoneInput = ({ onFileUpload, helpText, ...props }) => {
       {...props}
       accept={THUMBNAIL_ACCEPT}
       maxFiles={1}
-      helpText={helpText ?? 'JPEG, PNG, GIF, WebP, or AVIF only'}
+      helpText={helpText ?? PROJECT_IMAGE_UPLOAD_HELP_TEXT}
       onFileUpload={handleUpload}
       onDropRejected={handleRejected}
     />

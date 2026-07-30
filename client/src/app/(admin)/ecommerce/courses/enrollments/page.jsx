@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Badge, Button, Card, CardBody, Col, Form, Modal, Row } from 'react-bootstrap'
 import PageBreadcrumb from '@/components/layout/PageBreadcrumb'
 import PageMetaData from '@/components/PageTitle'
@@ -7,20 +8,25 @@ import ProjectsListTableSkeleton from '@/components/skeletons/ProjectsListTableS
 import { useGlobalContext } from '@/context/useGlobalContext'
 import useFetchList from '@/hooks/useFetchList'
 import Swal from 'sweetalert2'
-import useConfirmFieldForm from '@/hooks/useConfirmFieldForm'
-import StudentSelect from '../components/StudentSelect'
+import CourseSelect from '../components/CourseSelect'
+import StudentSelect, { getEnrollmentUserId, isActiveEnrollmentStatus } from '../components/StudentSelect'
 import LmsListEmptyState from '../components/LmsListEmptyState'
+import LmsSectionNav from '../components/LmsSectionNav'
 import useConfirmFormSubmit from '@/hooks/useConfirmFormSubmit'
 import { buildFormConfirmOptions } from '@/utils/formConfirm'
 
 const CourseEnrollments = () => {
   const { getAllEnrollments, getAllCourses, adminCreateEnrollment, revokeEnrollment } = useGlobalContext()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const enrollDeepLinkHandled = useRef(false)
   const [page, setPage] = useState(1)
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1, limit: 100 })
   const [showCreate, setShowCreate] = useState(false)
   const [courses, setCourses] = useState([])
   const [form, setForm] = useState({ userId: '', courseId: '' })
+  const [courseEnrollments, setCourseEnrollments] = useState([])
   const [saving, setSaving] = useState(false)
+  const [reenrollingId, setReenrollingId] = useState(null)
   const confirmFormSubmit = useConfirmFormSubmit()
 
   const fetchEnrollments = useCallback(async () => {
@@ -36,6 +42,102 @@ const CourseEnrollments = () => {
       .then(setCourses)
       .catch(() => setCourses([]))
   }, [getAllCourses])
+
+  useEffect(() => {
+    if (enrollDeepLinkHandled.current) return
+
+    const shouldOpen = searchParams.get('enroll') === '1' || searchParams.get('openEnroll') === 'true'
+    const courseId = searchParams.get('courseId') || ''
+    const userId = searchParams.get('userId') || searchParams.get('studentId') || ''
+
+    if (!shouldOpen && !courseId && !userId) return
+
+    enrollDeepLinkHandled.current = true
+
+    if (courseId || userId) {
+      setForm((current) => ({
+        ...current,
+        ...(courseId ? { courseId } : {}),
+        ...(userId ? { userId } : {}),
+      }))
+    }
+    if (shouldOpen || courseId || userId) {
+      setShowCreate(true)
+    }
+
+    const next = new URLSearchParams(searchParams)
+    next.delete('enroll')
+    next.delete('openEnroll')
+    next.delete('courseId')
+    next.delete('userId')
+    next.delete('studentId')
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams])
+
+  useEffect(() => {
+    if (!form.courseId) {
+      setCourseEnrollments([])
+      return
+    }
+
+    let cancelled = false
+    getAllEnrollments({ courseId: form.courseId, page: 1, limit: 500 })
+      .then((response) => {
+        if (!cancelled) setCourseEnrollments(response.enrollments || [])
+      })
+      .catch(() => {
+        if (!cancelled) setCourseEnrollments([])
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [form.courseId, getAllEnrollments])
+
+  useEffect(() => {
+    if (!form.userId || !form.courseId) return
+
+    const alreadyEnrolled = courseEnrollments.some(
+      (enrollment) => isActiveEnrollmentStatus(enrollment.status) && String(getEnrollmentUserId(enrollment)) === String(form.userId),
+    )
+
+    if (alreadyEnrolled) {
+      setForm((current) => ({ ...current, userId: '' }))
+    }
+  }, [form.courseId, form.userId, courseEnrollments])
+
+  const handleReenroll = useCallback(
+    async (enrollment) => {
+      const userId = getEnrollmentUserId(enrollment)
+      const courseId = enrollment.courseId?._id ?? enrollment.courseId
+
+      if (!userId || !courseId) {
+        Swal.fire('Error', 'Missing student or course on this enrollment.', 'error')
+        return
+      }
+
+      await confirmFormSubmit(
+        buildFormConfirmOptions('enroll', {
+          title: 'Re-enroll student?',
+          text: `Restore access for ${enrollment.userId?.email || 'this student'} in "${enrollment.courseId?.title || 'this course'}"?`,
+          confirmLabel: 'Re-enroll',
+        }),
+        async () => {
+          setReenrollingId(enrollment._id)
+          try {
+            await adminCreateEnrollment({ userId, courseId })
+            refresh()
+            Swal.fire('Re-enrolled', 'The student has access to the course again.', 'success')
+          } catch (error) {
+            Swal.fire('Error', error?.response?.data?.message || 'Could not re-enroll student.', 'error')
+          } finally {
+            setReenrollingId(null)
+          }
+        },
+      )
+    },
+    [adminCreateEnrollment, confirmFormSubmit, refresh],
+  )
 
   const handleRevoke = useCallback(
     async (enrollment) => {
@@ -107,14 +209,18 @@ const CourseEnrollments = () => {
         id: 'actions',
         header: 'Actions',
         cell: ({ row: { original: enrollment } }) =>
-          enrollment.status !== 'revoked' ? (
+          enrollment.status === 'revoked' ? (
+            <Button size="sm" variant="outline-primary" disabled={reenrollingId === enrollment._id} onClick={() => handleReenroll(enrollment)}>
+              {reenrollingId === enrollment._id ? 'Re-enrolling…' : 'Re-enroll'}
+            </Button>
+          ) : (
             <Button size="sm" variant="outline-danger" onClick={() => handleRevoke(enrollment)}>
               Revoke
             </Button>
-          ) : null,
+          ),
       },
     ],
-    [handleRevoke],
+    [handleRevoke, handleReenroll, reenrollingId],
   )
 
   const emptyState = <LmsListEmptyState preset="enrollments" inTable onPrimaryAction={() => setShowCreate(true)} />
@@ -150,7 +256,8 @@ const CourseEnrollments = () => {
       <PageMetaData title="Course Enrollments" />
       <PageBreadcrumb title="Enrollments" subName="LMS" />
       <Row className="mb-3">
-        <Col className="d-flex justify-content-end">
+        <Col className="d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <LmsSectionNav />
           <Button onClick={() => setShowCreate(true)}>Enroll Student</Button>
         </Col>
       </Row>
@@ -206,26 +313,27 @@ const CourseEnrollments = () => {
           <Modal.Body>
             <Form.Group className="mb-3">
               <Form.Label>Student</Form.Label>
-              <StudentSelect value={form.userId} onChange={(userId) => setForm((current) => ({ ...current, userId }))} />
-              <Form.Text>Search by name, email, or username.</Form.Text>
+              <StudentSelect
+                value={form.userId}
+                courseId={form.courseId}
+                courseEnrollments={courseEnrollments}
+                onChange={(userId) => setForm((current) => ({ ...current, userId }))}
+              />
+              <Form.Text>
+                Admins cannot be enrolled. Students already active in the selected course are disabled; revoked students can be re-enrolled.
+              </Form.Text>
             </Form.Group>
             <Form.Group>
               <Form.Label>Course</Form.Label>
-              <Form.Select value={form.courseId} onChange={(event) => setForm((current) => ({ ...current, courseId: event.target.value }))} required>
-                <option value="">Select a course</option>
-                {courses.map((course) => (
-                  <option key={course._id} value={course._id}>
-                    {course.title}
-                  </option>
-                ))}
-              </Form.Select>
+              <CourseSelect value={form.courseId} onChange={(courseId) => setForm((current) => ({ ...current, courseId }))} courses={courses} />
+              <Form.Text>Search by course title or slug.</Form.Text>
             </Form.Group>
           </Modal.Body>
           <Modal.Footer>
             <Button variant="light" onClick={() => setShowCreate(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={saving}>
+            <Button type="submit" disabled={saving || !form.userId || !form.courseId}>
               {saving ? 'Saving…' : 'Enroll'}
             </Button>
           </Modal.Footer>

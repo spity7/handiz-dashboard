@@ -62,12 +62,18 @@ const {
   requireProjectPublish,
 } = require("../middlewares/canAccessProject");
 const requireProfileComplete = require("../middlewares/requireProfileComplete");
+const {
+  PROJECT_MAX_FILE_SIZE_BYTES,
+  PROJECT_MAX_GALLERY_FILES,
+  PROJECT_MAX_BLOCK_IMAGES,
+  PROJECT_MAX_TOTAL_FILES,
+} = require("../constants/projectUploadLimits");
 
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 20 * 1024 * 1024,
-    files: 30,
+    fileSize: PROJECT_MAX_FILE_SIZE_BYTES,
+    files: PROJECT_MAX_TOTAL_FILES,
   },
 });
 
@@ -138,8 +144,8 @@ router.post(
   requireProfileComplete,
   upload.fields([
     { name: "thumbnail", maxCount: 1 },
-    { name: "gallery", maxCount: 30 },
-    { name: "blockImages", maxCount: 50 },
+    { name: "gallery", maxCount: PROJECT_MAX_GALLERY_FILES },
+    { name: "blockImages", maxCount: PROJECT_MAX_BLOCK_IMAGES },
   ]),
   createProject,
 );
@@ -165,8 +171,8 @@ router.put(
   requireProfileComplete,
   upload.fields([
     { name: "thumbnail", maxCount: 1 },
-    { name: "gallery", maxCount: 30 },
-    { name: "blockImages", maxCount: 50 },
+    { name: "gallery", maxCount: PROJECT_MAX_GALLERY_FILES },
+    { name: "blockImages", maxCount: PROJECT_MAX_BLOCK_IMAGES },
   ]),
   updateProject,
 );

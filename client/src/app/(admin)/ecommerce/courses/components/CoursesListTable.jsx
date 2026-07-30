@@ -13,6 +13,7 @@ const ALL_FILTER = ''
 
 const COURSE_STATUS = {
   DRAFT: 'Draft',
+  COMING_SOON: 'Coming Soon',
   PUBLISHED: 'Published',
   ARCHIVED: 'Archived',
   REMOVED: 'Removed',
@@ -49,6 +50,7 @@ const apiErrorMessage = (error, fallback) => {
 
 const statusVariant = (status) => {
   if (status === COURSE_STATUS.PUBLISHED) return 'success'
+  if (status === COURSE_STATUS.COMING_SOON) return 'info'
   if (status === COURSE_STATUS.ARCHIVED) return 'secondary'
   return 'warning'
 }
@@ -345,6 +347,7 @@ const CoursesListTable = ({ courses, onRefresh, refreshing = false }) => {
             <TableHeaderFilter label="Filter by status" value={statusFilter} onChange={setStatusFilter}>
               <option value={ALL_FILTER}>All statuses</option>
               <option value={COURSE_STATUS.DRAFT}>{COURSE_STATUS.DRAFT}</option>
+              <option value={COURSE_STATUS.COMING_SOON}>{COURSE_STATUS.COMING_SOON}</option>
               <option value={COURSE_STATUS.PUBLISHED}>{COURSE_STATUS.PUBLISHED}</option>
               <option value={COURSE_STATUS.ARCHIVED}>{COURSE_STATUS.ARCHIVED}</option>
               <option value={COURSE_STATUS.REMOVED}>{COURSE_STATUS.REMOVED}</option>
@@ -443,7 +446,8 @@ const CoursesListTable = ({ courses, onRefresh, refreshing = false }) => {
           <div className="d-flex flex-column gap-1 courses-table-filters">
             <span className="fw-semibold">Action</span>
             {hasActiveFilters ? (
-              <Button variant="outline-secondary" size="sm" className="courses-table-filter-btn" onClick={clearFilters}>
+              <Button variant="soft-warning" size="sm" className="courses-table-clear-filters" onClick={clearFilters} title="Clear all table filters">
+                <IconifyIcon icon="bx:reset" className="courses-table-clear-filters__icon" aria-hidden="true" />
                 Clear filters
               </Button>
             ) : (

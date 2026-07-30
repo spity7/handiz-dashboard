@@ -888,6 +888,132 @@ html[data-bs-theme='dark'] {
   }
 }
 
+.courses-toolbar-card-body {
+  padding-top: 0.625rem;
+  padding-bottom: 0.625rem;
+}
+
+.courses-page-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+}
+
+.lms-section-nav {
+  display: inline-flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.2rem;
+  border-radius: 0.5rem;
+  background-color: rgba(var(--#{$prefix}body-color-rgb), 0.04);
+  border: 1px solid var(--#{$prefix}border-color);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+
+  &__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.75rem;
+    border-radius: 0.4rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--#{$prefix}body-color);
+    text-decoration: none;
+    white-space: nowrap;
+    transition:
+      background-color 0.18s ease,
+      color 0.18s ease,
+      box-shadow 0.18s ease,
+      transform 0.18s ease;
+
+    &:hover {
+      color: var(--#{$prefix}emphasis-color);
+      background-color: rgba(var(--#{$prefix}body-color-rgb), 0.07);
+      transform: translateY(-1px);
+    }
+
+    &:focus-visible {
+      outline: 2px solid rgba(var(--#{$prefix}primary-rgb), 0.55);
+      outline-offset: 2px;
+    }
+
+    &--info {
+      .lms-section-nav__icon-wrap {
+        background-color: rgba(var(--#{$prefix}info-rgb), 0.16);
+        color: var(--#{$prefix}info);
+      }
+
+      &.lms-section-nav__item--active {
+        background-color: var(--#{$prefix}info);
+        color: #fff;
+        box-shadow:
+          0 4px 14px rgba(var(--#{$prefix}info-rgb), 0.35),
+          inset 0 1px 0 rgba(255, 255, 255, 0.12);
+
+        .lms-section-nav__icon-wrap {
+          background-color: rgba(255, 255, 255, 0.18);
+          color: #fff;
+        }
+      }
+    }
+
+    &--success {
+      .lms-section-nav__icon-wrap {
+        background-color: rgba(var(--#{$prefix}success-rgb), 0.16);
+        color: var(--#{$prefix}success);
+      }
+
+      &.lms-section-nav__item--active {
+        background-color: var(--#{$prefix}success);
+        color: #fff;
+        box-shadow:
+          0 4px 14px rgba(var(--#{$prefix}success-rgb), 0.35),
+          inset 0 1px 0 rgba(255, 255, 255, 0.12);
+
+        .lms-section-nav__icon-wrap {
+          background-color: rgba(255, 255, 255, 0.18);
+          color: #fff;
+        }
+      }
+    }
+
+    &--active {
+      transform: none;
+
+      &:hover {
+        color: #fff;
+        transform: none;
+      }
+    }
+  }
+
+  &__icon-wrap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.45rem;
+    height: 1.45rem;
+    border-radius: 0.35rem;
+    flex-shrink: 0;
+    transition:
+      background-color 0.18s ease,
+      color 0.18s ease;
+  }
+
+  &__icon {
+    font-size: 0.95rem;
+    line-height: 1;
+  }
+
+  &__label {
+    letter-spacing: 0.01em;
+  }
+}
+
 .courses-list-table {
   .courses-table-filter {
     min-width: 8.5rem;
@@ -895,10 +1021,24 @@ html[data-bs-theme='dark'] {
     font-weight: 400;
   }
 
-  .courses-table-filter-btn {
+  .courses-table-clear-filters {
     min-width: 8.5rem;
     max-width: 14rem;
-    font-weight: 400;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+
+    &__icon {
+      font-size: 1rem;
+      line-height: 1;
+    }
+
+    &:hover,
+    &:focus-visible {
+      transform: translateY(-1px);
+    }
   }
 
   .courses-table-filter-placeholder {
@@ -2496,6 +2636,15 @@ body.course-reorder-active {
   .react-select__input-container {
     margin: 0;
     padding: 0;
+    color: var(--#{$prefix}body-color);
+  }
+
+  .react-select__input {
+    color: var(--#{$prefix}body-color) !important;
+
+    input {
+      color: inherit !important;
+    }
   }
 
   .react-select__single-value {
@@ -2510,6 +2659,16 @@ body.course-reorder-active {
     padding-top: 0.625rem !important;
     padding-bottom: 0.625rem !important;
     transition: background-color 0.15s ease;
+  }
+
+  .react-select__option--is-disabled,
+  .instructor-select__option--disabled {
+    cursor: not-allowed !important;
+
+    .instructor-select-option,
+    .instructor-select-option * {
+      cursor: not-allowed !important;
+    }
   }
 
   .react-select__option--is-focused,

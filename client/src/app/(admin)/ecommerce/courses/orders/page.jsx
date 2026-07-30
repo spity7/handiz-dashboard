@@ -7,6 +7,7 @@ import ProjectsListTableSkeleton from '@/components/skeletons/ProjectsListTableS
 import { useGlobalContext } from '@/context/useGlobalContext'
 import useFetchList from '@/hooks/useFetchList'
 import LmsListEmptyState from '../components/LmsListEmptyState'
+import LmsSectionNav from '../components/LmsSectionNav'
 
 const statusVariant = (status) => {
   if (status === 'paid') return 'success'
@@ -60,6 +61,11 @@ const CourseOrders = () => {
     <>
       <PageMetaData title="Course Orders" />
       <PageBreadcrumb title="Orders" subName="LMS" />
+      <Row className="mb-3">
+        <Col className="d-flex justify-content-end">
+          <LmsSectionNav />
+        </Col>
+      </Row>
       <Row className="mb-3">
         <Col md={4}>
           <Card>

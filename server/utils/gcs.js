@@ -135,6 +135,13 @@ async function deleteImage(fileUrl) {
   }
 }
 
+async function uploadUserAvatar(fileBuffer, originalName) {
+  const { buffer, mimeType, extension } = await optimizeImage(fileBuffer);
+  const base = safeBaseName(originalName);
+  const fileName = `users/avatars/${Date.now()}_${base}${extension}`;
+  return uploadImage(buffer, fileName, mimeType);
+}
+
 async function uploadCourseFile(
   fileBuffer,
   originalName,
@@ -156,6 +163,7 @@ module.exports = {
   uploadImage,
   uploadProjectImage,
   uploadThumbnail,
+  uploadUserAvatar,
   downloadImage,
   getFileNameFromUrl,
   bucket,

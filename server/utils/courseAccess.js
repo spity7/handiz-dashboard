@@ -30,6 +30,11 @@ const getPublishedCourseFilter = () => ({
   deletedAt: null,
 });
 
+const getPublicCatalogFilter = () => ({
+  status: { $in: [COURSE_STATUS.PUBLISHED, COURSE_STATUS.COMING_SOON] },
+  deletedAt: null,
+});
+
 const isCourseAvailable = (course) =>
   Boolean(course && course.deletedAt == null);
 
@@ -40,5 +45,6 @@ module.exports = {
   canAccessLesson,
   canEnrollInCourse,
   getPublishedCourseFilter,
+  getPublicCatalogFilter,
   isCourseAvailable,
 };

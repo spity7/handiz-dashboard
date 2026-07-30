@@ -23,6 +23,7 @@ const vdocipherRoutes = require("./routes/vdocipherRoutes");
 const webhookRoutes = require("./routes/webhookRoutes");
 const { handleVdocipherWebhook } = require("./controllers/vdocipherController");
 const logger = require("./config/logger");
+const handleMulterError = require("./middlewares/handleMulterError");
 require("./cron/cron");
 
 require("./config/env");
@@ -107,6 +108,10 @@ app.post("/api/v1/webhooks/vdocipher", handleVdocipherWebhook);
 
 // errorhandling for Middleware
 app.use((err, req, res, next) => {
+  if (handleMulterError(err, req, res, next)) {
+    return;
+  }
+
   console.error(err.stack);
   res.status(500).json({
     message: err.message || "Something broke!",

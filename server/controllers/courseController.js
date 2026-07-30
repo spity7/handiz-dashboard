@@ -22,6 +22,7 @@ const {
   isStaff,
   canAccessLesson,
   getPublishedCourseFilter,
+  getPublicCatalogFilter,
 } = require("../utils/courseAccess");
 const {
   generateUniqueSlug,
@@ -201,7 +202,7 @@ exports.getCourses = async (req, res) => {
   try {
     const { tag, level, free, search, admin } = req.query;
     const isAdminList = admin === "true" && isStaff(req.user);
-    const filter = isAdminList ? {} : getPublishedCourseFilter();
+    const filter = isAdminList ? {} : getPublicCatalogFilter();
 
     if (tag) filter.tags = tag;
     if (level) filter.level = level;
@@ -1394,12 +1395,18 @@ exports.upsertQuiz = async (req, res) => {
         .json({ message: "Quiz must have at least one question." });
     }
 
+    const normalizedPassingScore = (() => {
+      const num = Number(passingScore);
+      if (Number.isNaN(num)) return 70;
+      return Math.min(100, Math.max(1, num));
+    })();
+
     const quiz = await Quiz.findOneAndUpdate(
       { lessonId: lesson._id },
       {
         lessonId: lesson._id,
         courseId: lesson.courseId,
-        passingScore: passingScore ? Number(passingScore) : 70,
+        passingScore: normalizedPassingScore,
         questions: parsedQuestions,
       },
       { upsert: true, new: true },

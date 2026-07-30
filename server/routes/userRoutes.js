@@ -1,4 +1,5 @@
 const express = require("express");
+const multer = require("multer");
 const { googleAuth } = require("../controllers/googleAuthController");
 const {
   signupUser,
@@ -19,6 +20,14 @@ const {
 } = require("../controllers/userController");
 const protectRoute = require("../middlewares/protectRoute.js");
 const authorizePermission = require("../middlewares/authorizePermission.js");
+const {
+  AVATAR_MAX_FILE_SIZE_BYTES,
+} = require("../constants/avatarUploadLimits");
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: AVATAR_MAX_FILE_SIZE_BYTES },
+});
 
 const router = express.Router();
 
@@ -72,6 +81,6 @@ router.patch(
 router.get("/roles", protectRoute, authorizePermission("users:read"), getRoles);
 
 router.get("/user/:id", protectRoute, getUserById);
-router.put("/user/:id", protectRoute, updateProfile);
+router.put("/user/:id", protectRoute, upload.single("avatar"), updateProfile);
 
 module.exports = router;

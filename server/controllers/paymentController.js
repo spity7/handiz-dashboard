@@ -21,6 +21,7 @@ const {
   notifyCourseEnrolled,
   recalculateEnrollmentProgress,
   issueCertificateIfNeeded,
+  restoreEnrollmentFromRevoked,
 } = require("../utils/courseHelpers");
 const {
   upsertUnreadNotification,
@@ -60,13 +61,8 @@ const fulfillPaidEnrollmentFromOrder = async (
       $inc: { enrollmentCount: 1 },
     });
   } else if (enrollment.status === ENROLLMENT_STATUS.REVOKED) {
-    enrollment.status =
-      enrollment.statusBeforeRevoke === ENROLLMENT_STATUS.COMPLETED
-        ? ENROLLMENT_STATUS.COMPLETED
-        : ENROLLMENT_STATUS.ACTIVE;
+    restoreEnrollmentFromRevoked(enrollment);
     enrollment.source = ENROLLMENT_SOURCE.WHISH;
-    enrollment.revokedReason = null;
-    enrollment.statusBeforeRevoke = null;
     await enrollment.save();
     await Course.findByIdAndUpdate(order.courseId, {
       $inc: { enrollmentCount: 1 },

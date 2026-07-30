@@ -22,6 +22,7 @@ import StudentProjectFieldManageLink from '../../components/StudentProjectFieldM
 import ProjectFormSkeleton from '@/components/skeletons/ProjectFormSkeleton'
 import CheckboxGroupSkeleton from '@/components/skeletons/CheckboxGroupSkeleton'
 import { sortOthersLast } from '@/utils/sortOthersLast'
+import { PROJECT_IMAGE_UPLOAD_HELP_TEXT, formatProjectUploadErrors, validateProjectUploadFiles } from '@/utils/projectUploadLimits'
 
 const STUDENT_PROJECT_FORM_DEFAULTS = {
   title: '',
@@ -281,6 +282,19 @@ const GeneralDetailsForm = () => {
       return
     }
     setThumbnailError(null)
+
+    const blockImageFiles = dynamicBlocks.filter((block) => block.type === 'image' && block.content instanceof File).map((block) => block.content)
+
+    const uploadErrors = validateProjectUploadFiles({
+      thumbnail: thumbnailFile,
+      gallery: galleryFiles,
+      blockImages: blockImageFiles,
+    })
+
+    if (uploadErrors.length > 0) {
+      Swal.fire('Upload too large', formatProjectUploadErrors(uploadErrors), 'warning')
+      return
+    }
 
     const submitProject = async () => {
       try {
@@ -703,6 +717,7 @@ const GeneralDetailsForm = () => {
               width: 36,
             }}
             text="Upload Gallery Images"
+            helpText={PROJECT_IMAGE_UPLOAD_HELP_TEXT}
             showPreview
             resetTrigger={resetDropzones}
             onFileUpload={(files) => setGalleryFiles(files)}
