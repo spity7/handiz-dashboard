@@ -90,6 +90,13 @@ export const MENU_ITEMS = [
             roles: ['Admin'],
           },
           {
+            key: 'ecommerce-courses-lesson-devices',
+            label: 'Lesson Devices',
+            url: '/ecommerce/courses/lesson-devices',
+            parentKey: 'ecommerce-courses',
+            roles: ['Admin'],
+          },
+          {
             key: 'ecommerce-courses-orders',
             label: 'Orders',
             url: '/ecommerce/courses/orders',

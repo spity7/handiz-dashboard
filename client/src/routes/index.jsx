@@ -33,6 +33,7 @@ const EcommerceCourses = lazy(() => import('@/app/(admin)/ecommerce/courses/page
 const EcommerceCourseCreate = lazy(() => import('@/app/(admin)/ecommerce/courses/create/page'))
 const EcommerceCourseEdit = lazy(() => import('@/app/(admin)/ecommerce/courses/edit/[id]/page'))
 const EcommerceCourseEnrollments = lazy(() => import('@/app/(admin)/ecommerce/courses/enrollments/page'))
+const EcommerceCourseLessonDevices = lazy(() => import('@/app/(admin)/ecommerce/courses/lesson-devices/page'))
 const EcommerceCourseOrders = lazy(() => import('@/app/(admin)/ecommerce/courses/orders/page'))
 
 const EcommerceAiTools = lazy(() => import('@/app/(admin)/ecommerce/aiTools/page'))
@@ -316,6 +317,11 @@ const appsRoutes = [
     name: 'Course Enrollments',
     path: '/ecommerce/courses/enrollments',
     element: <EcommerceCourseEnrollments />,
+  },
+  {
+    name: 'Lesson Devices',
+    path: '/ecommerce/courses/lesson-devices',
+    element: <EcommerceCourseLessonDevices />,
   },
   {
     name: 'Course Orders',

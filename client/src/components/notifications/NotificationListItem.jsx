@@ -29,6 +29,10 @@ const NOTIFICATION_META = {
     icon: 'bx:video',
     iconClass: 'notification-item-icon--info',
   },
+  lesson_device_conflict: {
+    icon: 'bx:laptop',
+    iconClass: 'notification-item-icon--pending',
+  },
 }
 
 const getCourseInstructorMeta = (notification) => {

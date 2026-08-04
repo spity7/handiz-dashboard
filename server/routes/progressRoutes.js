@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const protectRoute = require("../middlewares/protectRoute");
 const authorizePermission = require("../middlewares/authorizePermission");
+const requireLessonDevice = require("../middlewares/requireLessonDevice");
 const {
   updateLessonProgress,
   getLessonProgress,
@@ -16,6 +17,7 @@ router.patch(
   "/progress/lessons/:lessonId",
   protectRoute,
   authorizePermission("courses:enroll"),
+  requireLessonDevice,
   updateLessonProgress,
 );
 router.get(
@@ -28,12 +30,14 @@ router.post(
   "/quizzes/:id/attempt",
   protectRoute,
   authorizePermission("courses:enroll"),
+  requireLessonDevice,
   submitQuizAttempt,
 );
 router.get(
   "/certificates/:enrollmentId",
   protectRoute,
   authorizePermission("courses:enroll"),
+  requireLessonDevice,
   getCertificate,
 );
 router.get(

@@ -21,6 +21,7 @@ const { ENROLLMENT_STATUS } = require("../constants/enrollmentStatus");
 const {
   isStaff,
   canAccessLesson,
+  hasActiveEnrollment,
   getPublishedCourseFilter,
   getPublicCatalogFilter,
 } = require("../utils/courseAccess");
@@ -1323,6 +1324,19 @@ exports.getLessonBySlug = async (req, res) => {
         message: "Complete previous lessons before accessing this one",
         sequentiallyLocked: true,
       });
+    }
+
+    if (
+      !lesson.isPreview &&
+      !staff &&
+      enrollment &&
+      hasActiveEnrollment(enrollment)
+    ) {
+      const {
+        assertLessonDeviceAccess,
+      } = require("../utils/lessonDeviceAccess");
+      const deviceAllowed = await assertLessonDeviceAccess(req, res);
+      if (!deviceAllowed) return;
     }
 
     const lessonObj = lesson.toObject();

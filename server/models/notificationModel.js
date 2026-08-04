@@ -19,6 +19,7 @@ const notificationSchema = new mongoose.Schema(
         "course_new_lesson",
         "course_instructor_assigned",
         "payment_received",
+        "lesson_device_conflict",
       ],
       required: true,
     },
@@ -34,6 +35,12 @@ const notificationSchema = new mongoose.Schema(
     relatedCourseId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Course",
+      default: null,
+      index: true,
+    },
+    relatedUserId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
       default: null,
       index: true,
     },

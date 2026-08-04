@@ -127,11 +127,22 @@ userSchema.pre("save", async function (next) {
       this.password = await bcrypt.hash(this.password, salt);
       if (!this.isNew) {
         this.passwordChangedAt = new Date();
+        this._revokeLessonDevice = true;
       }
     }
     next();
   } catch (error) {
     next(error);
+  }
+});
+
+userSchema.post("save", async function (doc) {
+  if (!doc._revokeLessonDevice) return;
+  try {
+    const { revokeDevice } = require("../utils/lessonDeviceSession");
+    await revokeDevice(doc._id);
+  } catch (error) {
+    console.error("Failed to revoke lesson device on password change:", error);
   }
 });
 

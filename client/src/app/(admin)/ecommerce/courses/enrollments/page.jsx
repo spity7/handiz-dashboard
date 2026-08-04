@@ -12,6 +12,7 @@ import CourseSelect from '../components/CourseSelect'
 import StudentSelect, { getEnrollmentUserId, isActiveEnrollmentStatus } from '../components/StudentSelect'
 import LmsListEmptyState from '../components/LmsListEmptyState'
 import LmsSectionNav from '../components/LmsSectionNav'
+import LessonDeviceManageModal from '../components/LessonDeviceManageModal'
 import useConfirmFormSubmit from '@/hooks/useConfirmFormSubmit'
 import { buildFormConfirmOptions } from '@/utils/formConfirm'
 
@@ -27,6 +28,7 @@ const CourseEnrollments = () => {
   const [courseEnrollments, setCourseEnrollments] = useState([])
   const [saving, setSaving] = useState(false)
   const [reenrollingId, setReenrollingId] = useState(null)
+  const [deviceManageUser, setDeviceManageUser] = useState(null)
   const confirmFormSubmit = useConfirmFormSubmit()
 
   const fetchEnrollments = useCallback(async () => {
@@ -206,6 +208,19 @@ const CourseEnrollments = () => {
         cell: ({ row: { original: enrollment } }) => new Date(enrollment.enrolledAt).toLocaleDateString(),
       },
       {
+        id: 'device',
+        header: 'Lesson device',
+        cell: ({ row: { original: enrollment } }) => {
+          const userId = getEnrollmentUserId(enrollment)
+          const label = `${enrollment.userId?.firstname || ''} ${enrollment.userId?.lastname || ''}`.trim() || enrollment.userId?.email
+          return (
+            <Button size="sm" variant="outline-secondary" onClick={() => setDeviceManageUser({ userId, label })}>
+              Manage
+            </Button>
+          )
+        },
+      },
+      {
         id: 'actions',
         header: 'Actions',
         cell: ({ row: { original: enrollment } }) =>
@@ -256,9 +271,11 @@ const CourseEnrollments = () => {
       <PageMetaData title="Course Enrollments" />
       <PageBreadcrumb title="Enrollments" subName="LMS" />
       <Row className="mb-3">
-        <Col className="d-flex justify-content-between align-items-center flex-wrap gap-2">
-          <LmsSectionNav />
-          <Button onClick={() => setShowCreate(true)}>Enroll Student</Button>
+        <Col>
+          <div className="courses-page-toolbar">
+            <LmsSectionNav />
+            <Button onClick={() => setShowCreate(true)}>Enroll Student</Button>
+          </div>
         </Col>
       </Row>
       <Row>
@@ -339,6 +356,13 @@ const CourseEnrollments = () => {
           </Modal.Footer>
         </Form>
       </Modal>
+
+      <LessonDeviceManageModal
+        show={Boolean(deviceManageUser)}
+        userId={deviceManageUser?.userId}
+        userLabel={deviceManageUser?.label}
+        onHide={() => setDeviceManageUser(null)}
+      />
     </>
   )
 }

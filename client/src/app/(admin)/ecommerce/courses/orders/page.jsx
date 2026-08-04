@@ -62,8 +62,10 @@ const CourseOrders = () => {
       <PageMetaData title="Course Orders" />
       <PageBreadcrumb title="Orders" subName="LMS" />
       <Row className="mb-3">
-        <Col className="d-flex justify-content-end">
-          <LmsSectionNav />
+        <Col>
+          <div className="courses-page-toolbar">
+            <LmsSectionNav />
+          </div>
         </Col>
       </Row>
       <Row className="mb-3">

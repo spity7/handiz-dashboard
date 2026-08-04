@@ -539,6 +539,31 @@ export const GlobalProvider = ({ children }) => {
     return response.data
   }
 
+  const getAllLessonDevices = async (params = {}) => {
+    const response = await axiosInstance.get('/admin/lesson-devices', { params })
+    return response.data
+  }
+
+  const getUserLessonDevice = async (userId) => {
+    const response = await axiosInstance.get(`/admin/users/${userId}/lesson-device`)
+    return response.data
+  }
+
+  const resetUserLessonDevice = async (userId) => {
+    const response = await axiosInstance.post(`/admin/users/${userId}/lesson-device/reset`)
+    return response.data
+  }
+
+  const blockUserLessonDevice = async (userId, reason = '') => {
+    const response = await axiosInstance.post(`/admin/users/${userId}/lesson-device/block`, { reason })
+    return response.data
+  }
+
+  const unblockUserLessonDevice = async (userId) => {
+    const response = await axiosInstance.post(`/admin/users/${userId}/lesson-device/unblock`)
+    return response.data
+  }
+
   const getOrders = async () => {
     const response = await axiosInstance.get('/orders')
     return response.data.orders
@@ -656,6 +681,11 @@ export const GlobalProvider = ({ children }) => {
         getAllEnrollments,
         adminCreateEnrollment,
         revokeEnrollment,
+        getAllLessonDevices,
+        getUserLessonDevice,
+        resetUserLessonDevice,
+        blockUserLessonDevice,
+        unblockUserLessonDevice,
         getOrders,
         getVdocipherUploadCredentials,
         deleteVdocipherVideo,
