@@ -2,7 +2,7 @@ import clsx from 'clsx'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Badge, Form } from 'react-bootstrap'
-import Swal from 'sweetalert2'
+import { withAsyncToast } from '@/utils/asyncToast'
 import ReactTable from '@/components/Table'
 import ProjectsListTableSkeleton from '@/components/skeletons/ProjectsListTableSkeleton'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
@@ -22,6 +22,7 @@ import ProjectsListEmptyState from './ProjectsListEmptyState'
 import { isProfileComplete } from '@/utils/profileComplete'
 import UserContactButtons from '@/components/users/UserContactButtons'
 import { buildStudentProjectWhatsAppMessage } from '@/utils/studentProjectContact'
+import { projectNeedsApproval } from '@/utils/projectPendingChanges'
 
 const FOCUS_DISMISS_MS = 450
 const ALL_FILTER = ''
@@ -45,7 +46,7 @@ const TableHeaderFilter = ({ label, value, onChange, children }) => (
 
 const ProjectsListTable = ({ projects, isLoading = false, onRefresh, highlightProjectId, onClearHighlight, initialOwnerFilter = ALL_FILTER }) => {
   const { user } = useAuthContext()
-  const { deleteProject, restoreProject, permanentlyDeleteProject, publishProject, unpublishProject } = useGlobalContext()
+  const { deleteProject, restoreProject, permanentlyDeleteProject, publishProject, unpublishProject, rejectPendingChanges } = useGlobalContext()
   const confirmAction = useConfirmAction()
   const tablePageSize = 10
   const [activeHighlightId, setActiveHighlightId] = useState(highlightProjectId)
@@ -53,6 +54,8 @@ const ProjectsListTable = ({ projects, isLoading = false, onRefresh, highlightPr
   const [ownerFilter, setOwnerFilter] = useState(initialOwnerFilter || ALL_FILTER)
   const [statusFilter, setStatusFilter] = useState(ALL_FILTER)
   const [visibilityFilter, setVisibilityFilter] = useState(VISIBILITY_ALL)
+  const [actionLoadingId, setActionLoadingId] = useState(null)
+  const actionsDisabled = Boolean(actionLoadingId)
   const showAdminColumns = user?.role === ROLES.ADMIN || user?.role === ROLES.EDITOR
   const profileComplete = isProfileComplete(user)
 
@@ -134,10 +137,17 @@ const ProjectsListTable = ({ projects, isLoading = false, onRefresh, highlightPr
     else window.location.reload()
   }
 
-  const runProjectAction = async (onSuccess) => {
-    await onSuccess()
-    clearHighlight()
-    await refresh()
+  const runProjectAction = async (projectId, messages, onSuccess) => {
+    setActionLoadingId(String(projectId))
+    try {
+      await withAsyncToast(onSuccess, messages)
+      clearHighlight()
+      await refresh()
+    } catch {
+      // Error toast already shown
+    } finally {
+      setActionLoadingId(null)
+    }
   }
 
   const handleDelete = async (project) => {
@@ -152,14 +162,15 @@ const ProjectsListTable = ({ projects, isLoading = false, onRefresh, highlightPr
       variant: 'danger',
       icon: 'warning',
       onConfirm: async () => {
-        try {
-          await runProjectAction(async () => {
-            await deleteProject(project._id)
-            await Swal.fire('Deleted', 'Project has been soft-deleted.', 'success')
-          })
-        } catch (error) {
-          Swal.fire('Error', error?.response?.data?.message || 'Delete failed', 'error')
-        }
+        await runProjectAction(
+          project._id,
+          {
+            loading: 'Deleting project…',
+            success: 'Project has been soft-deleted.',
+            error: (error) => error?.response?.data?.message || 'Delete failed',
+          },
+          () => deleteProject(project._id),
+        )
       },
     })
   }
@@ -175,14 +186,15 @@ const ProjectsListTable = ({ projects, isLoading = false, onRefresh, highlightPr
       confirmLabel: 'Restore',
       variant: 'primary',
       onConfirm: async () => {
-        try {
-          await runProjectAction(async () => {
-            await restoreProject(project._id)
-            await Swal.fire('Restored', 'Project has been restored.', 'success')
-          })
-        } catch (error) {
-          Swal.fire('Error', error?.response?.data?.message || 'Restore failed', 'error')
-        }
+        await runProjectAction(
+          project._id,
+          {
+            loading: 'Restoring project…',
+            success: 'Project has been restored.',
+            error: (error) => error?.response?.data?.message || 'Restore failed',
+          },
+          () => restoreProject(project._id),
+        )
       },
     })
   }
@@ -195,33 +207,38 @@ const ProjectsListTable = ({ projects, isLoading = false, onRefresh, highlightPr
       variant: 'danger',
       icon: 'warning',
       onConfirm: async () => {
-        try {
-          await runProjectAction(async () => {
-            await permanentlyDeleteProject(project._id)
-            await Swal.fire('Deleted', 'Project has been permanently deleted.', 'success')
-          })
-        } catch (error) {
-          Swal.fire('Error', error?.response?.data?.message || 'Permanent delete failed', 'error')
-        }
+        await runProjectAction(
+          project._id,
+          {
+            loading: 'Deleting project permanently…',
+            success: 'Project has been permanently deleted.',
+            error: (error) => error?.response?.data?.message || 'Permanent delete failed',
+          },
+          () => permanentlyDeleteProject(project._id),
+        )
       },
     })
   }
 
   const handlePublish = async (project) => {
+    const approvingChanges = project.hasPendingChanges && project.status === PROJECT_STATUS.PUBLISHED
+
     await confirmAction({
-      title: 'Publish project?',
-      text: 'This project will appear on handiz.org.',
-      confirmLabel: 'Publish',
+      title: approvingChanges ? 'Approve pending changes?' : 'Publish project?',
+      text: approvingChanges ? 'The submitted edits will replace the live version on handiz.org.' : 'This project will appear on handiz.org.',
+      confirmLabel: approvingChanges ? 'Approve' : 'Publish',
       variant: 'primary',
       onConfirm: async () => {
-        try {
-          await runProjectAction(async () => {
-            await publishProject(project._id)
-            await Swal.fire('Published', 'Project is now live.', 'success')
-          })
-        } catch (error) {
-          Swal.fire('Error', error?.response?.data?.message || 'Publish failed', 'error')
-        }
+        const approvingChanges = project.hasPendingChanges && project.status === PROJECT_STATUS.PUBLISHED
+        await runProjectAction(
+          project._id,
+          {
+            loading: approvingChanges ? 'Approving changes…' : 'Publishing project…',
+            success: approvingChanges ? 'Pending changes are now live.' : 'Project is now live.',
+            error: (error) => error?.response?.data?.message || 'Publish failed',
+          },
+          () => publishProject(project._id),
+        )
       },
     })
   }
@@ -234,14 +251,36 @@ const ProjectsListTable = ({ projects, isLoading = false, onRefresh, highlightPr
       variant: 'warning',
       icon: 'warning',
       onConfirm: async () => {
-        try {
-          await runProjectAction(async () => {
-            await unpublishProject(project._id)
-            await Swal.fire('Unpublished', 'Project is no longer public.', 'success')
-          })
-        } catch (error) {
-          Swal.fire('Error', error?.response?.data?.message || 'Unpublish failed', 'error')
-        }
+        await runProjectAction(
+          project._id,
+          {
+            loading: 'Unpublishing project…',
+            success: 'Project is no longer public.',
+            error: (error) => error?.response?.data?.message || 'Unpublish failed',
+          },
+          () => unpublishProject(project._id),
+        )
+      },
+    })
+  }
+
+  const handleRejectPending = async (project) => {
+    await confirmAction({
+      title: 'Reject pending changes?',
+      text: 'The submitted edits will be discarded. The live version on handiz.org stays unchanged.',
+      confirmLabel: 'Reject changes',
+      variant: 'danger',
+      icon: 'warning',
+      onConfirm: async () => {
+        await runProjectAction(
+          project._id,
+          {
+            loading: 'Rejecting changes…',
+            success: 'Pending changes were discarded.',
+            error: (error) => error?.response?.data?.message || 'Reject failed',
+          },
+          () => rejectPendingChanges(project._id),
+        )
       },
     })
   }
@@ -306,11 +345,16 @@ const ProjectsListTable = ({ projects, isLoading = false, onRefresh, highlightPr
     ),
     cell: ({
       row: {
-        original: { status, deletedAt },
+        original: { status, deletedAt, hasPendingChanges },
       },
     }) => (
       <div className="d-flex flex-column gap-1 align-items-start">
         {!deletedAt && (status ? <Badge bg={statusBadgeVariant(status)}>{status}</Badge> : <span className="text-muted">—</span>)}
+        {!deletedAt && hasPendingChanges && (
+          <Badge bg="warning" className="projects-list-pending-review-badge">
+            Pending review
+          </Badge>
+        )}
         {deletedAt && (
           <Badge bg="danger" className="projects-list-deleted-badge">
             Deleted
@@ -370,13 +414,23 @@ const ProjectsListTable = ({ projects, isLoading = false, onRefresh, highlightPr
         const showRestore = canRestoreProject(user, project) && deleted
         const showPermanentDelete = canPermanentlyDeleteProject(user) && deleted
         const isFocusedProject = activeHighlightId && String(project._id) === String(activeHighlightId)
+        const isRowLoading = actionLoadingId === String(project._id)
+        const disableActions = actionsDisabled
         return (
           <div className="d-flex gap-2 flex-wrap">
             <Link
               to={`/ecommerce/student-projects/${project._id}`}
               className="btn btn-sm btn-soft-primary"
               title="View Project"
-              onClick={() => isFocusedProject && clearHighlight()}>
+              aria-disabled={disableActions}
+              style={disableActions ? { pointerEvents: 'none', opacity: 0.65 } : undefined}
+              onClick={(e) => {
+                if (disableActions) {
+                  e.preventDefault()
+                  return
+                }
+                if (isFocusedProject) clearHighlight()
+              }}>
               <IconifyIcon icon="bx:show" className="fs-18" />
             </Link>
             {showWrite && (
@@ -388,27 +442,65 @@ const ProjectsListTable = ({ projects, isLoading = false, onRefresh, highlightPr
                 }
                 className="btn btn-sm btn-soft-secondary"
                 title={profileComplete ? 'Edit Project' : 'Verify your account to edit projects'}
-                onClick={() => isFocusedProject && clearHighlight()}>
+                aria-disabled={disableActions}
+                style={disableActions ? { pointerEvents: 'none', opacity: 0.65 } : undefined}
+                onClick={(e) => {
+                  if (disableActions) {
+                    e.preventDefault()
+                    return
+                  }
+                  if (isFocusedProject) clearHighlight()
+                }}>
                 <IconifyIcon icon="bx:edit" className="fs-18" />
               </Link>
             )}
-            {showPublish && project.status !== PROJECT_STATUS.PUBLISHED && (
-              <button type="button" className="btn btn-sm btn-soft-success" title="Publish" onClick={() => handlePublish(project)}>
+            {showPublish && projectNeedsApproval(project) && (
+              <button
+                type="button"
+                className="btn btn-sm btn-soft-success"
+                title={project.hasPendingChanges && project.status === PROJECT_STATUS.PUBLISHED ? 'Approve changes' : 'Publish'}
+                disabled={disableActions}
+                onClick={() => handlePublish(project)}>
                 <IconifyIcon icon="bx:upload" className="fs-18" />
               </button>
             )}
+            {showPublish && project.hasPendingChanges && project.status === PROJECT_STATUS.PUBLISHED && (
+              <button
+                type="button"
+                className="btn btn-sm btn-soft-danger"
+                title="Reject changes"
+                disabled={disableActions}
+                onClick={() => handleRejectPending(project)}>
+                <IconifyIcon icon="bx:x" className="fs-18" />
+              </button>
+            )}
             {showPublish && project.status === PROJECT_STATUS.PUBLISHED && (
-              <button type="button" className="btn btn-sm btn-soft-warning" title="Unpublish" onClick={() => handleUnpublish(project)}>
+              <button
+                type="button"
+                className="btn btn-sm btn-soft-warning"
+                title="Unpublish"
+                disabled={disableActions}
+                onClick={() => handleUnpublish(project)}>
                 <IconifyIcon icon="bx:hide" className="fs-18" />
               </button>
             )}
             {showWrite && (
-              <button type="button" className="btn btn-sm btn-soft-danger" title="Delete Project" onClick={() => handleDelete(project)}>
+              <button
+                type="button"
+                className="btn btn-sm btn-soft-danger"
+                title="Delete Project"
+                disabled={disableActions}
+                onClick={() => handleDelete(project)}>
                 <IconifyIcon icon="bx:trash" className="fs-18" />
               </button>
             )}
             {showRestore && (
-              <button type="button" className="btn btn-sm btn-soft-success" title="Restore Project" onClick={() => handleRestore(project)}>
+              <button
+                type="button"
+                className="btn btn-sm btn-soft-success"
+                title="Restore Project"
+                disabled={disableActions}
+                onClick={() => handleRestore(project)}>
                 <IconifyIcon icon="bx:undo" className="fs-18" />
               </button>
             )}
@@ -417,10 +509,12 @@ const ProjectsListTable = ({ projects, isLoading = false, onRefresh, highlightPr
                 type="button"
                 className="btn btn-sm btn-danger"
                 title="Permanently Delete Project"
+                disabled={disableActions}
                 onClick={() => handlePermanentDelete(project)}>
                 <IconifyIcon icon="bx:trash" className="fs-18" />
               </button>
             )}
+            {isRowLoading && <span className="align-self-center text-muted small">Working…</span>}
           </div>
         )
       },

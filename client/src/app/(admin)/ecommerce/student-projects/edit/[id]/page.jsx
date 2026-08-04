@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Card, CardBody, Col, Row, Button } from 'react-bootstrap'
+import { withAsyncToast, showCenterNotice } from '@/utils/asyncToast'
 import PageMetaData from '@/components/PageTitle'
 import PageBreadcrumb from '@/components/layout/PageBreadcrumb'
 import ProjectFormSkeleton from '@/components/skeletons/ProjectFormSkeleton'
@@ -9,7 +10,6 @@ import { useGlobalContext } from '@/context/useGlobalContext'
 import { useAuthContext } from '@/context/useAuthContext'
 import useConfirmAction from '@/hooks/useConfirmAction'
 import { ROLES, PROJECT_STATUS } from '@/constants/roles'
-import Swal from 'sweetalert2'
 import ReactQuill from 'react-quill'
 import DropzoneFormInput from '@/components/form/DropzoneFormInput'
 import { THUMBNAIL_ACCEPT_STRING, readThumbnailInput } from '@/utils/imageFile'
@@ -21,7 +21,8 @@ import { renameKeys } from '@/utils/rename-object-keys'
 import { PROJECT_IMAGE_UPLOAD_HELP_TEXT, formatProjectUploadErrors, validateProjectUploadFiles } from '@/utils/projectUploadLimits'
 import 'react-quill/dist/quill.snow.css'
 import useRegisterUnsavedFormDirty from '@/hooks/useRegisterUnsavedFormDirty'
-
+import { useUnsavedFormChanges } from '@/context/UnsavedFormChangesContext'
+import { mergeProjectForEdit } from '@/utils/projectPendingChanges'
 const serializeContentBlocks = (blocks) =>
   (blocks || []).map((block) => ({
     type: block.type,
@@ -44,6 +45,7 @@ const EditProject = () => {
   } = useGlobalContext()
   const { user } = useAuthContext()
   const confirmAction = useConfirmAction()
+  const { acknowledgeSuccessfulFormSave } = useUnsavedFormChanges()
 
   const [project, setProject] = useState(null)
   const [title, setTitle] = useState('')
@@ -110,29 +112,30 @@ const EditProject = () => {
     const fetchProject = async () => {
       try {
         const data = await getProjectById(id)
+        const editData = mergeProjectForEdit(data)
         setProject(data)
-        setTitle(data.title)
-        setStudent(data.student)
-        setArea(data.area)
-        setDescription(data.description)
+        setTitle(editData.title)
+        setStudent(editData.student)
+        setArea(editData.area)
+        setDescription(editData.description)
 
-        setOrder(data.order ?? 999)
-        setConcept(data.concept || [])
-        setType(data.type || [])
-        setCategory(data.category || [])
-        setYear(data.year || [])
-        setLocation(data.location || [])
-        setUniversity(data.university || [])
-        setGoogleMapUrl(data.googleMapUrl || '')
-        setThesisUrl(data.thesisUrl || '')
-        setFileUrl(data.fileUrl || '')
+        setOrder(editData.order ?? 999)
+        setConcept(editData.concept || [])
+        setType(editData.type || [])
+        setCategory(editData.category || [])
+        setYear(editData.year || [])
+        setLocation(editData.location || [])
+        setUniversity(editData.university || [])
+        setGoogleMapUrl(editData.googleMapUrl || '')
+        setThesisUrl(editData.thesisUrl || '')
+        setFileUrl(editData.fileUrl || '')
 
-        setPreview(data.thumbnailUrl)
-        setExistingGallery(data.gallery || [])
+        setPreview(editData.thumbnailUrl)
+        setExistingGallery(editData.gallery || [])
 
-        if (data.contentBlocks) {
+        if (editData.contentBlocks) {
           setDynamicBlocks(
-            data.contentBlocks.map((block) => ({
+            editData.contentBlocks.map((block) => ({
               ...block,
               id: Date.now() + Math.random().toString(36),
             })),
@@ -140,22 +143,22 @@ const EditProject = () => {
         }
 
         setLoadedSnapshot({
-          title: data.title,
-          student: data.student,
-          area: data.area,
-          description: data.description,
-          order: data.order ?? 999,
-          concept: data.concept || [],
-          category: data.category || [],
-          type: data.type || [],
-          year: data.year || [],
-          location: data.location || [],
-          university: data.university || [],
-          googleMapUrl: data.googleMapUrl || '',
-          thesisUrl: data.thesisUrl || '',
-          fileUrl: data.fileUrl || '',
-          contentBlocks: serializeContentBlocks(data.contentBlocks),
-          gallery: data.gallery || [],
+          title: editData.title,
+          student: editData.student,
+          area: editData.area,
+          description: editData.description,
+          order: editData.order ?? 999,
+          concept: editData.concept || [],
+          category: editData.category || [],
+          type: editData.type || [],
+          year: editData.year || [],
+          location: editData.location || [],
+          university: editData.university || [],
+          googleMapUrl: editData.googleMapUrl || '',
+          thesisUrl: editData.thesisUrl || '',
+          fileUrl: editData.fileUrl || '',
+          contentBlocks: serializeContentBlocks(editData.contentBlocks),
+          gallery: editData.gallery || [],
         })
       } catch (error) {
         alert('Failed to load project')
@@ -264,7 +267,7 @@ const EditProject = () => {
     gallery: existingGallery,
   }
 
-  useRegisterUnsavedFormDirty(loadedSnapshot, currentSnapshot, {
+  const { isDirty: hasChanges } = useRegisterUnsavedFormDirty(loadedSnapshot, currentSnapshot, {
     enabled: Boolean(loadedSnapshot),
     extraDirty: Boolean(thumbnail) || galleryFiles.length > 0,
   })
@@ -278,7 +281,7 @@ const EditProject = () => {
         reader.readAsDataURL(file)
       },
       onClear: () => setThumbnail(null),
-      onInvalid: (message) => Swal.fire('Validation', message, 'warning'),
+      onInvalid: (message) => showCenterNotice(message),
     })
   }
 
@@ -336,7 +339,7 @@ const EditProject = () => {
         })
 
         if (uploadErrors.length > 0) {
-          Swal.fire('Upload too large', formatProjectUploadErrors(uploadErrors), 'warning')
+          showCenterNotice(formatProjectUploadErrors(uploadErrors))
           setLoading(false)
           return
         }
@@ -391,21 +394,30 @@ const EditProject = () => {
         })
         formData.append('contentBlocks', JSON.stringify(blocksPayload))
 
-        await updateProject(id, formData)
-        await Swal.fire('Saved', 'Project updated successfully.', 'success')
+        await withAsyncToast(() => updateProject(id, formData), {
+          loading: 'Updating project…',
+          success: 'Project updated successfully.',
+          error: (error) => error?.response?.data?.message || 'Update failed',
+        })
+        acknowledgeSuccessfulFormSave()
         navigate('/')
-      } catch (error) {
-        Swal.fire('Error', error?.response?.data?.message || 'Update failed', 'error')
+      } catch {
+        // Error toast already shown
       } finally {
         setLoading(false)
       }
     }
 
     const needsReReview = user?.role === ROLES.USER
+    const isPublishedEdit = needsReReview && project?.status === PROJECT_STATUS.PUBLISHED
 
     await confirmAction({
       title: 'Save changes?',
-      text: needsReReview ? 'Saving will set this project to Pending for Admin/Editor review.' : 'Update this student project?',
+      text: isPublishedEdit
+        ? 'Your edits will be submitted for review. The current published version stays live on handiz.org until an admin approves.'
+        : needsReReview
+          ? 'Saving will set this project to Pending for Admin/Editor review.'
+          : 'Update this student project?',
       confirmLabel: 'Save',
       onConfirm: saveProject,
     })
@@ -420,11 +432,18 @@ const EditProject = () => {
       icon: 'warning',
       onConfirm: async () => {
         try {
-          const res = await deleteProjectGalleryImage(id, imageUrl)
-          await Swal.fire('Deleted', 'Image deleted successfully.', 'success')
+          setLoading(true)
+          const res = await withAsyncToast(() => deleteProjectGalleryImage(id, imageUrl), {
+            loading: 'Deleting image…',
+            success: 'Image deleted successfully.',
+            error: (error) => error?.response?.data?.message || 'Failed to delete image',
+          })
           setExistingGallery(res.gallery)
-        } catch (error) {
-          Swal.fire('Error', error?.response?.data?.message || 'Failed to delete image', 'error')
+          setLoadedSnapshot((prev) => (prev ? { ...prev, gallery: res.gallery } : prev))
+        } catch {
+          // Toast already shown
+        } finally {
+          setLoading(false)
         }
       },
     })
@@ -450,410 +469,417 @@ const EditProject = () => {
         <Col>
           <Card>
             <CardBody>
-              <form onSubmit={handleSubmit}>
-                <Row>
-                  <Col lg={3}>
-                    <div className="mb-3">
-                      <label className="form-label">Project Title</label>
-                      <input type="text" className="form-control" value={title} onChange={(e) => setTitle(e.target.value)} required />
+              <fieldset disabled={loading} style={{ border: 'none', margin: 0, padding: 0 }}>
+                <form onSubmit={handleSubmit}>
+                  {project.hasPendingChanges && project.status === PROJECT_STATUS.PUBLISHED && (
+                    <div className="alert alert-info" role="status">
+                      You have changes waiting for review. The version on handiz.org is still the last approved publish.
                     </div>
-                  </Col>
-                  <Col lg={3}>
-                    <div className="mb-3">
-                      <label className="form-label">Student</label>
-                      <input type="text" className="form-control" value={student} onChange={(e) => setStudent(e.target.value)} required />
-                    </div>
-                  </Col>
-                  <Col lg={3}>
-                    <div className="mb-3">
-                      <label className="form-label">Area</label>
-                      <input type="text" className="form-control" value={area} onChange={(e) => setArea(e.target.value)} required />
-                    </div>
-                  </Col>
-                  <Col lg={3}>
-                    <div className="mb-3">
-                      <label className="form-label">Order</label>
-                      <input
-                        type="number"
-                        className="form-control"
-                        value={order}
-                        onChange={(e) => setOrder(Number(e.target.value))}
-                        placeholder="Enter Order"
-                        required
-                      />
-                    </div>
-                  </Col>
-                </Row>
+                  )}
+                  <Row>
+                    <Col lg={3}>
+                      <div className="mb-3">
+                        <label className="form-label">Project Title</label>
+                        <input type="text" className="form-control" value={title} onChange={(e) => setTitle(e.target.value)} required />
+                      </div>
+                    </Col>
+                    <Col lg={3}>
+                      <div className="mb-3">
+                        <label className="form-label">Student</label>
+                        <input type="text" className="form-control" value={student} onChange={(e) => setStudent(e.target.value)} required />
+                      </div>
+                    </Col>
+                    <Col lg={3}>
+                      <div className="mb-3">
+                        <label className="form-label">Area</label>
+                        <input type="text" className="form-control" value={area} onChange={(e) => setArea(e.target.value)} required />
+                      </div>
+                    </Col>
+                    <Col lg={3}>
+                      <div className="mb-3">
+                        <label className="form-label">Order</label>
+                        <input
+                          type="number"
+                          className="form-control"
+                          value={order}
+                          onChange={(e) => setOrder(Number(e.target.value))}
+                          placeholder="Enter Order"
+                          required
+                        />
+                      </div>
+                    </Col>
+                  </Row>
 
-                <Row className="mb-3">
-                  <Col lg={3} className="student-project-field-box mb-2">
-                    <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
-                      <label className="form-label fw-bold mb-0">Concept *</label>
-                      <StudentProjectFieldManageLink to="/ecommerce/student-projects/concepts" title="Manage concepts" />
-                    </div>
-                    {conceptsLoading ? (
-                      <CheckboxGroupSkeleton />
-                    ) : concepts.length === 0 ? (
-                      <p className="text-muted mb-0 small">No concepts available</p>
-                    ) : (
-                      <div className="student-project-checkbox-scroll">
-                        {sortOthersLast(concepts).map((item) => (
-                          <div key={item._id}>
-                            <input
-                              type="checkbox"
-                              checked={concept.includes(item.name)}
-                              onChange={() => toggleCheckbox(item.name, concept, setConcept)}
-                            />{' '}
-                            {item.name}
+                  <Row className="mb-3">
+                    <Col lg={3} className="student-project-field-box mb-2">
+                      <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
+                        <label className="form-label fw-bold mb-0">Concept *</label>
+                        <StudentProjectFieldManageLink to="/ecommerce/student-projects/concepts" title="Manage concepts" />
+                      </div>
+                      {conceptsLoading ? (
+                        <CheckboxGroupSkeleton />
+                      ) : concepts.length === 0 ? (
+                        <p className="text-muted mb-0 small">No concepts available</p>
+                      ) : (
+                        <div className="student-project-checkbox-scroll">
+                          {sortOthersLast(concepts).map((item) => (
+                            <div key={item._id}>
+                              <input
+                                type="checkbox"
+                                checked={concept.includes(item.name)}
+                                onChange={() => toggleCheckbox(item.name, concept, setConcept)}
+                              />{' '}
+                              {item.name}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {concept.length === 0 && <p className="text-danger">Select at least one concept</p>}
+                    </Col>
+
+                    <Col lg={3} className="student-project-field-box mb-2">
+                      <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
+                        <label className="form-label fw-bold mb-0">Type *</label>
+                        <StudentProjectFieldManageLink to="/ecommerce/student-projects/types" title="Manage types" />
+                      </div>
+                      {typesLoading ? (
+                        <CheckboxGroupSkeleton />
+                      ) : types.length === 0 ? (
+                        <p className="text-muted mb-0 small">No types available</p>
+                      ) : (
+                        <div className="student-project-checkbox-scroll">
+                          {sortOthersLast(types).map((item) => (
+                            <div key={item._id}>
+                              <input type="checkbox" checked={type.includes(item.name)} onChange={() => toggleCheckbox(item.name, type, setType)} />{' '}
+                              {item.name}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {type.length === 0 && <p className="text-danger">Select at least one type</p>}
+                    </Col>
+
+                    <Col lg={3} className="student-project-field-box mb-2">
+                      <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
+                        <label className="form-label fw-bold mb-0">Category *</label>
+                        <StudentProjectFieldManageLink to="/ecommerce/student-projects/categories" title="Manage categories" />
+                      </div>
+                      {categoriesLoading ? (
+                        <CheckboxGroupSkeleton />
+                      ) : categories.length === 0 ? (
+                        <p className="text-muted mb-0 small">No categories available</p>
+                      ) : (
+                        <div className="student-project-checkbox-scroll">
+                          {sortOthersLast(categories).map((item) => (
+                            <div key={item._id}>
+                              <input
+                                type="checkbox"
+                                checked={category.includes(item.name)}
+                                onChange={() => toggleCheckbox(item.name, category, setCategory)}
+                              />{' '}
+                              {item.name}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {category.length === 0 && <p className="text-danger">Select at least one category</p>}
+                    </Col>
+
+                    <Col lg={3} className="student-project-field-box">
+                      <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
+                        <label className="form-label fw-bold mb-0">Year *</label>
+                        <StudentProjectFieldManageLink to="/ecommerce/student-projects/years" title="Manage years" />
+                      </div>
+                      {yearsLoading ? (
+                        <CheckboxGroupSkeleton />
+                      ) : years.length === 0 ? (
+                        <p className="text-muted mb-0 small">No years available</p>
+                      ) : (
+                        <div className="student-project-checkbox-scroll">
+                          {sortOthersLast(years).map((item) => (
+                            <div key={item._id}>
+                              <input type="checkbox" checked={year.includes(item.name)} onChange={() => toggleCheckbox(item.name, year, setYear)} />{' '}
+                              {item.name}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {year.length === 0 && <p className="text-danger">Select at least one year</p>}
+                    </Col>
+                  </Row>
+
+                  <Row className="mb-3">
+                    <Col lg={3} className="student-project-field-box mb-2">
+                      <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
+                        <label className="form-label fw-bold mb-0">Location *</label>
+                        <StudentProjectFieldManageLink to="/ecommerce/student-projects/locations" title="Manage locations" />
+                      </div>
+                      {locationsLoading ? (
+                        <CheckboxGroupSkeleton />
+                      ) : locations.length === 0 ? (
+                        <p className="text-muted mb-0 small">No locations available</p>
+                      ) : (
+                        <div className="student-project-checkbox-scroll">
+                          {sortOthersLast(locations).map((item) => (
+                            <div key={item._id}>
+                              <input
+                                type="checkbox"
+                                checked={location.includes(item.name)}
+                                onChange={() => toggleCheckbox(item.name, location, setLocation)}
+                              />{' '}
+                              {item.name}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {location.length === 0 && <p className="text-danger">Select at least one location</p>}
+                    </Col>
+
+                    <Col lg={3} className="student-project-field-box mb-2">
+                      <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
+                        <label className="form-label fw-bold mb-0">University *</label>
+                        <StudentProjectFieldManageLink to="/ecommerce/student-projects/universities" title="Manage universities" />
+                      </div>
+                      {universitiesLoading ? (
+                        <CheckboxGroupSkeleton />
+                      ) : universities.length === 0 ? (
+                        <p className="text-muted mb-0 small">No universities available</p>
+                      ) : (
+                        <div className="student-project-checkbox-scroll">
+                          {sortOthersLast(universities).map((item) => (
+                            <div key={item._id}>
+                              <input
+                                type="checkbox"
+                                checked={university.includes(item.name)}
+                                onChange={() => toggleCheckbox(item.name, university, setUniversity)}
+                              />{' '}
+                              {item.name}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {university.length === 0 && <p className="text-danger">Select at least one university</p>}
+                    </Col>
+
+                    <Col lg={1} />
+
+                    <Col lg={5}>
+                      <div className="mb-3">
+                        <label className="form-label">Project Thumbnail</label>
+                        <input type="file" className="form-control" accept={THUMBNAIL_ACCEPT_STRING} onChange={handleFileChange} />
+                        {preview && (
+                          <div className="mt-3">
+                            <p className="fw-bold mb-1">Preview:</p>
+                            <img src={preview} alt="Project Thumbnail" style={{ width: 80, height: 80, objectFit: 'contain' }} />
+                          </div>
+                        )}
+                      </div>
+                    </Col>
+                  </Row>
+
+                  <Row>
+                    <Col lg={4}>
+                      <div className="mb-3">
+                        <label className="form-label">Google Map (optional)</label>
+                        <input
+                          type="url"
+                          className="form-control"
+                          placeholder="https://maps.google.com/..."
+                          value={googleMapUrl}
+                          onChange={(e) => setGoogleMapUrl(e.target.value)}
+                        />
+                      </div>
+                    </Col>
+                    <Col lg={4}>
+                      <div className="mb-3">
+                        <label className="form-label">Thesis (optional)</label>
+                        <input
+                          type="url"
+                          className="form-control"
+                          placeholder="https://..."
+                          value={thesisUrl}
+                          onChange={(e) => setThesisUrl(e.target.value)}
+                        />
+                      </div>
+                    </Col>
+                    <Col lg={4}>
+                      <div className="mb-3">
+                        <label className="form-label">File (optional)</label>
+                        <input
+                          type="url"
+                          className="form-control"
+                          placeholder="https://..."
+                          value={fileUrl}
+                          onChange={(e) => setFileUrl(e.target.value)}
+                        />
+                      </div>
+                    </Col>
+                  </Row>
+
+                  <Row>
+                    <Col lg={6}>
+                      <div className="mb-3">
+                        <label className="form-label">Description</label>
+                        <ReactQuill theme="snow" value={description} onChange={setDescription} />
+                      </div>
+                    </Col>
+                  </Row>
+
+                  <DropzoneFormInput
+                    label="Update Project Gallery"
+                    labelClassName="fs-14 mb-1 mt-2"
+                    iconProps={{
+                      icon: 'bx:cloud-upload',
+                      height: 36,
+                      width: 36,
+                    }}
+                    text="Upload Gallery Images"
+                    helpText={PROJECT_IMAGE_UPLOAD_HELP_TEXT}
+                    showPreview
+                    onFileUpload={(files) => setGalleryFiles(files)}
+                  />
+
+                  {existingGallery.length > 0 && (
+                    <div className="mb-4">
+                      <label className="form-label fw-bold">Existing Gallery</label>
+                      <div className="d-flex flex-wrap gap-3">
+                        {existingGallery.map((imgUrl, idx) => (
+                          <div key={idx} className="position-relative">
+                            <img
+                              src={imgUrl}
+                              alt={`Gallery ${idx}`}
+                              style={{
+                                width: 100,
+                                height: 100,
+                                objectFit: 'cover',
+                                borderRadius: 6,
+                                border: '1px solid #ddd',
+                              }}
+                            />
+                            <Button
+                              variant="danger"
+                              size="sm"
+                              className="position-absolute top-0 end-0 p-1 rounded-circle"
+                              onClick={() => handleDeleteOldImage(imgUrl)}>
+                              ✕
+                            </Button>
                           </div>
                         ))}
                       </div>
-                    )}
-                    {concept.length === 0 && <p className="text-danger">Select at least one concept</p>}
-                  </Col>
-
-                  <Col lg={3} className="student-project-field-box mb-2">
-                    <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
-                      <label className="form-label fw-bold mb-0">Type *</label>
-                      <StudentProjectFieldManageLink to="/ecommerce/student-projects/types" title="Manage types" />
                     </div>
-                    {typesLoading ? (
-                      <CheckboxGroupSkeleton />
-                    ) : types.length === 0 ? (
-                      <p className="text-muted mb-0 small">No types available</p>
-                    ) : (
-                      <div className="student-project-checkbox-scroll">
-                        {sortOthersLast(types).map((item) => (
-                          <div key={item._id}>
-                            <input type="checkbox" checked={type.includes(item.name)} onChange={() => toggleCheckbox(item.name, type, setType)} />{' '}
-                            {item.name}
-                          </div>
-                        ))}
+                  )}
+
+                  {/* Dynamic Content Blocks Section */}
+                  <hr className="my-4" />
+                  <h4 className="mb-3">Dynamic Content Blocks</h4>
+
+                  {dynamicBlocks.map((block, index) => (
+                    <div key={block.id} className="mb-3 p-3 border rounded">
+                      <div className="d-flex justify-content-between align-items-center gap-2 mb-3 flex-wrap">
+                        <div className="d-flex gap-1 align-items-center flex-wrap">
+                          <Button
+                            variant="outline-secondary"
+                            size="sm"
+                            type="button"
+                            disabled={index === 0}
+                            onClick={() => moveBlock(index, -1)}
+                            aria-label="Move block up">
+                            ↑
+                          </Button>
+                          <Button
+                            variant="outline-secondary"
+                            size="sm"
+                            type="button"
+                            disabled={index === dynamicBlocks.length - 1}
+                            onClick={() => moveBlock(index, 1)}
+                            aria-label="Move block down">
+                            ↓
+                          </Button>
+                          <span className="text-capitalize fw-bold ms-2">{block.type}</span>
+                        </div>
+                        <Button variant="danger" size="sm" type="button" onClick={() => removeBlock(block.id)}>
+                          Remove
+                        </Button>
                       </div>
-                    )}
-                    {type.length === 0 && <p className="text-danger">Select at least one type</p>}
-                  </Col>
 
-                  <Col lg={3} className="student-project-field-box mb-2">
-                    <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
-                      <label className="form-label fw-bold mb-0">Category *</label>
-                      <StudentProjectFieldManageLink to="/ecommerce/student-projects/categories" title="Manage categories" />
-                    </div>
-                    {categoriesLoading ? (
-                      <CheckboxGroupSkeleton />
-                    ) : categories.length === 0 ? (
-                      <p className="text-muted mb-0 small">No categories available</p>
-                    ) : (
-                      <div className="student-project-checkbox-scroll">
-                        {sortOthersLast(categories).map((item) => (
-                          <div key={item._id}>
-                            <input
-                              type="checkbox"
-                              checked={category.includes(item.name)}
-                              onChange={() => toggleCheckbox(item.name, category, setCategory)}
-                            />{' '}
-                            {item.name}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {category.length === 0 && <p className="text-danger">Select at least one category</p>}
-                  </Col>
+                      {block.type === 'title' && (
+                        <input
+                          type="text"
+                          className="form-control"
+                          placeholder="Enter title"
+                          value={block.content}
+                          onChange={(e) => updateBlock(block.id, e.target.value)}
+                        />
+                      )}
 
-                  <Col lg={3} className="student-project-field-box">
-                    <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
-                      <label className="form-label fw-bold mb-0">Year *</label>
-                      <StudentProjectFieldManageLink to="/ecommerce/student-projects/years" title="Manage years" />
-                    </div>
-                    {yearsLoading ? (
-                      <CheckboxGroupSkeleton />
-                    ) : years.length === 0 ? (
-                      <p className="text-muted mb-0 small">No years available</p>
-                    ) : (
-                      <div className="student-project-checkbox-scroll">
-                        {sortOthersLast(years).map((item) => (
-                          <div key={item._id}>
-                            <input type="checkbox" checked={year.includes(item.name)} onChange={() => toggleCheckbox(item.name, year, setYear)} />{' '}
-                            {item.name}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {year.length === 0 && <p className="text-danger">Select at least one year</p>}
-                  </Col>
-                </Row>
+                      {block.type === 'description' && (
+                        <textarea
+                          className="form-control"
+                          rows={3}
+                          placeholder="Enter description"
+                          value={block.content}
+                          onChange={(e) => updateBlock(block.id, e.target.value)}
+                        />
+                      )}
 
-                <Row className="mb-3">
-                  <Col lg={3} className="student-project-field-box mb-2">
-                    <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
-                      <label className="form-label fw-bold mb-0">Location *</label>
-                      <StudentProjectFieldManageLink to="/ecommerce/student-projects/locations" title="Manage locations" />
-                    </div>
-                    {locationsLoading ? (
-                      <CheckboxGroupSkeleton />
-                    ) : locations.length === 0 ? (
-                      <p className="text-muted mb-0 small">No locations available</p>
-                    ) : (
-                      <div className="student-project-checkbox-scroll">
-                        {sortOthersLast(locations).map((item) => (
-                          <div key={item._id}>
-                            <input
-                              type="checkbox"
-                              checked={location.includes(item.name)}
-                              onChange={() => toggleCheckbox(item.name, location, setLocation)}
-                            />{' '}
-                            {item.name}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {location.length === 0 && <p className="text-danger">Select at least one location</p>}
-                  </Col>
+                      {block.type === 'quote' && (
+                        <textarea
+                          className="form-control fst-italic"
+                          rows={2}
+                          placeholder="Enter quote"
+                          value={block.content}
+                          onChange={(e) => updateBlock(block.id, e.target.value)}
+                        />
+                      )}
 
-                  <Col lg={3} className="student-project-field-box mb-2">
-                    <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
-                      <label className="form-label fw-bold mb-0">University *</label>
-                      <StudentProjectFieldManageLink to="/ecommerce/student-projects/universities" title="Manage universities" />
-                    </div>
-                    {universitiesLoading ? (
-                      <CheckboxGroupSkeleton />
-                    ) : universities.length === 0 ? (
-                      <p className="text-muted mb-0 small">No universities available</p>
-                    ) : (
-                      <div className="student-project-checkbox-scroll">
-                        {sortOthersLast(universities).map((item) => (
-                          <div key={item._id}>
-                            <input
-                              type="checkbox"
-                              checked={university.includes(item.name)}
-                              onChange={() => toggleCheckbox(item.name, university, setUniversity)}
-                            />{' '}
-                            {item.name}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {university.length === 0 && <p className="text-danger">Select at least one university</p>}
-                  </Col>
-
-                  <Col lg={1} />
-
-                  <Col lg={5}>
-                    <div className="mb-3">
-                      <label className="form-label">Project Thumbnail</label>
-                      <input type="file" className="form-control" accept={THUMBNAIL_ACCEPT_STRING} onChange={handleFileChange} />
-                      {preview && (
-                        <div className="mt-3">
-                          <p className="fw-bold mb-1">Preview:</p>
-                          <img src={preview} alt="Project Thumbnail" style={{ width: 80, height: 80, objectFit: 'contain' }} />
+                      {block.type === 'image' && (
+                        <div>
+                          <input
+                            type="file"
+                            className="form-control"
+                            accept="image/*"
+                            onChange={(e) => {
+                              if (e.target.files?.[0]) {
+                                updateBlock(block.id, e.target.files[0])
+                              }
+                            }}
+                          />
+                          {/* Show preview for existing image URL */}
+                          {block.content && typeof block.content === 'string' && (
+                            <div className="mt-2">
+                              <img src={block.content} alt="Block content" style={{ width: 100, height: 100, objectFit: 'contain' }} />
+                            </div>
+                          )}
+                          {/* Show name for new file */}
+                          {block.content && block.content instanceof File && <div className="mt-2 text-muted">Selected: {block.content.name}</div>}
                         </div>
                       )}
                     </div>
-                  </Col>
-                </Row>
+                  ))}
 
-                <Row>
-                  <Col lg={4}>
-                    <div className="mb-3">
-                      <label className="form-label">Google Map (optional)</label>
-                      <input
-                        type="url"
-                        className="form-control"
-                        placeholder="https://maps.google.com/..."
-                        value={googleMapUrl}
-                        onChange={(e) => setGoogleMapUrl(e.target.value)}
-                      />
-                    </div>
-                  </Col>
-                  <Col lg={4}>
-                    <div className="mb-3">
-                      <label className="form-label">Thesis (optional)</label>
-                      <input
-                        type="url"
-                        className="form-control"
-                        placeholder="https://..."
-                        value={thesisUrl}
-                        onChange={(e) => setThesisUrl(e.target.value)}
-                      />
-                    </div>
-                  </Col>
-                  <Col lg={4}>
-                    <div className="mb-3">
-                      <label className="form-label">File (optional)</label>
-                      <input
-                        type="url"
-                        className="form-control"
-                        placeholder="https://..."
-                        value={fileUrl}
-                        onChange={(e) => setFileUrl(e.target.value)}
-                      />
-                    </div>
-                  </Col>
-                </Row>
-
-                <Row>
-                  <Col lg={6}>
-                    <div className="mb-3">
-                      <label className="form-label">Description</label>
-                      <ReactQuill theme="snow" value={description} onChange={setDescription} />
-                    </div>
-                  </Col>
-                </Row>
-
-                <DropzoneFormInput
-                  label="Update Project Gallery"
-                  labelClassName="fs-14 mb-1 mt-2"
-                  iconProps={{
-                    icon: 'bx:cloud-upload',
-                    height: 36,
-                    width: 36,
-                  }}
-                  text="Upload Gallery Images"
-                  helpText={PROJECT_IMAGE_UPLOAD_HELP_TEXT}
-                  showPreview
-                  onFileUpload={(files) => setGalleryFiles(files)}
-                />
-
-                {existingGallery.length > 0 && (
                   <div className="mb-4">
-                    <label className="form-label fw-bold">Existing Gallery</label>
-                    <div className="d-flex flex-wrap gap-3">
-                      {existingGallery.map((imgUrl, idx) => (
-                        <div key={idx} className="position-relative">
-                          <img
-                            src={imgUrl}
-                            alt={`Gallery ${idx}`}
-                            style={{
-                              width: 100,
-                              height: 100,
-                              objectFit: 'cover',
-                              borderRadius: 6,
-                              border: '1px solid #ddd',
-                            }}
-                          />
-                          <Button
-                            variant="danger"
-                            size="sm"
-                            className="position-absolute top-0 end-0 p-1 rounded-circle"
-                            onClick={() => handleDeleteOldImage(imgUrl)}>
-                            ✕
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Dynamic Content Blocks Section */}
-                <hr className="my-4" />
-                <h4 className="mb-3">Dynamic Content Blocks</h4>
-
-                {dynamicBlocks.map((block, index) => (
-                  <div key={block.id} className="mb-3 p-3 border rounded">
-                    <div className="d-flex justify-content-between align-items-center gap-2 mb-3 flex-wrap">
-                      <div className="d-flex gap-1 align-items-center flex-wrap">
-                        <Button
-                          variant="outline-secondary"
-                          size="sm"
-                          type="button"
-                          disabled={index === 0}
-                          onClick={() => moveBlock(index, -1)}
-                          aria-label="Move block up">
-                          ↑
-                        </Button>
-                        <Button
-                          variant="outline-secondary"
-                          size="sm"
-                          type="button"
-                          disabled={index === dynamicBlocks.length - 1}
-                          onClick={() => moveBlock(index, 1)}
-                          aria-label="Move block down">
-                          ↓
-                        </Button>
-                        <span className="text-capitalize fw-bold ms-2">{block.type}</span>
-                      </div>
-                      <Button variant="danger" size="sm" type="button" onClick={() => removeBlock(block.id)}>
-                        Remove
+                    <label className="form-label d-block">Add New Block</label>
+                    <div className="d-flex gap-2">
+                      <Button variant="outline-primary" type="button" onClick={() => addBlock('title')}>
+                        + Title
+                      </Button>
+                      <Button variant="outline-primary" type="button" onClick={() => addBlock('description')}>
+                        + Description
+                      </Button>
+                      <Button variant="outline-primary" type="button" onClick={() => addBlock('image')}>
+                        + Image
+                      </Button>
+                      <Button variant="outline-primary" type="button" onClick={() => addBlock('quote')}>
+                        + Quote
                       </Button>
                     </div>
-
-                    {block.type === 'title' && (
-                      <input
-                        type="text"
-                        className="form-control"
-                        placeholder="Enter title"
-                        value={block.content}
-                        onChange={(e) => updateBlock(block.id, e.target.value)}
-                      />
-                    )}
-
-                    {block.type === 'description' && (
-                      <textarea
-                        className="form-control"
-                        rows={3}
-                        placeholder="Enter description"
-                        value={block.content}
-                        onChange={(e) => updateBlock(block.id, e.target.value)}
-                      />
-                    )}
-
-                    {block.type === 'quote' && (
-                      <textarea
-                        className="form-control fst-italic"
-                        rows={2}
-                        placeholder="Enter quote"
-                        value={block.content}
-                        onChange={(e) => updateBlock(block.id, e.target.value)}
-                      />
-                    )}
-
-                    {block.type === 'image' && (
-                      <div>
-                        <input
-                          type="file"
-                          className="form-control"
-                          accept="image/*"
-                          onChange={(e) => {
-                            if (e.target.files?.[0]) {
-                              updateBlock(block.id, e.target.files[0])
-                            }
-                          }}
-                        />
-                        {/* Show preview for existing image URL */}
-                        {block.content && typeof block.content === 'string' && (
-                          <div className="mt-2">
-                            <img src={block.content} alt="Block content" style={{ width: 100, height: 100, objectFit: 'contain' }} />
-                          </div>
-                        )}
-                        {/* Show name for new file */}
-                        {block.content && block.content instanceof File && <div className="mt-2 text-muted">Selected: {block.content.name}</div>}
-                      </div>
-                    )}
                   </div>
-                ))}
 
-                <div className="mb-4">
-                  <label className="form-label d-block">Add New Block</label>
-                  <div className="d-flex gap-2">
-                    <Button variant="outline-primary" type="button" onClick={() => addBlock('title')}>
-                      + Title
-                    </Button>
-                    <Button variant="outline-primary" type="button" onClick={() => addBlock('description')}>
-                      + Description
-                    </Button>
-                    <Button variant="outline-primary" type="button" onClick={() => addBlock('image')}>
-                      + Image
-                    </Button>
-                    <Button variant="outline-primary" type="button" onClick={() => addBlock('quote')}>
-                      + Quote
-                    </Button>
-                  </div>
-                </div>
-
-                <Button type="submit" disabled={loading}>
-                  {loading ? 'Updating...' : 'Update Project'}
-                </Button>
-              </form>
+                  <Button type="submit" disabled={loading || !hasChanges}>
+                    {loading ? 'Updating...' : 'Update Project'}
+                  </Button>
+                </form>
+              </fieldset>
             </CardBody>
           </Card>
         </Col>

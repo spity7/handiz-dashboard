@@ -2,9 +2,8 @@
 // app.scss
 //
 
-@import "nouislider/distribute/nouislider.css";
+@import 'nouislider/distribute/nouislider.css';
 @import 'gridjs/dist/theme/mermaid.css';
-
 
 // Core files
 @import 'bootstrap/scss/functions';
@@ -24,6 +23,7 @@
 @import 'structure/footer';
 
 // Bootstrap
+@import 'components/async-action-overlay';
 @import 'components/accordion';
 @import 'components/alerts';
 @import 'components/avatar';

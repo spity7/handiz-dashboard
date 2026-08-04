@@ -63,14 +63,25 @@ const ContentBlocks = ({ blocks = [], projectId }) => {
   )
 }
 
-const StudentProjectDetailView = ({ project, user }) => {
+const StudentProjectDetailView = ({ project, user, liveProject }) => {
   const showOwner = user?.role === ROLES.ADMIN || user?.role === ROLES.EDITOR
-  const owner = project.createdBy
+  const owner = (liveProject || project).createdBy
   const ownerDeleted = Boolean(owner?.deletedAt)
-  const projectDeleted = Boolean(project.deletedAt)
+  const projectDeleted = Boolean((liveProject || project).deletedAt)
+  const isPendingReview = Boolean(project._isPendingReview)
 
   return (
     <div className="student-project-detail">
+      {isPendingReview && (
+        <div className="alert alert-warning" role="status">
+          Showing submitted edits awaiting approval. The live version on handiz.org is unchanged until you approve.
+        </div>
+      )}
+      {!showOwner && liveProject?.hasPendingChanges && (
+        <div className="alert alert-info" role="status">
+          You have edits waiting for approval. This page shows the live version on handiz.org until an admin approves your changes.
+        </div>
+      )}
       <div className="student-project-detail__hero student-project-detail__image-wrap">
         {project.thumbnailUrl ? (
           <>
@@ -85,7 +96,10 @@ const StudentProjectDetailView = ({ project, user }) => {
       </div>
 
       <div className="student-project-detail__status-row">
-        {project.status && !projectDeleted && <Badge bg={statusBadgeVariant(project.status)}>{project.status}</Badge>}
+        {(liveProject || project).status && !projectDeleted && (
+          <Badge bg={statusBadgeVariant((liveProject || project).status)}>{(liveProject || project).status}</Badge>
+        )}
+        {(liveProject || project).hasPendingChanges && !projectDeleted && <Badge bg="warning">Pending review</Badge>}
         {projectDeleted && <Badge bg="danger">Deleted</Badge>}
         {typeof project.order === 'number' && (
           <Badge bg="light" text="dark">

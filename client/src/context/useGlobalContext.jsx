@@ -103,6 +103,11 @@ export const GlobalProvider = ({ children }) => {
     return response.data
   }
 
+  const rejectPendingChanges = async (id) => {
+    const response = await axiosInstance.patch(`/projects/${id}/reject-pending`)
+    return response.data
+  }
+
   const getEmployees = async (params = {}) => {
     const response = await axiosInstance.get('/get-all-employees', { params })
     return response.data
@@ -570,6 +575,7 @@ export const GlobalProvider = ({ children }) => {
         permanentlyDeleteProject,
         publishProject,
         unpublishProject,
+        rejectPendingChanges,
         deleteProjectGalleryImage,
         getEmployees,
         updateEmployee,

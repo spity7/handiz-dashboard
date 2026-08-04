@@ -24,7 +24,7 @@ const buildNotificationContent = (project, submittedBy, isUpdate) => {
   if (isUpdate) {
     return {
       title: "Student project updated — pending review",
-      message: `${submitter} updated "${projectTitle}" and it needs review again.`,
+      message: `${submitter} updated "${projectTitle}". The live version stays on handiz.org until you approve the changes.`,
     };
   }
 

@@ -55,4 +55,6 @@ export default function useRegisterUnsavedFormDirty(snapshot, current, { enabled
   }, [enabled, compareSnapshot, compareCurrent, extraDirty, baseline, trackingMode])
 
   useRegisterUnsavedFormChanges(isDirty)
+
+  return { isDirty }
 }

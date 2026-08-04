@@ -14,5 +14,5 @@ export default function useRegisterRhfFormDirty(defaultValues, values, { extraDi
 
   const current = useMemo(() => pickComparableFormValues(mergedValues, fieldKeys, defaultValues), [mergedValues, fieldKeys, defaultValues])
 
-  useRegisterUnsavedFormDirty(snapshot, current, { extraDirty, trackingMode: 'defaults' })
+  return useRegisterUnsavedFormDirty(snapshot, current, { extraDirty, trackingMode: 'defaults' })
 }

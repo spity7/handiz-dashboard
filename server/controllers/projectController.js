@@ -26,11 +26,19 @@ const {
   findProjectImageByLabel,
 } = require("../utils/projectImageDownload");
 const { getImageValidationError } = require("../utils/imageValidation");
+const {
+  extractEditableContent,
+  getPendingBaseline,
+  collectContentImageUrls,
+  getOrphanedImageUrls,
+  deleteImagesQuietly,
+  discardPendingChanges,
+  promotePendingChanges,
+  collectAllProjectImageUrls,
+} = require("../utils/projectPendingChanges");
 
 const collectProjectImageUrls = (project) => [
-  ...new Set(
-    collectProjectDownloadableImages(project).map((image) => image.url),
-  ),
+  ...new Set(collectAllProjectImageUrls(project)),
 ];
 
 const assertCanAccessProjectImages = (req, project) => {
@@ -340,6 +348,14 @@ exports.updateProject = async (req, res) => {
     }
 
     const userEdited = req.user.role === ROLES.USER;
+    const isDraftEdit =
+      userEdited && existingProject.status === PROJECT_STATUS.PUBLISHED;
+    const contentSource = isDraftEdit
+      ? getPendingBaseline(existingProject)
+      : existingProject;
+    const liveImageUrls = collectContentImageUrls(
+      extractEditableContent(existingProject),
+    );
 
     const parsedConcept = Array.isArray(concept) ? concept : [concept];
     const parsedType = Array.isArray(type) ? type : [type];
@@ -369,7 +385,6 @@ exports.updateProject = async (req, res) => {
       fileUrl: trimUrl(fileUrl),
     };
 
-    // Process Content Blocks
     let parsedContentBlocks = [];
     if (contentBlocks) {
       try {
@@ -379,9 +394,7 @@ exports.updateProject = async (req, res) => {
       }
     }
 
-    // Upload block images and map to contentBlocks
     if (parsedContentBlocks.length > 0) {
-      // Upload NEW block images
       if (blockImageFiles.length > 0) {
         const uploadStamp = Date.now();
         const uploadedBlockImages = await Promise.all(
@@ -393,12 +406,9 @@ exports.updateProject = async (req, res) => {
           ),
         );
 
-        let imageIndex = 0;
         parsedContentBlocks = parsedContentBlocks.map((block) => {
-          // If block has a fileIndex, it means it's a NEW file upload
           if (block.type === "image" && block.fileIndex !== undefined) {
-            const url = uploadedBlockImages[block.fileIndex]; // Use fileIndex from frontend
-            // Cleanup: remove temporary fileIndex
+            const url = uploadedBlockImages[block.fileIndex];
             const { fileIndex, ...rest } = block;
             return { ...rest, content: url };
           }
@@ -408,67 +418,49 @@ exports.updateProject = async (req, res) => {
 
       updateData.contentBlocks = parsedContentBlocks;
     } else if (contentBlocks) {
-      // If contentBlocks is sent but empty (user deleted all blocks), update to empty array
       updateData.contentBlocks = [];
     }
 
-    // ✅ Clean up old content block images
-    // 1. Get all image URLs from the existing project (DB state)
-    const oldBlockImages = existingProject.contentBlocks
+    const oldBlockImages = (contentSource.contentBlocks || [])
       .filter((b) => b.type === "image" && b.content)
       .map((b) => b.content);
 
-    // 2. Get all image URLs from the NEW payload (after new uploads are processed)
-    //    We check updateData.contentBlocks if set, otherwise it defaults to [] if we reached here with contentBlocks valid
     const newBlockImages = (updateData.contentBlocks || [])
       .filter((b) => b.type === "image" && b.content)
       .map((b) => b.content);
 
-    // 3. Find images that are in old BUT NOT in new
-    const imagesToDelete = oldBlockImages.filter(
-      (url) => !newBlockImages.includes(url),
+    const imagesToDelete = getOrphanedImageUrls(
+      oldBlockImages,
+      newBlockImages,
+      isDraftEdit ? liveImageUrls : [],
     );
 
-    // 4. Delete them from GCS
     if (imagesToDelete.length > 0) {
-      await Promise.all(
-        imagesToDelete.map(async (url) => {
-          try {
-            await deleteImage(url);
-          } catch (err) {
-            console.warn(
-              "⚠️ Failed to delete removed block image:",
-              err.message,
-            );
-          }
-        }),
-      );
+      await deleteImagesQuietly(imagesToDelete);
     }
 
-    // ✅ Handle new thumbnail upload
     if (thumbnailFile) {
       const thumbnailTypeError = getImageValidationError(thumbnailFile);
       if (thumbnailTypeError) {
         return res.status(400).json({ message: thumbnailTypeError });
       }
 
-      // Delete old thumbnail if exists
-      if (existingProject.thumbnailUrl) {
-        try {
-          await deleteImage(existingProject.thumbnailUrl);
-        } catch (err) {
-          console.warn("⚠️ Failed to delete old thumbnail:", err.message);
+      const oldThumbnail = contentSource.thumbnailUrl;
+      if (oldThumbnail) {
+        const protectedUrls = isDraftEdit
+          ? liveImageUrls
+          : [existingProject.thumbnailUrl].filter(Boolean);
+        if (!protectedUrls.includes(oldThumbnail)) {
+          await deleteImagesQuietly([oldThumbnail]);
         }
       }
 
-      const newThumbnailUrl = await uploadThumbnail(
+      updateData.thumbnailUrl = await uploadThumbnail(
         thumbnailFile.buffer,
         thumbnailFile.originalname,
       );
-      updateData.thumbnailUrl = newThumbnailUrl;
     }
 
-    // ✅ Parallel upload for gallery
     let newGalleryUrls = [];
     if (galleryFiles.length > 0) {
       try {
@@ -492,17 +484,45 @@ exports.updateProject = async (req, res) => {
 
     if (newGalleryUrls.length > 0) {
       updateData.gallery = [
-        ...(existingProject.gallery || []),
+        ...(contentSource.gallery || []),
         ...newGalleryUrls,
       ];
     }
 
+    if (isDraftEdit) {
+      const pendingPayload = {
+        ...extractEditableContent(contentSource),
+        ...updateData,
+      };
+
+      existingProject.pendingChanges = pendingPayload;
+      existingProject.hasPendingChanges = true;
+      existingProject.pendingSubmittedAt = new Date();
+      existingProject.pendingSubmittedBy = req.user._id;
+      existingProject.markModified("pendingChanges");
+      await existingProject.save();
+
+      notifyProjectPending(existingProject, req.user, true).catch((err) => {
+        console.error(
+          "Failed to send project pending notification:",
+          err.message,
+        );
+      });
+
+      return res.status(200).json({
+        message:
+          "Changes submitted for review. The published version remains live until approved.",
+        project: existingProject,
+      });
+    }
+
+    if (!userEdited && existingProject.hasPendingChanges) {
+      await discardPendingChanges(existingProject);
+      await existingProject.save();
+    }
+
     if (userEdited) {
       updateData.status = PROJECT_STATUS.PENDING;
-      if (existingProject.status === PROJECT_STATUS.PUBLISHED) {
-        updateData.publishedAt = null;
-        updateData.publishedBy = null;
-      }
     }
 
     const updatedProject = await Project.findByIdAndUpdate(
@@ -536,14 +556,48 @@ exports.updateProject = async (req, res) => {
 exports.publishProject = async (req, res) => {
   try {
     const project = req.project;
+    const hadPendingChanges = project.hasPendingChanges;
+
+    if (hadPendingChanges) {
+      await promotePendingChanges(project);
+    }
+
     project.status = PROJECT_STATUS.PUBLISHED;
     project.publishedAt = new Date();
     project.publishedBy = req.user._id;
     await project.save();
     await notifyProjectPublished(project);
-    res.status(200).json({ message: "Project published", project });
+
+    res.status(200).json({
+      message: hadPendingChanges
+        ? "Pending changes approved and published"
+        : "Project published",
+      project,
+    });
   } catch (error) {
+    console.error("Error publishing project:", error);
     res.status(500).json({ message: "Server error publishing project" });
+  }
+};
+
+exports.rejectPendingChanges = async (req, res) => {
+  try {
+    const project = req.project;
+
+    if (!project.hasPendingChanges) {
+      return res.status(400).json({ message: "No pending changes to reject" });
+    }
+
+    await discardPendingChanges(project);
+    await project.save();
+
+    res.status(200).json({
+      message: "Pending changes rejected. The live version is unchanged.",
+      project,
+    });
+  } catch (error) {
+    console.error("Error rejecting pending changes:", error);
+    res.status(500).json({ message: "Server error rejecting pending changes" });
   }
 };
 
@@ -634,8 +688,8 @@ exports.permanentlyDeleteProject = async (req, res) => {
 
 exports.deleteProjectImage = async (req, res) => {
   try {
-    const { id } = req.params; // project id
-    const { imageUrl } = req.body; // the image URL to delete
+    const { id } = req.params;
+    const { imageUrl } = req.body;
 
     if (!imageUrl) {
       return res.status(400).json({ message: "Image URL is required" });
@@ -646,16 +700,44 @@ exports.deleteProjectImage = async (req, res) => {
       return res.status(404).json({ message: "Project not found" });
     }
 
-    // Check if the image exists in the project's gallery
+    const isDraftGalleryEdit =
+      req.user?.role === ROLES.USER &&
+      project.status === PROJECT_STATUS.PUBLISHED;
+
+    if (isDraftGalleryEdit) {
+      const baseline = getPendingBaseline(project);
+      const gallery = baseline.gallery || [];
+
+      if (!gallery.includes(imageUrl)) {
+        return res.status(404).json({ message: "Image not found in gallery" });
+      }
+
+      baseline.gallery = gallery.filter((url) => url !== imageUrl);
+      project.pendingChanges = baseline;
+      project.hasPendingChanges = true;
+      project.pendingSubmittedAt = new Date();
+      project.pendingSubmittedBy = req.user._id;
+      project.markModified("pendingChanges");
+      await project.save();
+
+      const liveUrls = collectContentImageUrls(extractEditableContent(project));
+      if (!liveUrls.includes(imageUrl)) {
+        await deleteImage(imageUrl);
+      }
+
+      return res.status(200).json({
+        message: "Gallery image removed from pending changes",
+        gallery: baseline.gallery,
+      });
+    }
+
     const imageExists = project.gallery.includes(imageUrl);
     if (!imageExists) {
       return res.status(404).json({ message: "Image not found in gallery" });
     }
 
-    // Delete the image from GCS
     await deleteImage(imageUrl);
 
-    // Remove the image from MongoDB array
     project.gallery = project.gallery.filter((url) => url !== imageUrl);
     await project.save();
 

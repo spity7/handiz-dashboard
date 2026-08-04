@@ -5,6 +5,42 @@ const {
 } = require("../constants/projectStatus");
 const softDeletePlugin = require("../utils/softDeletePlugin");
 
+const projectContentBlockSchema = {
+  _id: false,
+  type: {
+    type: String,
+    enum: ["title", "description", "image", "quote"],
+    required: true,
+  },
+  content: {
+    type: String,
+    default: "",
+  },
+};
+
+const projectEditableContentSchema = new mongoose.Schema(
+  {
+    title: { type: String, trim: true },
+    student: { type: String, trim: true },
+    area: { type: String, trim: true },
+    description: { type: String },
+    order: { type: Number },
+    thumbnailUrl: { type: String },
+    gallery: [{ type: String }],
+    concept: [String],
+    type: [String],
+    category: [String],
+    year: [String],
+    location: [String],
+    university: [String],
+    googleMapUrl: { type: String, trim: true, default: "" },
+    thesisUrl: { type: String, trim: true, default: "" },
+    fileUrl: { type: String, trim: true, default: "" },
+    contentBlocks: [projectContentBlockSchema],
+  },
+  { _id: false },
+);
+
 const projectSchema = new mongoose.Schema(
   {
     title: {
@@ -96,20 +132,24 @@ const projectSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
-    contentBlocks: [
-      {
-        _id: false,
-        type: {
-          type: String,
-          enum: ["title", "description", "image", "quote"],
-          required: true,
-        },
-        content: {
-          type: String,
-          default: "",
-        },
-      },
-    ],
+    contentBlocks: [projectContentBlockSchema],
+    hasPendingChanges: {
+      type: Boolean,
+      default: false,
+    },
+    pendingSubmittedAt: {
+      type: Date,
+      default: null,
+    },
+    pendingSubmittedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    pendingChanges: {
+      type: projectEditableContentSchema,
+      default: null,
+    },
     status: {
       type: String,
       enum: PROJECT_STATUS_VALUES,

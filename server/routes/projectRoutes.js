@@ -13,6 +13,7 @@ const {
   permanentlyDeleteProject,
   publishProject,
   unpublishProject,
+  rejectPendingChanges,
   downloadProjectImagesZip,
   downloadProjectImageFile,
 } = require("../controllers/projectController");
@@ -183,6 +184,14 @@ router.patch(
   loadProject,
   requireProjectPublish,
   publishProject,
+);
+
+router.patch(
+  "/projects/:id/reject-pending",
+  protectRoute,
+  loadProject,
+  requireProjectPublish,
+  rejectPendingChanges,
 );
 
 router.patch(
