@@ -1,4 +1,5 @@
-const MAX_MARKETING_VIDEOS = 3;
+const MIN_MARKETING_VIDEOS = 4;
+const MAX_MARKETING_VIDEOS = 7;
 
 const isHttpUrl = (value) => {
   try {
@@ -108,6 +109,13 @@ const normalizeMarketingVideosInput = (value) => {
     };
   }
 
+  if (items.length > 0 && items.length < MIN_MARKETING_VIDEOS) {
+    return {
+      error: `Add at least ${MIN_MARKETING_VIDEOS} marketing videos, or leave them all empty.`,
+      videos: [],
+    };
+  }
+
   const videos = [];
   for (let i = 0; i < items.length; i += 1) {
     const resolved = resolveMarketingVideo(items[i], i);
@@ -126,6 +134,7 @@ const emptyMarketingVideoSlots = () =>
   }));
 
 module.exports = {
+  MIN_MARKETING_VIDEOS,
   MAX_MARKETING_VIDEOS,
   normalizeMarketingVideosInput,
   emptyMarketingVideoSlots,

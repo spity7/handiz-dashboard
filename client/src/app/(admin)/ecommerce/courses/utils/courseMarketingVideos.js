@@ -1,4 +1,5 @@
-export const MAX_COURSE_MARKETING_VIDEOS = 3
+export const MIN_COURSE_MARKETING_VIDEOS = 4
+export const MAX_COURSE_MARKETING_VIDEOS = 7
 
 export const emptyMarketingVideoSlots = () =>
   Array.from({ length: MAX_COURSE_MARKETING_VIDEOS }, () => ({
@@ -33,4 +34,22 @@ export const marketingVideosFormDirty = (current, saved) => {
   const a = serializeMarketingVideosForApi(current)
   const b = serializeMarketingVideosForApi(saved)
   return JSON.stringify(a) !== JSON.stringify(b)
+}
+
+export const validateMarketingVideosForSave = (slots) => {
+  const filledCount = serializeMarketingVideosForApi(slots).length
+
+  if (filledCount === 0) {
+    return null
+  }
+
+  if (filledCount < MIN_COURSE_MARKETING_VIDEOS) {
+    return `Add at least ${MIN_COURSE_MARKETING_VIDEOS} preview video links, or leave them all empty.`
+  }
+
+  if (filledCount > MAX_COURSE_MARKETING_VIDEOS) {
+    return `You can add at most ${MAX_COURSE_MARKETING_VIDEOS} preview video links.`
+  }
+
+  return null
 }

@@ -105,8 +105,12 @@ const courseSchema = new mongoose.Schema(
       ],
       default: [],
       validate: {
-        validator: (videos) => !videos || videos.length <= 3,
-        message: "A course can have at most 3 marketing videos.",
+        validator: (videos) => {
+          const count = videos?.length || 0;
+          return count === 0 || (count >= 4 && count <= 7);
+        },
+        message:
+          "A course must have between 4 and 7 marketing videos, or none at all.",
       },
     },
     aboutCourseSections: {

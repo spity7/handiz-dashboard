@@ -10,7 +10,12 @@ import { useGlobalContext } from '@/context/useGlobalContext'
 import InstructorSelect from './InstructorSelect'
 import CourseMarketingVideosEditor from './CourseMarketingVideosEditor'
 import CourseAboutCourseEditor from './CourseAboutCourseEditor'
-import { marketingVideosFormDirty, marketingVideosFromCourse, serializeMarketingVideosForApi } from '../utils/courseMarketingVideos'
+import {
+  marketingVideosFormDirty,
+  marketingVideosFromCourse,
+  serializeMarketingVideosForApi,
+  validateMarketingVideosForSave,
+} from '../utils/courseMarketingVideos'
 import { aboutCourseSectionsFormDirty, aboutCourseSectionsFromCourse, serializeAboutCourseSectionsForApi } from '../utils/courseAboutSections'
 import {
   DISCOUNT_TYPE,
@@ -460,6 +465,12 @@ const CourseForm = ({ course = null, onSaved, disabled = false }) => {
         Swal.fire('Validation', 'Free offer end date must be in the future.', 'warning')
         return
       }
+    }
+
+    const marketingVideosError = validateMarketingVideosForSave(marketingVideos)
+    if (marketingVideosError) {
+      Swal.fire('Validation', marketingVideosError, 'warning')
+      return
     }
 
     const submitCourse = async () => {

@@ -1,5 +1,5 @@
 import { Card, Col, Form, Row } from 'react-bootstrap'
-import { MAX_COURSE_MARKETING_VIDEOS } from '../utils/courseMarketingVideos'
+import { MAX_COURSE_MARKETING_VIDEOS, MIN_COURSE_MARKETING_VIDEOS } from '../utils/courseMarketingVideos'
 
 const slotLabel = (index) => `Video ${index + 1}`
 
@@ -14,8 +14,9 @@ export default function CourseMarketingVideosEditor({ videos, onChange }) {
       <Card.Header className="bg-light fw-semibold">Course page preview videos</Card.Header>
       <Card.Body>
         <p className="text-muted mb-4">
-          Up to {MAX_COURSE_MARKETING_VIDEOS} promotional clips on the course detail page (beside the description card). Paste YouTube or Vimeo links
-          for in-page playback; other links open in a new tab. Thumbnails are generated automatically. Separate from curriculum lessons.
+          Add {MIN_COURSE_MARKETING_VIDEOS} to {MAX_COURSE_MARKETING_VIDEOS} promotional clips for the &quot;Inside the Course&quot; row on the course
+          detail page, or leave them all empty to hide that section. Paste YouTube or Vimeo links for in-page playback; other links open in a new tab.
+          Thumbnails are generated automatically. Separate from curriculum lessons.
         </p>
         {videos.map((slot, index) => (
           <Row key={index} className={index < videos.length - 1 ? 'mb-3 pb-3 border-bottom' : ''}>
