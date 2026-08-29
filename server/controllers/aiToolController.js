@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 const AiTool = require("../models/aiToolModel");
 const AiPromptCategory = require("../models/aiPromptCategoryModel");
-const { uploadImage, deleteImage } = require("../utils/gcs");
+const { uploadOptimizedImage, deleteImage } = require("../utils/gcs");
 const { getImageValidationError } = require("../utils/imageValidation");
 
 const POPULATE_CATEGORY = { path: "category", select: "name isFallback" };
@@ -42,14 +42,12 @@ exports.createAiTool = async (req, res) => {
       return res.status(400).json({ message: thumbnailTypeError });
     }
 
-    // Upload thumbnail
-    const thumbnailFileName = `aiTools/thumbnails/${Date.now()}_${
-      thumbnailFile.originalname
-    }`;
-    const thumbnailUrl = await uploadImage(
+    const uploadStamp = Date.now();
+    const thumbnailUrl = await uploadOptimizedImage(
       thumbnailFile.buffer,
-      thumbnailFileName,
-      thumbnailFile.mimetype,
+      thumbnailFile.originalname,
+      "aiTools/thumbnails",
+      { stamp: uploadStamp },
     );
 
     // Upload gallery (optional)
@@ -58,12 +56,14 @@ exports.createAiTool = async (req, res) => {
     if (galleryFiles.length > 0) {
       try {
         galleryUrls = await Promise.all(
-          galleryFiles.map(async (file) => {
-            const fileName = `aiTools/gallery/${Date.now()}_${
-              file.originalname
-            }`;
-            return await uploadImage(file.buffer, fileName, file.mimetype);
-          }),
+          galleryFiles.map((file, index) =>
+            uploadOptimizedImage(
+              file.buffer,
+              file.originalname,
+              "aiTools/gallery",
+              { stamp: uploadStamp, index },
+            ),
+          ),
         );
       } catch (err) {
         console.error("Error uploading one of the gallery images:", err);
@@ -182,14 +182,11 @@ exports.updateAiTool = async (req, res) => {
         }
       }
 
-      // Upload new one
-      const newThumbnailName = `aiTools/thumbnails/${Date.now()}_${
-        thumbnailFile.originalname
-      }`;
-      const newThumbnailUrl = await uploadImage(
+      const newThumbnailUrl = await uploadOptimizedImage(
         thumbnailFile.buffer,
-        newThumbnailName,
-        thumbnailFile.mimetype,
+        thumbnailFile.originalname,
+        "aiTools/thumbnails",
+        { stamp: Date.now() },
       );
       updateData.thumbnailUrl = newThumbnailUrl;
     }
@@ -199,12 +196,14 @@ exports.updateAiTool = async (req, res) => {
     if (galleryFiles.length > 0) {
       try {
         newGalleryUrls = await Promise.all(
-          galleryFiles.map(async (file) => {
-            const fileName = `aiTools/gallery/${Date.now()}_${
-              file.originalname
-            }`;
-            return await uploadImage(file.buffer, fileName, file.mimetype);
-          }),
+          galleryFiles.map((file, index) =>
+            uploadOptimizedImage(
+              file.buffer,
+              file.originalname,
+              "aiTools/gallery",
+              { stamp: Date.now(), index },
+            ),
+          ),
         );
       } catch (err) {
         console.error("Error uploading gallery images:", err);

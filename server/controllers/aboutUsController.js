@@ -1,5 +1,5 @@
 const AboutUs = require("../models/aboutUsModel");
-const { uploadImage, deleteImage } = require("../utils/gcs");
+const { uploadOptimizedImage, deleteImage } = require("../utils/gcs");
 
 const parseContentBlocks = (contentBlocks) => {
   if (!contentBlocks) return [];
@@ -14,11 +14,14 @@ const parseContentBlocks = (contentBlocks) => {
 const mapBlockImages = async (blocks, blockImageFiles, folder) => {
   if (!blocks.length || !blockImageFiles.length) return blocks;
 
+  const uploadStamp = Date.now();
   const uploadedBlockImages = await Promise.all(
-    blockImageFiles.map(async (file) => {
-      const fileName = `${folder}/blocks/${Date.now()}_${file.originalname}`;
-      return uploadImage(file.buffer, fileName, file.mimetype);
-    }),
+    blockImageFiles.map((file, index) =>
+      uploadOptimizedImage(file.buffer, file.originalname, `${folder}/blocks`, {
+        stamp: uploadStamp,
+        index,
+      }),
+    ),
   );
 
   return blocks.map((block) => {

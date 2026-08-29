@@ -33,11 +33,35 @@ function safeBaseName(originalName, fallback = "image") {
     .name.replace(/[^a-zA-Z0-9._-]/g, "_");
 }
 
-function projectImageFileName(folder, originalName, extension, stamp, index) {
+function stampedImageFileName(
+  folder,
+  originalName,
+  extension,
+  { stamp = Date.now(), index } = {},
+) {
   const base = safeBaseName(originalName);
   const prefix =
     index !== undefined && index !== null ? `${stamp}_${index}` : String(stamp);
-  return `projects/${folder}/${prefix}_${base}${extension}`;
+  return `${folder}/${prefix}_${base}${extension}`;
+}
+
+function isGcsUrl(fileUrl) {
+  if (!fileUrl || !bucketName) return false;
+  return fileUrl.includes(`storage.googleapis.com/${bucketName}/`);
+}
+
+async function uploadOptimizedImage(
+  fileBuffer,
+  originalName,
+  folder,
+  { stamp = Date.now(), index } = {},
+) {
+  const { buffer, mimeType, extension } = await optimizeImage(fileBuffer);
+  const fileName = stampedImageFileName(folder, originalName, extension, {
+    stamp,
+    index,
+  });
+  return uploadImage(buffer, fileName, mimeType);
 }
 
 async function uploadProjectImage(
@@ -46,38 +70,18 @@ async function uploadProjectImage(
   folder,
   { stamp = Date.now(), index } = {},
 ) {
-  const { buffer, mimeType, extension } = await optimizeImage(fileBuffer);
-  const fileName = projectImageFileName(
-    folder,
-    originalName,
-    extension,
+  return uploadOptimizedImage(fileBuffer, originalName, `projects/${folder}`, {
     stamp,
     index,
-  );
-  return uploadImage(buffer, fileName, mimeType);
+  });
 }
 
 async function uploadThumbnail(fileBuffer, originalName) {
   return uploadProjectImage(fileBuffer, originalName, "thumbnails");
 }
 
-function courseImageFileName(
-  subfolder,
-  originalName,
-  extension,
-  stamp = Date.now(),
-  index,
-) {
-  const base = safeBaseName(originalName);
-  const prefix =
-    index !== undefined && index !== null ? `${stamp}_${index}` : String(stamp);
-  return `courses/${subfolder}/${prefix}_${base}${extension}`;
-}
-
 async function uploadCourseThumbnail(fileBuffer, originalName) {
-  const { buffer, mimeType, extension } = await optimizeImage(fileBuffer);
-  const fileName = courseImageFileName("thumbnails", originalName, extension);
-  return uploadImage(buffer, fileName, mimeType);
+  return uploadOptimizedImage(fileBuffer, originalName, "courses/thumbnails");
 }
 
 async function uploadCourseHeroImage(
@@ -95,15 +99,15 @@ async function uploadCourseImage(
   subfolder = "images",
   { stamp = Date.now(), index } = {},
 ) {
-  const { buffer, mimeType, extension } = await optimizeImage(fileBuffer);
-  const fileName = courseImageFileName(
-    subfolder,
+  return uploadOptimizedImage(
+    fileBuffer,
     originalName,
-    extension,
-    stamp,
-    index,
+    `courses/${subfolder}`,
+    {
+      stamp,
+      index,
+    },
   );
-  return uploadImage(buffer, fileName, mimeType);
 }
 
 function getFileNameFromUrl(fileUrl) {
@@ -136,10 +140,7 @@ async function deleteImage(fileUrl) {
 }
 
 async function uploadUserAvatar(fileBuffer, originalName) {
-  const { buffer, mimeType, extension } = await optimizeImage(fileBuffer);
-  const base = safeBaseName(originalName);
-  const fileName = `users/avatars/${Date.now()}_${base}${extension}`;
-  return uploadImage(buffer, fileName, mimeType);
+  return uploadOptimizedImage(fileBuffer, originalName, "users/avatars");
 }
 
 async function uploadCourseFile(
@@ -161,11 +162,13 @@ async function uploadCourseFile(
 
 module.exports = {
   uploadImage,
+  uploadOptimizedImage,
   uploadProjectImage,
   uploadThumbnail,
   uploadUserAvatar,
   downloadImage,
   getFileNameFromUrl,
+  isGcsUrl,
   bucket,
   deleteImage,
   uploadCourseThumbnail,

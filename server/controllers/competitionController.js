@@ -1,5 +1,5 @@
 const Competition = require("../models/competitionModel");
-const { uploadImage, deleteImage } = require("../utils/gcs");
+const { uploadOptimizedImage, deleteImage } = require("../utils/gcs");
 const { getImageValidationError } = require("../utils/imageValidation");
 
 exports.createCompetition = async (req, res) => {
@@ -33,14 +33,12 @@ exports.createCompetition = async (req, res) => {
       return res.status(400).json({ message: thumbnailTypeError });
     }
 
-    // Upload thumbnail
-    const thumbnailFileName = `competitions/thumbnails/${Date.now()}_${
-      thumbnailFile.originalname
-    }`;
-    const thumbnailUrl = await uploadImage(
+    const uploadStamp = Date.now();
+    const thumbnailUrl = await uploadOptimizedImage(
       thumbnailFile.buffer,
-      thumbnailFileName,
-      thumbnailFile.mimetype,
+      thumbnailFile.originalname,
+      "competitions/thumbnails",
+      { stamp: uploadStamp },
     );
 
     // Upload gallery (optional)
@@ -49,12 +47,14 @@ exports.createCompetition = async (req, res) => {
     if (galleryFiles.length > 0) {
       try {
         galleryUrls = await Promise.all(
-          galleryFiles.map(async (file) => {
-            const fileName = `competitions/gallery/${Date.now()}_${
-              file.originalname
-            }`;
-            return await uploadImage(file.buffer, fileName, file.mimetype);
-          }),
+          galleryFiles.map((file, index) =>
+            uploadOptimizedImage(
+              file.buffer,
+              file.originalname,
+              "competitions/gallery",
+              { stamp: uploadStamp, index },
+            ),
+          ),
         );
       } catch (err) {
         console.error("Error uploading one of the gallery images:", err);
@@ -157,14 +157,12 @@ exports.updateCompetition = async (req, res) => {
         }
       }
 
-      // Upload new one
-      const newThumbnailName = `competitions/thumbnails/${Date.now()}_${
-        thumbnailFile.originalname
-      }`;
-      const newThumbnailUrl = await uploadImage(
+      const uploadStamp = Date.now();
+      const newThumbnailUrl = await uploadOptimizedImage(
         thumbnailFile.buffer,
-        newThumbnailName,
-        thumbnailFile.mimetype,
+        thumbnailFile.originalname,
+        "competitions/thumbnails",
+        { stamp: uploadStamp },
       );
       updateData.thumbnailUrl = newThumbnailUrl;
     }
@@ -174,12 +172,14 @@ exports.updateCompetition = async (req, res) => {
     if (galleryFiles.length > 0) {
       try {
         newGalleryUrls = await Promise.all(
-          galleryFiles.map(async (file) => {
-            const fileName = `competitions/gallery/${Date.now()}_${
-              file.originalname
-            }`;
-            return await uploadImage(file.buffer, fileName, file.mimetype);
-          }),
+          galleryFiles.map((file, index) =>
+            uploadOptimizedImage(
+              file.buffer,
+              file.originalname,
+              "competitions/gallery",
+              { stamp: Date.now(), index },
+            ),
+          ),
         );
       } catch (err) {
         console.error("Error uploading gallery images:", err);

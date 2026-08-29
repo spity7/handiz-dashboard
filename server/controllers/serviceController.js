@@ -1,5 +1,5 @@
 const Service = require("../models/serviceModel");
-const { uploadImage, deleteImage } = require("../utils/gcs");
+const { uploadOptimizedImage, deleteImage } = require("../utils/gcs");
 
 exports.createService = async (req, res) => {
   try {
@@ -20,8 +20,11 @@ exports.createService = async (req, res) => {
       return res.status(400).json({ message: "Only image files are allowed" });
     }
 
-    const fileName = `services/icons/${Date.now()}_${file.originalname}`;
-    const iconUrl = await uploadImage(file.buffer, fileName, file.mimetype);
+    const iconUrl = await uploadOptimizedImage(
+      file.buffer,
+      file.originalname,
+      "services/icons",
+    );
 
     const newService = await Service.create({
       name,
@@ -84,15 +87,18 @@ exports.updateService = async (req, res) => {
         await deleteImage(existingService.iconUrl);
       }
 
-      const fileName = `services/icons/${Date.now()}_${file.originalname}`;
-      const iconUrl = await uploadImage(file.buffer, fileName, file.mimetype);
+      const iconUrl = await uploadOptimizedImage(
+        file.buffer,
+        file.originalname,
+        "services/icons",
+      );
       updateData.iconUrl = iconUrl;
     }
 
     const updatedService = await Service.findByIdAndUpdate(
       req.params.id,
       updateData,
-      { new: true }
+      { new: true },
     );
 
     if (!updatedService)

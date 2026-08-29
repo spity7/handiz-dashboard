@@ -7,6 +7,8 @@
     "migrate:ai-prompt-categories": "node scripts/migrateAiToolCategoryRefs.js",
     "migrate:project-thumbnails": "node scripts/migrateProjectThumbnails.js",
     "migrate:project-images": "node scripts/migrateProjectImages.js",
+    "migrate:gcs-images": "node scripts/migrateGcsImages.js --entity=all",
+    "migrate:gcs-images:dry-run": "node scripts/migrateGcsImages.js --entity=all --dry-run",
     "migrate:soft-delete-indexes": "node scripts/migrateSoftDeleteIndexes.js"
   },
   "keywords": [],
