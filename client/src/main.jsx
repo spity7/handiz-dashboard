@@ -3,6 +3,9 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 import { basePath } from './context/constants'
+import { initGoogleAnalytics } from './utils/googleAnalytics'
+
+initGoogleAnalytics()
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter basename={basePath}>
