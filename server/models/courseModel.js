@@ -94,6 +94,21 @@ const courseSchema = new mongoose.Schema(
       type: [{ type: String, trim: true }],
       default: [],
     },
+    introVideoUrl: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    introVideoEmbedUrl: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    enrollmentUrl: {
+      type: String,
+      trim: true,
+      default: "",
+    },
     marketingVideos: {
       type: [
         {

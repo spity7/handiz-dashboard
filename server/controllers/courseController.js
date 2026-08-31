@@ -1,5 +1,7 @@
 const {
   normalizeMarketingVideosInput,
+  normalizeIntroVideoUrlInput,
+  normalizeEnrollmentUrlInput,
 } = require("../utils/courseMarketingVideos");
 const {
   normalizeAboutCourseSectionsInput,
@@ -406,6 +408,8 @@ exports.createCourse = async (req, res) => {
       level,
       tags,
       heroHighlights,
+      introVideoUrl,
+      enrollmentUrl,
       marketingVideos,
       aboutCourseSections,
       order,
@@ -529,6 +533,27 @@ exports.createCourse = async (req, res) => {
       parsedAboutCourseSections = aboutResult.sections;
     }
 
+    let parsedIntroVideo = {
+      introVideoUrl: "",
+      introVideoEmbedUrl: "",
+    };
+    if (introVideoUrl !== undefined) {
+      const introResult = normalizeIntroVideoUrlInput(introVideoUrl);
+      if (introResult.error) {
+        return res.status(400).json({ message: introResult.error });
+      }
+      parsedIntroVideo = introResult;
+    }
+
+    let parsedEnrollmentUrl = "";
+    if (enrollmentUrl !== undefined) {
+      const enrollmentResult = normalizeEnrollmentUrlInput(enrollmentUrl);
+      if (enrollmentResult.error) {
+        return res.status(400).json({ message: enrollmentResult.error });
+      }
+      parsedEnrollmentUrl = enrollmentResult.url;
+    }
+
     const course = await Course.create({
       title,
       slug,
@@ -540,6 +565,9 @@ exports.createCourse = async (req, res) => {
       level,
       tags: parseJsonField(tags, []) || [],
       heroHighlights: parseJsonField(heroHighlights, []) || [],
+      introVideoUrl: parsedIntroVideo.introVideoUrl,
+      introVideoEmbedUrl: parsedIntroVideo.introVideoEmbedUrl,
+      enrollmentUrl: parsedEnrollmentUrl,
       marketingVideos: parsedMarketingVideos,
       aboutCourseSections: parsedAboutCourseSections,
       order: order ? Number(order) : 999,
@@ -600,6 +628,8 @@ exports.updateCourse = async (req, res) => {
       level,
       tags,
       heroHighlights,
+      introVideoUrl,
+      enrollmentUrl,
       marketingVideos,
       aboutCourseSections,
       order,
@@ -646,6 +676,21 @@ exports.updateCourse = async (req, res) => {
         return res.status(400).json({ message: aboutResult.error });
       }
       course.aboutCourseSections = aboutResult.sections;
+    }
+    if (introVideoUrl !== undefined) {
+      const introResult = normalizeIntroVideoUrlInput(introVideoUrl);
+      if (introResult.error) {
+        return res.status(400).json({ message: introResult.error });
+      }
+      course.introVideoUrl = introResult.introVideoUrl;
+      course.introVideoEmbedUrl = introResult.introVideoEmbedUrl;
+    }
+    if (enrollmentUrl !== undefined) {
+      const enrollmentResult = normalizeEnrollmentUrlInput(enrollmentUrl);
+      if (enrollmentResult.error) {
+        return res.status(400).json({ message: enrollmentResult.error });
+      }
+      course.enrollmentUrl = enrollmentResult.url;
     }
     if (order !== undefined) course.order = Number(order);
 

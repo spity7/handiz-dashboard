@@ -88,6 +88,8 @@ const emptyCourseFormValues = (currentUser) => ({
   description: '',
   level: 'Beginner',
   heroHighlights: '',
+  introVideoUrl: '',
+  enrollmentUrl: '',
   order: 999,
   isFree: true,
   price: '',
@@ -114,6 +116,8 @@ const buildFormValuesFromCourse = (course, currentUser) => {
     description: course.description || '',
     level: course.level || 'Beginner',
     heroHighlights: serializeHeroHighlights(course.heroHighlights || []),
+    introVideoUrl: course.introVideoUrl || '',
+    enrollmentUrl: course.enrollmentUrl || '',
     order: Number(course.order ?? 999),
     isFree: course.pricing?.isFree ?? true,
     price: course.pricing?.isFree ? course.pricing?.price ?? '' : course.pricing?.price ?? 0,
@@ -136,6 +140,8 @@ const getComparableFormValues = (form) => ({
   description: form.description || '',
   level: form.level || 'Beginner',
   heroHighlights: serializeHeroHighlights(form.heroHighlights),
+  introVideoUrl: form.introVideoUrl?.trim() || '',
+  enrollmentUrl: form.enrollmentUrl?.trim() || '',
   order: Number(form.order ?? 999),
   isFree: Boolean(form.isFree),
   price: normalizePrice(form.price, form.isFree),
@@ -157,6 +163,8 @@ const courseFormSavedToRawShape = (saved) => ({
   description: saved.description ?? '',
   level: saved.level ?? 'Beginner',
   heroHighlights: saved.heroHighlights ?? '',
+  introVideoUrl: saved.introVideoUrl ?? '',
+  enrollmentUrl: saved.enrollmentUrl ?? '',
   order: saved.order ?? 999,
   isFree: saved.isFree ?? true,
   price: saved.price ?? '',
@@ -186,6 +194,8 @@ const buildInitialCourseFormState = (course, currentUser) => {
     description: saved.description,
     level: saved.level,
     heroHighlights: saved.heroHighlights,
+    introVideoUrl: saved.introVideoUrl,
+    enrollmentUrl: saved.enrollmentUrl,
     order: saved.order,
     isFree: saved.isFree,
     price: saved.price,
@@ -622,6 +632,42 @@ const CourseForm = ({ course = null, onSaved, disabled = false }) => {
       </Card>
 
       <CourseMarketingVideosEditor videos={marketingVideos} onChange={setMarketingVideos} />
+
+      <Card className="mb-4 border">
+        <Card.Header className="bg-light fw-semibold">Course page links</Card.Header>
+        <Card.Body>
+          <p className="text-muted mb-4">
+            Optional links for the storefront course detail page. Paste a YouTube or Vimeo URL for the intro video — no file upload needed. The
+            enrollment link replaces the LMS checkout button (e.g. a Google Form registration URL).
+          </p>
+          <Row>
+            <Col md={6}>
+              <Form.Group className="mb-3 mb-md-0">
+                <Form.Label>Intro video URL</Form.Label>
+                <Form.Control
+                  name="introVideoUrl"
+                  value={form.introVideoUrl}
+                  onChange={handleChange}
+                  placeholder="https://www.youtube.com/watch?v=..."
+                />
+                <Form.Text muted>Powers the &quot;Watch the Intro&quot; button on the course hero.</Form.Text>
+              </Form.Group>
+            </Col>
+            <Col md={6}>
+              <Form.Group>
+                <Form.Label>Enrollment / registration URL</Form.Label>
+                <Form.Control
+                  name="enrollmentUrl"
+                  value={form.enrollmentUrl}
+                  onChange={handleChange}
+                  placeholder="https://docs.google.com/forms/..."
+                />
+                <Form.Text muted>Used instead of the LMS enroll link on the course detail page.</Form.Text>
+              </Form.Group>
+            </Col>
+          </Row>
+        </Card.Body>
+      </Card>
 
       <CourseAboutCourseEditor sections={aboutCourseSections} onChange={setAboutCourseSections} />
 

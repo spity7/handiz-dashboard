@@ -45,44 +45,92 @@ const extractVimeoId = (url) => {
   return null;
 };
 
-const resolveMarketingVideo = (raw, index) => {
-  const url = String(raw?.url || raw?.link || "").trim();
-  if (!url) return null;
+const resolveExternalVideoUrl = (url) => {
+  const trimmed = String(url || "").trim();
+  if (!trimmed) {
+    return { url: "", embedUrl: "", thumbnailUrl: "" };
+  }
 
-  if (!isHttpUrl(url)) {
+  if (!isHttpUrl(trimmed)) {
     return {
-      error: `Marketing video ${index + 1}: enter a valid http(s) link (YouTube, Vimeo, etc.).`,
+      error: "Enter a valid http(s) video link (YouTube, Vimeo, etc.).",
     };
   }
 
-  const parsed = new URL(url);
+  const parsed = new URL(trimmed);
   const youtubeId = extractYouTubeId(parsed);
   if (youtubeId) {
     const isShort = parsed.pathname.includes("/shorts/");
     return {
-      url,
+      url: trimmed,
       embedUrl: `https://www.youtube.com/embed/${youtubeId}`,
       thumbnailUrl: `https://i.ytimg.com/vi/${youtubeId}/${
         isShort ? "oar2" : "hqdefault"
       }.jpg`,
-      order: index,
     };
   }
 
   const vimeoId = extractVimeoId(parsed);
   if (vimeoId) {
     return {
-      url,
+      url: trimmed,
       embedUrl: `https://player.vimeo.com/video/${vimeoId}`,
       thumbnailUrl: `https://vumbnail.com/${vimeoId}.jpg`,
-      order: index,
     };
   }
 
   return {
-    url,
+    url: trimmed,
     embedUrl: "",
     thumbnailUrl: "",
+  };
+};
+
+const normalizeEnrollmentUrlInput = (value) => {
+  const trimmed = String(value ?? "").trim();
+  if (!trimmed) {
+    return { url: "" };
+  }
+
+  if (!isHttpUrl(trimmed)) {
+    return { error: "Enrollment link must be a valid http(s) URL." };
+  }
+
+  return { url: trimmed };
+};
+
+const normalizeIntroVideoUrlInput = (value) => {
+  const trimmed = String(value ?? "").trim();
+  if (!trimmed) {
+    return { introVideoUrl: "", introVideoEmbedUrl: "" };
+  }
+
+  const resolved = resolveExternalVideoUrl(trimmed);
+  if (resolved.error) {
+    return { error: resolved.error };
+  }
+
+  return {
+    introVideoUrl: resolved.url,
+    introVideoEmbedUrl: resolved.embedUrl,
+  };
+};
+
+const resolveMarketingVideo = (raw, index) => {
+  const url = String(raw?.url || raw?.link || "").trim();
+  if (!url) return null;
+
+  const resolved = resolveExternalVideoUrl(url);
+  if (resolved.error) {
+    return {
+      error: `Marketing video ${index + 1}: enter a valid http(s) link (YouTube, Vimeo, etc.).`,
+    };
+  }
+
+  return {
+    url: resolved.url,
+    embedUrl: resolved.embedUrl,
+    thumbnailUrl: resolved.thumbnailUrl,
     order: index,
   };
 };
@@ -137,5 +185,7 @@ module.exports = {
   MIN_MARKETING_VIDEOS,
   MAX_MARKETING_VIDEOS,
   normalizeMarketingVideosInput,
+  normalizeIntroVideoUrlInput,
+  normalizeEnrollmentUrlInput,
   emptyMarketingVideoSlots,
 };
