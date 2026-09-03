@@ -9,6 +9,7 @@ services:
         VITE_GOOGLE_CLIENT_ID: 974512491943-cn69krek1s1ektd5q4qeg2g4ao3ssvbr.apps.googleusercontent.com
         VITE_ALLOWED_RETURN_ORIGINS: https://handiz.org,https://www.handiz.org,https://learn.handiz.org,http://localhost:3001
         VITE_HANDIZ_WEBSITE_URL: https://handiz.org
+        VITE_GA_MEASUREMENT_ID: G-KX94F37TVB
     ports:
       - "3016:80"
     restart: always
