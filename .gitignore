@@ -1,9 +1,12 @@
-/node_modules
-
 # Environment (keep .env.example tracked)
 .env
 .env.*
 !.env.example
 
-logs/
-gcs-key.json
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Logs
+*.log

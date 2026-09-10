@@ -1,26 +1,36 @@
-version: "3.8"
+# Prerequisites:
+#   1. cp server/.env.example server/.env  (fill secrets, keep active lines uncommented)
+#   2. cp .env.example .env
+#   3. docker compose up --build
+#
+# For production: swap commented/uncommented lines in .env files
 
 services:
   client:
     build:
       context: ./client
       args:
-        VITE_API_BASE_URL: https://api.handiz.org/api/v1/
-        VITE_GOOGLE_CLIENT_ID: 974512491943-cn69krek1s1ektd5q4qeg2g4ao3ssvbr.apps.googleusercontent.com
-        VITE_ALLOWED_RETURN_ORIGINS: https://handiz.org,https://www.handiz.org,https://learn.handiz.org,http://localhost:3001
-        VITE_HANDIZ_WEBSITE_URL: https://handiz.org
-        VITE_GA_MEASUREMENT_ID: G-KX94F37TVB
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID}
+        VITE_ALLOWED_RETURN_ORIGINS: ${VITE_ALLOWED_RETURN_ORIGINS}
+        VITE_HANDIZ_WEBSITE_URL: ${VITE_HANDIZ_WEBSITE_URL}
+        VITE_LMS_SITE_URL: ${VITE_LMS_SITE_URL}
+        VITE_GA_MEASUREMENT_ID: ${VITE_GA_MEASUREMENT_ID}
     ports:
-      - "3016:80"
-    restart: always
+      - "127.0.0.1:3016:80"
+    depends_on:
+      - server
+    restart: unless-stopped
 
   server:
     build:
       context: ./server
     ports:
-      - "5016:5016"
+      - "127.0.0.1:5016:5016"
     env_file:
       - ./server/.env
     volumes:
       - ./server/gcs-key.json:/app/gcs-key.json:ro
-    restart: always
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true

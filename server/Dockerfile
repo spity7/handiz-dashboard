@@ -1,20 +1,18 @@
-# Use Node base image
 FROM node:18-alpine
 
-# Set working directory
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
 WORKDIR /app
 
-# Copy package files
 COPY package*.json ./
+RUN if [ -f package-lock.json ]; then npm ci --omit=dev; else npm install --omit=dev; fi
 
-# Install dependencies (lockfile required for reproducible builds)
-RUN npm ci --omit=dev
-
-# Copy app code
 COPY . .
 
-# Expose port
+RUN mkdir -p logs && chown -R appuser:appgroup /app
+
+USER appuser
+
 EXPOSE 5016
 
-# Start app
 CMD ["npm", "start"]

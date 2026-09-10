@@ -1,3 +1,5 @@
+require("./config/env");
+
 const express = require("express");
 require("express-async-errors");
 const cors = require("cors");
@@ -26,8 +28,6 @@ const { handleVdocipherWebhook } = require("./controllers/vdocipherController");
 const logger = require("./config/logger");
 const handleMulterError = require("./middlewares/handleMulterError");
 require("./cron/cron");
-
-require("./config/env");
 
 const app = express();
 const PORT = process.env.PORT;
@@ -60,9 +60,14 @@ app.use(
       "http://localhost:5173",
       "http://localhost:3000",
       "http://localhost:3001",
+      "http://localhost:3016",
       "http://localhost:3017",
       "http://localhost:3021",
       "http://localhost:5016",
+      "http://127.0.0.1:3016",
+      "http://127.0.0.1:3017",
+      "http://127.0.0.1:3021",
+      "http://127.0.0.1:5016",
       "https://handiz.org",
       "https://www.handiz.org",
       "https://learn.handiz.org",
