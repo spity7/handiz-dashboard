@@ -43,10 +43,14 @@ const competitionSchema = new mongoose.Schema(
       required: [true, "Side is required"],
       trim: true,
     },
+    gallery: {
+      type: [String],
+      default: [],
+    },
   },
   {
     timestamps: true, // adds createdAt & updatedAt
-  }
+  },
 );
 
 module.exports = mongoose.model("Competition", competitionSchema);

@@ -6,20 +6,19 @@ import PageBreadcrumb from '@/components/layout/PageBreadcrumb'
 import ProjectFormSkeleton from '@/components/skeletons/ProjectFormSkeleton'
 import { useGlobalContext } from '@/context/useGlobalContext'
 import ReactQuill from 'react-quill'
-import DropzoneFormInput from '@/components/form/DropzoneFormInput'
 import { THUMBNAIL_ACCEPT_STRING, readThumbnailInput } from '@/utils/imageFile'
-import SelectFormInput from '@/components/form/SelectFormInput'
-import { renameKeys } from '@/utils/rename-object-keys'
 import 'react-quill/dist/quill.snow.css'
 import useConfirmFormSubmit from '@/hooks/useConfirmFormSubmit'
 import { buildFormConfirmOptions } from '@/utils/formConfirm'
 import useRegisterUnsavedFormDirty from '@/hooks/useRegisterUnsavedFormDirty'
+import { useUnsavedFormChanges } from '@/context/UnsavedFormChangesContext'
 
 const EditCompetition = () => {
   const { id } = useParams()
   const navigate = useNavigate()
   const confirmFormSubmit = useConfirmFormSubmit()
-  const { getCompetitionById, updateCompetition, deleteCompetitionGalleryImage } = useGlobalContext()
+  const { acknowledgeSuccessfulFormSave } = useUnsavedFormChanges()
+  const { getCompetitionById, updateCompetition } = useGlobalContext()
 
   const [competition, setCompetition] = useState(null)
   const [title, setTitle] = useState('')
@@ -105,6 +104,23 @@ const EditCompetition = () => {
         if (thumbnail) formData.append('thumbnail', thumbnail)
 
         await updateCompetition(id, formData)
+        setCompetition((prev) =>
+          prev
+            ? {
+                ...prev,
+                title,
+                prize,
+                deadline,
+                side,
+                category,
+                link,
+                description,
+                order,
+              }
+            : prev,
+        )
+        setThumbnail(null)
+        acknowledgeSuccessfulFormSave()
         alert('Competition updated successfully!')
         navigate('/ecommerce/competitions')
       } catch (error) {
@@ -113,22 +129,6 @@ const EditCompetition = () => {
         setLoading(false)
       }
     })
-  }
-
-  const handleDeleteOldImage = async (imageUrl) => {
-    if (!window.confirm('Are you sure you want to delete this image?')) return
-
-    try {
-      const res = await deleteCompetitionGalleryImage(id, imageUrl)
-      alert('Image deleted successfully!')
-      setExistingGallery(res.gallery)
-    } catch (error) {
-      alert(error?.response?.data?.message || 'Failed to delete image')
-    }
-  }
-
-  const toggleCheckbox = (value, state, setState) => {
-    setState((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]))
   }
 
   if (!competition) return <ProjectFormSkeleton variant="standard" title="Edit Competition" subName="Handiz" />
