@@ -6,10 +6,11 @@ const {
   deleteVideo,
   buildLessonVideoTitle,
 } = require("../utils/vdocipher");
+const { ensureCourseVdocipherFolder } = require("../utils/courseHelpers");
 const {
-  recalculateCourseStats,
-  ensureCourseVdocipherFolder,
-} = require("../utils/courseHelpers");
+  mapVdocipherStatusToEncodingStatus,
+  updateLessonsForVdocipherVideo,
+} = require("../utils/vdocipherLessonVideo");
 const logger = require("../config/logger");
 
 const safeEqual = (a, b) => {
@@ -123,44 +124,41 @@ exports.handleVdocipherWebhook = async (req, res) => {
     }
     const { event, payload } = req.body || {};
 
-    if (event !== "video:ready" || !payload?.id) {
+    if (!payload?.id) {
+      return res.status(200).json({ received: true, ignored: true });
+    }
+
+    if (event !== "video:ready" && event !== "video:readyall") {
       return res.status(200).json({ received: true, ignored: true });
     }
 
     const videoId = payload.id;
     const durationSeconds = Number(payload.length) || 0;
+    const encodingStatus = mapVdocipherStatusToEncodingStatus(
+      payload.status || "ready",
+    );
 
-    const lessons = await Lesson.find({
-      "video.vdoCipherVideoId": videoId,
-    });
+    const { matched, updated, courseIds } =
+      await updateLessonsForVdocipherVideo(videoId, {
+        encodingStatus,
+        durationSeconds,
+      });
 
-    if (lessons.length === 0) {
+    if (matched === 0) {
       logger.info(`VdoCipher webhook: no lesson for video ${videoId}`);
       return res.status(200).json({ received: true, matched: 0 });
     }
 
-    const courseIds = new Set();
-
-    for (const lesson of lessons) {
-      lesson.video = lesson.video || {};
-      lesson.video.encodingStatus = "ready";
-      lesson.video.provider = "vdocipher";
-      if (durationSeconds > 0) {
-        lesson.video.durationSeconds = durationSeconds;
-      }
-      await lesson.save();
-      courseIds.add(String(lesson.courseId));
-    }
-
-    for (const courseId of courseIds) {
-      await recalculateCourseStats(courseId);
-    }
-
     logger.info(
-      `VdoCipher webhook: video ${videoId} ready, updated ${lessons.length} lesson(s)`,
+      `VdoCipher webhook: video ${videoId} ${encodingStatus}, updated ${updated} lesson(s)`,
     );
 
-    res.status(200).json({ received: true, updated: lessons.length });
+    res.status(200).json({
+      received: true,
+      updated,
+      encodingStatus,
+      courseIds,
+    });
   } catch (error) {
     console.error("VdoCipher webhook error:", error);
     res.status(500).json({ message: "Webhook processing failed" });

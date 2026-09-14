@@ -74,9 +74,12 @@ const buildLessonVideoTitle = ({ moduleTitle, lessonTitle } = {}) => {
   return lesson || module || "Untitled lesson";
 };
 
+const getPlaybackOtpTtlSeconds = () =>
+  parseInt(process.env.VDOCIPHER_OTP_TTL || "300", 10);
+
 const getPlaybackOtp = async (videoId, { ttl, annotate } = {}) => {
   const body = {};
-  const otpTtl = ttl || parseInt(process.env.VDOCIPHER_OTP_TTL || "300", 10);
+  const otpTtl = ttl || getPlaybackOtpTtlSeconds();
   if (otpTtl) body.ttl = otpTtl;
   if (annotate) body.annotate = annotate;
 
@@ -130,6 +133,7 @@ const getVideo = async (videoId) => {
 module.exports = {
   getUploadCredentials,
   getPlaybackOtp,
+  getPlaybackOtpTtlSeconds,
   buildWatermarkAnnotate,
   deleteVideo,
   deleteFolder,

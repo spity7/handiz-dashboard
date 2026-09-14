@@ -62,9 +62,16 @@ const {
 } = require("../utils/courseHelpers");
 const {
   getPlaybackOtp,
+  getPlaybackOtpTtlSeconds,
   buildWatermarkAnnotate,
   deleteVideo: deleteVdocipherVideo,
 } = require("../utils/vdocipher");
+const {
+  syncLessonVideoFromVdocipher,
+} = require("../utils/vdocipherLessonVideo");
+const {
+  resolveLessonPlaybackAccess,
+} = require("../utils/lessonPlaybackAccess");
 const { getImageValidationError } = require("../utils/imageValidation");
 
 const parseJsonField = (value, fallback = null) => {
@@ -1325,86 +1332,73 @@ exports.reorderCurriculum = async (req, res) => {
   }
 };
 
+const buildLessonVideoPlayback = async (lesson, user) => {
+  if (!lesson.video?.vdoCipherVideoId) {
+    return {
+      error: { status: 404, message: "Video not found for this lesson." },
+    };
+  }
+
+  if (lesson.video.encodingStatus !== "ready") {
+    await syncLessonVideoFromVdocipher(lesson);
+  }
+
+  if (lesson.video.encodingStatus === "failed") {
+    return {
+      error: {
+        status: 409,
+        message:
+          "Video encoding failed. Please contact support or re-upload the video.",
+        encodingStatus: "failed",
+      },
+    };
+  }
+
+  if (lesson.video.encodingStatus !== "ready") {
+    return {
+      error: {
+        status: 409,
+        message: "Video is still processing. Please check back shortly.",
+        encodingStatus: lesson.video.encodingStatus,
+      },
+    };
+  }
+
+  const otpPayload = await getPlaybackOtp(lesson.video.vdoCipherVideoId, {
+    annotate: buildWatermarkAnnotate(user),
+  });
+
+  return {
+    playback: {
+      ...otpPayload,
+      ttlSeconds: getPlaybackOtpTtlSeconds(),
+    },
+  };
+};
+
 exports.getLessonBySlug = async (req, res) => {
   try {
-    const courseFilter = { slug: req.params.slug };
-    if (!isStaff(req.user))
-      Object.assign(courseFilter, getPublishedCourseFilter());
+    const access = await resolveLessonPlaybackAccess(req, res);
+    if (!access) return;
 
-    const course = await Course.findOne(courseFilter);
-    if (!course) return res.status(404).json({ message: "Course not found" });
-
-    const lesson = await Lesson.findOne({
-      courseId: course._id,
-      slug: req.params.lessonSlug,
-      ...(isStaff(req.user) ? {} : { isPublished: true }),
-    });
-    if (!lesson) return res.status(404).json({ message: "Lesson not found" });
-
-    let enrollment = null;
-    if (req.user) {
-      enrollment = await Enrollment.findOne({
-        userId: req.user._id,
-        courseId: course._id,
-      });
-      if (enrollment) {
-        enrollment = await refreshEnrollmentProgress(enrollment);
-      }
-    }
-
-    const staff = isStaff(req.user);
-    const hasAccess = canAccessLesson(req.user, lesson, enrollment);
-    if (!hasAccess) {
-      return res
-        .status(403)
-        .json({ message: "You do not have access to this lesson" });
-    }
-
-    if (
-      !staff &&
-      enrollment &&
-      (await isLessonSequentiallyLocked(enrollment, lesson, course._id))
-    ) {
-      return res.status(403).json({
-        message: "Complete previous lessons before accessing this one",
-        sequentiallyLocked: true,
-      });
-    }
-
-    if (
-      !lesson.isPreview &&
-      !staff &&
-      enrollment &&
-      hasActiveEnrollment(enrollment)
-    ) {
-      const {
-        assertLessonDeviceAccess,
-      } = require("../utils/lessonDeviceAccess");
-      const deviceAllowed = await assertLessonDeviceAccess(req, res);
-      if (!deviceAllowed) return;
-    }
+    const { course, lesson, enrollment, staff } = access;
 
     const lessonObj = lesson.toObject();
     let playback = null;
 
     if (lesson.type === "video") {
-      if (!lesson.video?.vdoCipherVideoId) {
-        return res
-          .status(404)
-          .json({ message: "Video not found for this lesson." });
-      }
-
-      if (lesson.video.encodingStatus !== "ready") {
-        return res.status(409).json({
-          message: "Video is still processing. Please check back shortly.",
-          encodingStatus: lesson.video.encodingStatus,
+      const videoResult = await buildLessonVideoPlayback(lesson, req.user);
+      if (videoResult.error) {
+        return res.status(videoResult.error.status).json({
+          message: videoResult.error.message,
+          encodingStatus: videoResult.error.encodingStatus,
         });
       }
-
-      playback = await getPlaybackOtp(lesson.video.vdoCipherVideoId, {
-        annotate: buildWatermarkAnnotate(req.user),
-      });
+      playback = videoResult.playback;
       delete lessonObj.video.vdoCipherVideoId;
+      if (lessonObj.video) {
+        lessonObj.video.encodingStatus = lesson.video.encodingStatus;
+      }
     }
 
     sanitizeLessonPlayback(lessonObj, { isStaff: staff });
@@ -1433,6 +1427,32 @@ exports.getLessonBySlug = async (req, res) => {
   } catch (error) {
     console.error("getLessonBySlug error:", error);
     res.status(500).json({ message: "Server error fetching lesson" });
+  }
+};
+
+exports.refreshLessonPlaybackOtp = async (req, res) => {
+  try {
+    const access = await resolveLessonPlaybackAccess(req, res);
+    if (!access) return;
+
+    const { lesson } = access;
+
+    if (lesson.type !== "video") {
+      return res.status(400).json({ message: "This lesson has no video." });
+    }
+
+    const videoResult = await buildLessonVideoPlayback(lesson, req.user);
+    if (videoResult.error) {
+      return res.status(videoResult.error.status).json({
+        message: videoResult.error.message,
+        encodingStatus: videoResult.error.encodingStatus,
+      });
+    }
+
+    res.status(200).json({ playback: videoResult.playback });
+  } catch (error) {
+    console.error("refreshLessonPlaybackOtp error:", error);
+    res.status(500).json({ message: "Server error refreshing playback" });
   }
 };
 

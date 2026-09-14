@@ -22,6 +22,7 @@ const {
   deleteLesson,
   reorderCurriculum,
   getLessonBySlug,
+  refreshLessonPlaybackOtp,
   upsertQuiz,
 } = require("../controllers/courseController");
 const { enrollFree } = require("../controllers/enrollmentController");
@@ -51,6 +52,11 @@ const courseUpload = upload.fields([
 router.get("/courses", optionalAuth, getCourses);
 router.get("/courses/slug/:slug", optionalAuth, getCourseBySlug);
 router.get("/courses/:slug/lessons/:lessonSlug", optionalAuth, getLessonBySlug);
+router.post(
+  "/courses/:slug/lessons/:lessonSlug/playback-otp",
+  optionalAuth,
+  refreshLessonPlaybackOtp,
+);
 
 // Authenticated student
 router.post(
