@@ -50,6 +50,8 @@ const {
   syncAllCourseVdocipherLessonVideos,
   revokeCourseEnrollments,
   reactivateArchivedCourseEnrollments,
+  getCountableEnrollmentCountMap,
+  reconcileCourseEnrollmentCounts,
   releaseCourseSlug,
   restoreOriginalCourseSlug,
   permanentlyDeleteCourseContent,
@@ -58,7 +60,6 @@ const {
   validateCourseCanPublish,
   buildSequentialLockMap,
   isLessonSequentiallyLocked,
-  refreshEnrollmentProgress,
   serializeEnrollmentForClient,
   recalculateAllEnrollmentsForCourse,
   notifyCourseInstructorAssigned,
@@ -239,6 +240,13 @@ exports.getCourses = async (req, res) => {
       .populate("instructorId", INSTRUCTOR_PUBLIC_SELECT)
       .sort({ order: 1, createdAt: -1 });
 
+    if (isAdminList && courses.length > 0) {
+      const countMap = await getCountableEnrollmentCountMap(
+        courses.map((course) => course._id),
+      );
+      await reconcileCourseEnrollmentCounts(courses, countMap);
+    }
+
     courses = courses.map((course) =>
       serializeCourseForResponse(course, { forAdmin: isAdminList }),
     );
@@ -349,9 +357,7 @@ exports.getCourseBySlug = async (req, res) => {
         userId: req.user._id,
         courseId: course._id,
       });
-      if (enrollment) {
-        enrollment = await refreshEnrollmentProgress(enrollment);
-      }
+      /* Use stored progress; recalculated when lesson progress is saved. */
     }
 
     const staff = isStaff(req.user);

@@ -8,7 +8,7 @@ const getEnrollmentUserId = (enrollment) => enrollment?.userId?._id ?? enrollmen
 
 const isActiveEnrollmentStatus = (status) => status === 'active' || status === 'completed'
 
-const StudentSelect = ({ courseId = '', courseEnrollments = [], value, onChange, ...rest }) => {
+const StudentSelect = ({ courseId = '', courseEnrollments = [], value, onChange, isMulti = false, maxMenuHeight = 360, ...rest }) => {
   const enrolledUserIdsForCourse = useMemo(() => {
     if (!courseId) return new Set()
 
@@ -42,13 +42,16 @@ const StudentSelect = ({ courseId = '', courseEnrollments = [], value, onChange,
   return (
     <InstructorSelect
       inputId="enrollment-student-select"
-      placeholder="Search by name or email"
+      placeholder={isMulti ? 'Search and select students' : 'Search by name or email'}
       loadingText="Loading users…"
       noOptionsMessage="No users found"
       isOptionDisabled={isOptionDisabled}
       getOptionDisabledReason={getOptionDisabledReason}
       value={value}
       onChange={onChange}
+      isMulti={isMulti}
+      maxMenuHeight={maxMenuHeight}
+      closeMenuOnSelect={false}
       {...rest}
     />
   )

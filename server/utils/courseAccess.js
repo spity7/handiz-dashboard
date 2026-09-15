@@ -6,6 +6,7 @@ const canManageCourses = (user) => hasPermission(user?.role, "courses:manage");
 
 // Course preview / bypass privileges align with courses:manage (Admin only).
 const isStaff = (user) => canManageCourses(user);
+const canPreviewLmsContent = (user) => canManageCourses(user);
 
 const hasActiveEnrollment = (enrollment) =>
   enrollment?.status === ENROLLMENT_STATUS.ACTIVE ||
@@ -40,6 +41,7 @@ const isCourseAvailable = (course) =>
 
 module.exports = {
   isStaff,
+  canPreviewLmsContent,
   hasActiveEnrollment,
   canManageCourses,
   canAccessLesson,

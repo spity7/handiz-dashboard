@@ -9,6 +9,7 @@ import IconifyIcon from '@/components/wrappers/IconifyIcon'
 import { useGlobalContext } from '@/context/useGlobalContext'
 import { useLmsAsyncBusy } from '@/context/LmsAsyncBusyContext'
 import { formatUsd, getPublicPriceDisplay } from '@/utils/coursePricing'
+import OpenLmsCourseButton from './OpenLmsCourseButton'
 
 const ALL_FILTER = ''
 
@@ -488,16 +489,18 @@ const CoursesListTable = ({ courses, onRefresh, refreshing = false }) => {
             <div className="d-flex gap-1 flex-wrap">
               {!deleted && (
                 <>
+                  <OpenLmsCourseButton slug={course.slug} disabled={isTableBusy} />
                   <Link
                     to={`/ecommerce/courses/edit/${course._id}`}
                     className={clsx('btn btn-sm btn-soft-primary', isTableBusy && 'disabled pe-none opacity-50')}
                     title="Edit course"
+                    aria-label="Edit course"
                     aria-disabled={isTableBusy}
                     tabIndex={isTableBusy ? -1 : undefined}
                     onClick={(e) => {
                       if (isTableBusy) e.preventDefault()
                     }}>
-                    <IconifyIcon icon="bx:edit" />
+                    <IconifyIcon icon="bx:edit" aria-hidden="true" />
                   </Link>
                   <Button
                     variant="soft-danger"

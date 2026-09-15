@@ -17,6 +17,29 @@ import useConfirmFormSubmit from '@/hooks/useConfirmFormSubmit'
 import { buildFormConfirmOptions } from '@/utils/formConfirm'
 import { useLmsAsyncBusy } from '@/context/LmsAsyncBusyContext'
 
+const LessonAccessBadge = ({ enrollment }) => {
+  const access = enrollment.lessonDeviceAccess
+  const status = access?.status
+
+  if (status === 'blocked') {
+    return (
+      <span title={access?.blockReason || undefined}>
+        <Badge bg="danger">Blocked</Badge>
+      </span>
+    )
+  }
+
+  if (status === 'active') {
+    return (
+      <span title={access?.deviceLabel || undefined}>
+        <Badge bg="success">Active</Badge>
+      </span>
+    )
+  }
+
+  return <Badge bg="secondary">Not registered</Badge>
+}
+
 const CourseEnrollments = () => {
   const { getAllEnrollments, getAllCourses, adminCreateEnrollment, revokeEnrollment } = useGlobalContext()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -25,7 +48,7 @@ const CourseEnrollments = () => {
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1, limit: 100 })
   const [showCreate, setShowCreate] = useState(false)
   const [courses, setCourses] = useState([])
-  const [form, setForm] = useState({ userId: '', courseId: '' })
+  const [form, setForm] = useState({ userIds: [], courseId: '' })
   const [courseEnrollments, setCourseEnrollments] = useState([])
   const [saving, setSaving] = useState(false)
   const [reenrollingId, setReenrollingId] = useState(null)
@@ -67,7 +90,7 @@ const CourseEnrollments = () => {
       setForm((current) => ({
         ...current,
         ...(courseId ? { courseId } : {}),
-        ...(userId ? { userId } : {}),
+        ...(userId ? { userIds: [userId] } : {}),
       }))
     }
     if (shouldOpen || courseId || userId) {
@@ -104,16 +127,19 @@ const CourseEnrollments = () => {
   }, [form.courseId, getAllEnrollments])
 
   useEffect(() => {
-    if (!form.userId || !form.courseId) return
+    if (!form.courseId || form.userIds.length === 0) return
 
-    const alreadyEnrolled = courseEnrollments.some(
-      (enrollment) => isActiveEnrollmentStatus(enrollment.status) && String(getEnrollmentUserId(enrollment)) === String(form.userId),
+    const activeEnrolledIds = new Set(
+      courseEnrollments
+        .filter((enrollment) => isActiveEnrollmentStatus(enrollment.status))
+        .map((enrollment) => String(getEnrollmentUserId(enrollment))),
     )
 
-    if (alreadyEnrolled) {
-      setForm((current) => ({ ...current, userId: '' }))
+    const filteredUserIds = form.userIds.filter((id) => !activeEnrolledIds.has(String(id)))
+    if (filteredUserIds.length !== form.userIds.length) {
+      setForm((current) => ({ ...current, userIds: filteredUserIds }))
     }
-  }, [form.courseId, form.userId, courseEnrollments])
+  }, [form.courseId, form.userIds, courseEnrollments])
 
   const handleReenroll = useCallback(
     async (enrollment) => {
@@ -203,6 +229,11 @@ const CourseEnrollments = () => {
         ),
       },
       {
+        id: 'lessonAccess',
+        header: 'Lesson access',
+        cell: ({ row: { original: enrollment } }) => <LessonAccessBadge enrollment={enrollment} />,
+      },
+      {
         id: 'progress',
         header: 'Progress',
         cell: ({ row: { original: enrollment } }) => `${enrollment.progressPercent}%`,
@@ -265,22 +296,45 @@ const CourseEnrollments = () => {
 
   const handleCreate = async (event) => {
     event.preventDefault()
-    if (!form.userId || !form.courseId) {
-      Swal.fire('Missing fields', 'Student and course are required.', 'warning')
+    if (!form.userIds.length || !form.courseId) {
+      Swal.fire('Missing fields', 'Select at least one student and a course.', 'warning')
       return
     }
 
     await confirmFormSubmit(buildFormConfirmOptions('enroll'), async () => {
       setSaving(true)
       try {
-        await adminCreateEnrollment({
-          userId: form.userId,
-          courseId: form.courseId,
-        })
+        const results = await Promise.allSettled(
+          form.userIds.map((userId) =>
+            adminCreateEnrollment({
+              userId,
+              courseId: form.courseId,
+            }),
+          ),
+        )
+
+        const succeeded = results.filter((result) => result.status === 'fulfilled').length
+        const failed = results.length - succeeded
+
         setShowCreate(false)
-        setForm({ userId: '', courseId: '' })
+        setForm({ userIds: [], courseId: '' })
         refresh()
-        Swal.fire('Enrolled', 'The student has been enrolled.', 'success')
+
+        if (failed === 0) {
+          Swal.fire('Enrolled', succeeded === 1 ? 'The student has been enrolled.' : `${succeeded} students have been enrolled.`, 'success')
+          return
+        }
+
+        if (succeeded === 0) {
+          Swal.fire('Error', 'Could not enroll any of the selected students.', 'error')
+          return
+        }
+
+        Swal.fire(
+          'Partially enrolled',
+          `${succeeded} enrolled, ${failed} failed. Check the enrollments list and try again for any missing students.`,
+          'warning',
+        )
       } catch (error) {
         Swal.fire('Error', error?.response?.data?.message || 'Could not create enrollment.', 'error')
       } finally {
@@ -288,6 +342,8 @@ const CourseEnrollments = () => {
       }
     })
   }
+
+  const enrollSubmitLabel = saving ? 'Saving…' : form.userIds.length > 1 ? `Enroll ${form.userIds.length} students` : 'Enroll'
 
   return (
     <>
@@ -298,7 +354,7 @@ const CourseEnrollments = () => {
           <div className="courses-page-toolbar">
             <LmsSectionNav disabled={actionsLocked} />
             <Button disabled={actionsLocked} onClick={() => setShowCreate(true)}>
-              Enroll Student
+              Enroll Students
             </Button>
           </div>
         </Col>
@@ -353,21 +409,23 @@ const CourseEnrollments = () => {
 
       <Modal show={showCreate} onHide={() => !saving && setShowCreate(false)} centered backdrop={saving ? 'static' : true}>
         <Modal.Header closeButton={!saving}>
-          <Modal.Title>Enroll Student</Modal.Title>
+          <Modal.Title>Enroll Students</Modal.Title>
         </Modal.Header>
         <Form onSubmit={handleCreate}>
           <Modal.Body>
             <fieldset disabled={saving} className="border-0 p-0 m-0">
               <Form.Group className="mb-3">
-                <Form.Label>Student</Form.Label>
+                <Form.Label>Students</Form.Label>
                 <StudentSelect
-                  value={form.userId}
+                  isMulti
+                  value={form.userIds}
                   courseId={form.courseId}
                   courseEnrollments={courseEnrollments}
-                  onChange={(userId) => setForm((current) => ({ ...current, userId }))}
+                  onChange={(userIds) => setForm((current) => ({ ...current, userIds: userIds || [] }))}
                 />
                 <Form.Text>
-                  Admins cannot be enrolled. Students already active in the selected course are disabled; revoked students can be re-enrolled.
+                  Select one or more students. Admins cannot be enrolled. Students already active in the selected course are disabled; revoked
+                  students can be re-enrolled.
                 </Form.Text>
               </Form.Group>
               <Form.Group>
@@ -381,8 +439,8 @@ const CourseEnrollments = () => {
             <Button variant="light" onClick={() => setShowCreate(false)} disabled={saving}>
               Cancel
             </Button>
-            <Button type="submit" disabled={saving || !form.userId || !form.courseId}>
-              {saving ? 'Saving…' : 'Enroll'}
+            <Button type="submit" disabled={saving || form.userIds.length === 0 || !form.courseId}>
+              {enrollSubmitLabel}
             </Button>
           </Modal.Footer>
         </Form>
@@ -394,6 +452,7 @@ const CourseEnrollments = () => {
         userLabel={deviceManageUser?.label}
         onHide={() => setDeviceManageUser(null)}
         onBusyChange={setDeviceModalBusy}
+        onUpdated={refresh}
       />
     </>
   )

@@ -143,6 +143,8 @@ const userSearchFilter = createFilter({
   stringify: userOptionSearchText,
 })
 
+const DEFAULT_MENU_MAX_HEIGHT = 360
+
 const InstructorSelect = ({
   value,
   onChange,
@@ -154,6 +156,9 @@ const InstructorSelect = ({
   noOptionsMessage = 'No instructors found',
   isOptionDisabled = null,
   getOptionDisabledReason = null,
+  isMulti = false,
+  maxMenuHeight = DEFAULT_MENU_MAX_HEIGHT,
+  closeMenuOnSelect = undefined,
 }) => {
   const { getEmployees } = useGlobalContext()
   const [employees, setEmployees] = useState([])
@@ -186,9 +191,14 @@ const InstructorSelect = ({
   const flatOptions = useMemo(() => groupedOptions.flatMap((group) => group.options), [groupedOptions])
 
   const selectedOption = useMemo(() => {
+    if (isMulti) {
+      const ids = Array.isArray(value) ? value.map(String) : []
+      if (ids.length === 0) return []
+      return flatOptions.filter((option) => ids.includes(String(option.value)))
+    }
     if (!value) return null
     return flatOptions.find((option) => sameId(option.value, value)) || null
-  }, [flatOptions, value])
+  }, [flatOptions, value, isMulti])
 
   const formatGroupLabel = (group) => <span className="instructor-select-group-label">{group.label}</span>
 
@@ -215,12 +225,22 @@ const InstructorSelect = ({
           }}
           styles={instructorSelectStyles}
           menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+          maxMenuHeight={maxMenuHeight}
           options={groupedOptions}
           value={selectedOption}
-          onChange={(option) => onChange(option?.value || '')}
+          onChange={(option) => {
+            if (isMulti) {
+              onChange((option || []).map((entry) => entry.value))
+              return
+            }
+            onChange(option?.value || '')
+          }}
           formatGroupLabel={formatGroupLabel}
           formatOptionLabel={formatOptionLabel}
           isSearchable
+          isMulti={isMulti}
+          closeMenuOnSelect={closeMenuOnSelect ?? !isMulti}
+          hideSelectedOptions={false}
           isDisabled={disabled || flatOptions.length === 0}
           placeholder={placeholder}
           noOptionsMessage={() => noOptionsMessage}

@@ -11,6 +11,11 @@ const { getLessonDeviceEvents } = require("../utils/lessonDeviceAudit");
 const {
   clearLessonDeviceCookie,
 } = require("../utils/helpers/lessonDeviceCookie");
+const {
+  sendLessonAccessBlockedEmailSafe,
+  sendLessonAccessRestoredEmailSafe,
+  sendLessonDeviceResetEmailSafe,
+} = require("../utils/helpers/lmsEmailNotifications");
 
 const populateUserFields = "firstname lastname username email";
 const populateAdminFields = "firstname lastname username email";
@@ -125,6 +130,7 @@ exports.resetUserLessonDevice = async (req, res) => {
   try {
     await resetDevice(req.params.userId, req.user._id, req);
     clearLessonDeviceCookie(res);
+    void sendLessonDeviceResetEmailSafe(req.params.userId);
     res.status(200).json({
       message:
         "Lesson device reset. The user can register a new device on their next lesson visit.",
@@ -144,6 +150,7 @@ exports.blockUserLessonDevice = async (req, res) => {
       reason,
       req,
     );
+    void sendLessonAccessBlockedEmailSafe(req.params.userId, { reason });
     res.status(200).json({
       message: "Lesson access blocked for this user.",
       device: serializeRegistration(registration),
@@ -166,6 +173,7 @@ exports.unblockUserLessonDevice = async (req, res) => {
         .status(404)
         .json({ message: "No lesson device registration found" });
     }
+    void sendLessonAccessRestoredEmailSafe(req.params.userId);
     res.status(200).json({
       message: "Lesson access restored for this user.",
       device: serializeRegistration(registration),

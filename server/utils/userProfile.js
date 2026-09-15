@@ -84,6 +84,8 @@ const hasCompleteMobile = (user) => {
   return /^\+\d{1,4}\d{4,12}$/.test(combined);
 };
 
+const { canPreviewLmsContent } = require("./courseAccess");
+
 const isProfileComplete = (user) =>
   Boolean(hasCompleteMobile(user) && user?.instagramUrl?.trim());
 
@@ -104,6 +106,7 @@ const formatUserAuthResponse = (user) => {
     email: user.email,
     username: user.username,
     role: user.role,
+    canPreviewLmsContent: canPreviewLmsContent(user),
     isVerified: user.isVerified,
     mobileCountryCode,
     mobileNumber,

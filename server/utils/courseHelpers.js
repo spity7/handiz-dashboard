@@ -29,6 +29,10 @@ const {
   serializeCourseForResponse,
 } = require("./coursePricing");
 const { upsertUnreadNotification } = require("./helpers/notificationService");
+const {
+  sendCourseCompletedEmailSafe,
+  sendCourseEnrolledEmailSafe,
+} = require("./helpers/lmsEmailNotifications");
 const { buildLmsUrl } = require("./lmsUrls");
 const { deleteImage } = require("./gcs");
 const {
@@ -355,6 +359,61 @@ const removeLessonCompletely = async (lesson) => {
   await Lesson.deleteOne({ _id: lesson._id });
 };
 
+const COUNTABLE_ENROLLMENT_STATUSES = [
+  ENROLLMENT_STATUS.ACTIVE,
+  ENROLLMENT_STATUS.COMPLETED,
+];
+
+const countCountableEnrollmentsForCourse = async (courseId) =>
+  Enrollment.countDocuments({
+    courseId,
+    status: { $in: COUNTABLE_ENROLLMENT_STATUSES },
+  });
+
+const syncCourseEnrollmentCount = async (courseId) => {
+  const enrollmentCount = await countCountableEnrollmentsForCourse(courseId);
+  await Course.findByIdAndUpdate(courseId, { $set: { enrollmentCount } });
+  return enrollmentCount;
+};
+
+const getCountableEnrollmentCountMap = async (courseIds) => {
+  if (!courseIds?.length) return new Map();
+
+  const rows = await Enrollment.aggregate([
+    {
+      $match: {
+        courseId: { $in: courseIds },
+        status: { $in: COUNTABLE_ENROLLMENT_STATUSES },
+      },
+    },
+    { $group: { _id: "$courseId", count: { $sum: 1 } } },
+  ]);
+
+  return new Map(rows.map((row) => [String(row._id), row.count]));
+};
+
+const reconcileCourseEnrollmentCounts = async (courses, countMap) => {
+  const bulkOps = [];
+
+  for (const course of courses) {
+    const actual = countMap.get(String(course._id)) ?? 0;
+    const stored = course.enrollmentCount ?? 0;
+    if (actual === stored) continue;
+
+    bulkOps.push({
+      updateOne: {
+        filter: { _id: course._id },
+        update: { $set: { enrollmentCount: actual } },
+      },
+    });
+    course.enrollmentCount = actual;
+  }
+
+  if (bulkOps.length > 0) {
+    await Course.bulkWrite(bulkOps);
+  }
+};
+
 const revokeCourseEnrollments = async (courseId) => {
   const enrollments = await Enrollment.find({
     courseId,
@@ -375,9 +434,7 @@ const revokeCourseEnrollments = async (courseId) => {
     ),
   );
 
-  await Course.findByIdAndUpdate(courseId, {
-    $inc: { enrollmentCount: -enrollments.length },
-  });
+  await syncCourseEnrollmentCount(courseId);
 
   return enrollments.length;
 };
@@ -419,9 +476,7 @@ const reactivateArchivedCourseEnrollments = async (courseId) => {
     }),
   );
 
-  await Course.findByIdAndUpdate(courseId, {
-    $inc: { enrollmentCount: enrollments.length },
-  });
+  await syncCourseEnrollmentCount(courseId);
 
   return enrollments.length;
 };
@@ -771,6 +826,11 @@ const issueCertificateIfNeeded = async (enrollment) => {
       link: buildLmsUrl(`/my-courses?certificate=${enrollment._id}`),
       relatedCourseId: enrollment.courseId,
     });
+    void sendCourseCompletedEmailSafe(
+      enrollment.userId,
+      course,
+      enrollment._id,
+    );
   }
 
   return certificate;
@@ -931,6 +991,7 @@ const notifyCourseEnrolled = async (userId, course) => {
     link: buildLmsUrl(`/courses/${course.slug}`),
     relatedCourseId: course._id,
   });
+  void sendCourseEnrolledEmailSafe(userId, course);
 };
 
 const buildCourseInstructorAssignedContent = (course) => {
@@ -1006,6 +1067,10 @@ module.exports = {
   cleanupLessonQuizOnly,
   cleanupLessonRelatedData,
   removeLessonCompletely,
+  countCountableEnrollmentsForCourse,
+  syncCourseEnrollmentCount,
+  getCountableEnrollmentCountMap,
+  reconcileCourseEnrollmentCounts,
   revokeCourseEnrollments,
   restoreEnrollmentFromRevoked,
   reactivateArchivedCourseEnrollments,

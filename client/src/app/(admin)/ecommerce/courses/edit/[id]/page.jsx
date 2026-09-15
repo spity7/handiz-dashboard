@@ -30,6 +30,7 @@ import useGuardedAction from '@/hooks/useGuardedAction'
 import useRegisterUnsavedFormChanges from '@/hooks/useRegisterUnsavedFormChanges'
 import { useLmsAsyncBusy } from '@/context/LmsAsyncBusyContext'
 import { appendCourseStatusNotice } from '../../utils/courseStatusUi'
+import { buildLmsCourseUrl } from '@/utils/lmsUrls'
 
 const apiErrorMessage = (error, fallback) => {
   const data = error?.response?.data
@@ -265,10 +266,7 @@ const EditCourse = () => {
   }, [displayCurriculum])
 
   const hasVdocipherVideos = useMemo(
-    () =>
-      curriculum.some((mod) =>
-        (mod.lessons || []).some((lesson) => lesson.type === 'video' && lesson.video?.vdoCipherVideoId),
-      ),
+    () => curriculum.some((mod) => (mod.lessons || []).some((lesson) => lesson.type === 'video' && lesson.video?.vdoCipherVideoId)),
     [curriculum],
   )
 
@@ -551,11 +549,7 @@ const EditCourse = () => {
       if (issues.length > 0) {
         message += `\n\nVdoCipher’s API cannot move ${issues.length} video(s) into the correct module folder. In the VdoCipher dashboard, drag each into its module folder:\n${issues.map((item) => `• ${item.moduleTitle} — ${item.videoId}`).join('\n')}`
       }
-      await Swal.fire(
-        issues.length > 0 ? 'Synced with manual step' : 'VdoCipher synced',
-        message,
-        issues.length > 0 ? 'info' : 'success',
-      )
+      await Swal.fire(issues.length > 0 ? 'Synced with manual step' : 'VdoCipher synced', message, issues.length > 0 ? 'info' : 'success')
     } catch (error) {
       Swal.fire('Error', apiErrorMessage(error, 'Failed to sync VdoCipher library'), 'error')
     } finally {
@@ -843,6 +837,20 @@ const EditCourse = () => {
     <>
       <PageMetaData title={`Edit: ${course.title}`} />
       <PageBreadcrumb title={course.title} subName="Course Editor" />
+
+      {course.slug ? (
+        <div className="mb-3 d-flex flex-wrap align-items-center gap-2">
+          <a
+            href={buildLmsCourseUrl(course.slug)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-soft-info btn-sm d-inline-flex align-items-center gap-1">
+            <IconifyIcon icon="bx:play-circle" />
+            Preview on LMS
+          </a>
+          <span className="text-muted small">Opens the student experience — sign in with your admin account on the LMS.</span>
+        </div>
+      ) : null}
 
       {analytics && (
         <Row className="mb-3">

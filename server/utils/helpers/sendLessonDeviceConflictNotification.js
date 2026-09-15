@@ -2,6 +2,7 @@ const User = require("../../models/userModel");
 const { ROLES } = require("../../constants/permissions");
 const logger = require("../../config/logger");
 const { upsertUnreadNotification } = require("./notificationService");
+const { sendAdminEmailSafe } = require("./lmsEmailNotifications");
 const { getRegistration } = require("../lessonDeviceSession");
 const { parseDeviceLabel } = require("../lessonDeviceMeta");
 
@@ -46,6 +47,12 @@ const notifyLessonDeviceConflict = async (req, user) => {
       }),
     ),
   );
+
+  void sendAdminEmailSafe({
+    subject: title,
+    message,
+    dashboardPath: link,
+  });
 };
 
 const notifyLessonDeviceConflictSafe = (req, user) => {

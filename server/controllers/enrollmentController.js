@@ -14,9 +14,54 @@ const {
   serializeEnrollmentForClient,
   recalculateEnrollmentProgress,
   restoreEnrollmentFromRevoked,
+  syncCourseEnrollmentCount,
 } = require("../utils/courseHelpers");
 const { canAccessLesson, isStaff } = require("../utils/courseAccess");
 const { isEffectivelyFree } = require("../utils/coursePricing");
+const {
+  sendEnrollmentRevokedEmailSafe,
+} = require("../utils/helpers/lmsEmailNotifications");
+const LessonDeviceSession = require("../models/lessonDeviceSessionModel");
+
+const attachLessonDeviceAccessToEnrollments = async (enrollments) => {
+  const userIds = enrollments
+    .map((enrollment) => enrollment.userId?._id || enrollment.userId)
+    .filter(Boolean);
+
+  if (!userIds.length) {
+    return enrollments.map((enrollment) =>
+      enrollment.toObject({ virtuals: true }),
+    );
+  }
+
+  const devices = await LessonDeviceSession.find({ userId: { $in: userIds } })
+    .select("userId status deviceLabel blockReason")
+    .lean();
+
+  const deviceByUserId = new Map(
+    devices.map((device) => [String(device.userId), device]),
+  );
+
+  return enrollments.map((enrollment) => {
+    const plain = enrollment.toObject({ virtuals: true });
+    const userId = String(plain.userId?._id || plain.userId);
+    const device = deviceByUserId.get(userId);
+
+    plain.lessonDeviceAccess = device
+      ? {
+          status: device.status,
+          deviceLabel: device.deviceLabel || "",
+          blockReason: device.blockReason || "",
+        }
+      : {
+          status: "unregistered",
+          deviceLabel: "",
+          blockReason: "",
+        };
+
+    return plain;
+  });
+};
 
 exports.enrollFree = async (req, res) => {
   try {
@@ -47,9 +92,7 @@ exports.enrollFree = async (req, res) => {
         existing.enrolledAt = new Date();
         await existing.save();
         await recalculateEnrollmentProgress(existing._id);
-        await Course.findByIdAndUpdate(course._id, {
-          $inc: { enrollmentCount: 1 },
-        });
+        await syncCourseEnrollmentCount(course._id);
         await notifyCourseEnrolled(req.user._id, course);
         return res
           .status(200)
@@ -66,9 +109,7 @@ exports.enrollFree = async (req, res) => {
       source: ENROLLMENT_SOURCE.FREE,
     });
 
-    await Course.findByIdAndUpdate(course._id, {
-      $inc: { enrollmentCount: 1 },
-    });
+    await syncCourseEnrollmentCount(course._id);
     await notifyCourseEnrolled(req.user._id, course);
 
     res.status(201).json({ message: "Enrolled successfully", enrollment });
@@ -95,13 +136,9 @@ exports.getMyEnrollments = async (req, res) => {
     );
 
     const serializedEnrollments = await Promise.all(
-      visibleEnrollments.map(async (enrollment) => {
-        await recalculateEnrollmentProgress(enrollment._id);
-        const refreshed = await Enrollment.findById(enrollment._id)
-          .populate("courseId")
-          .populate("lastLessonId", "title slug");
-        return serializeEnrollmentForClient(refreshed);
-      }),
+      visibleEnrollments.map((enrollment) =>
+        serializeEnrollmentForClient(enrollment),
+      ),
     );
 
     res.status(200).json({ enrollments: serializedEnrollments });
@@ -210,14 +247,9 @@ exports.adminCreateEnrollment = async (req, res) => {
 
     let enrollment = await Enrollment.findOne({ userId, courseId });
     if (enrollment) {
-      const wasRevoked = restoreEnrollmentFromRevoked(enrollment);
+      restoreEnrollmentFromRevoked(enrollment);
       enrollment.source = ENROLLMENT_SOURCE.ADMIN;
       await enrollment.save();
-      if (wasRevoked) {
-        await Course.findByIdAndUpdate(courseId, {
-          $inc: { enrollmentCount: 1 },
-        });
-      }
       await recalculateEnrollmentProgress(enrollment._id);
     } else {
       enrollment = await Enrollment.create({
@@ -225,11 +257,9 @@ exports.adminCreateEnrollment = async (req, res) => {
         courseId,
         source: ENROLLMENT_SOURCE.ADMIN,
       });
-      await Course.findByIdAndUpdate(courseId, {
-        $inc: { enrollmentCount: 1 },
-      });
     }
 
+    await syncCourseEnrollmentCount(courseId);
     await notifyCourseEnrolled(userId, course);
     res.status(201).json({ message: "Enrollment created", enrollment });
   } catch (error) {
@@ -255,10 +285,10 @@ exports.revokeEnrollment = async (req, res) => {
     await enrollment.save();
 
     if (wasCountable) {
-      await Course.findByIdAndUpdate(enrollment.courseId, {
-        $inc: { enrollmentCount: -1 },
-      });
+      await syncCourseEnrollmentCount(enrollment.courseId);
     }
+
+    void sendEnrollmentRevokedEmailSafe(enrollment.userId, enrollment.courseId);
 
     res.status(200).json({ message: "Enrollment revoked" });
   } catch (error) {
@@ -288,8 +318,11 @@ exports.getAllEnrollments = async (req, res) => {
       Enrollment.countDocuments(filter),
     ]);
 
+    const enrollmentsWithDeviceAccess =
+      await attachLessonDeviceAccessToEnrollments(enrollments);
+
     res.status(200).json({
-      enrollments,
+      enrollments: enrollmentsWithDeviceAccess,
       pagination: {
         page,
         limit,

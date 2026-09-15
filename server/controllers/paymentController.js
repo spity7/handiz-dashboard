@@ -12,7 +12,7 @@ const {
   ORDER_STATUS,
 } = require("../constants/enrollmentStatus");
 const { COURSE_CURRENCY } = require("../constants/courseStatus");
-const { canEnrollInCourse } = require("../utils/courseAccess");
+const { canEnrollInCourse, isStaff } = require("../utils/courseAccess");
 const {
   getCourseCheckoutAmount,
   isEffectivelyFree,
@@ -22,6 +22,7 @@ const {
   recalculateEnrollmentProgress,
   issueCertificateIfNeeded,
   restoreEnrollmentFromRevoked,
+  syncCourseEnrollmentCount,
 } = require("../utils/courseHelpers");
 const {
   upsertUnreadNotification,
@@ -51,22 +52,24 @@ const fulfillPaidEnrollmentFromOrder = async (
     courseId: order.courseId,
   });
 
+  let enrollmentCountChanged = false;
+
   if (!enrollment) {
     enrollment = await Enrollment.create({
       userId: order.userId,
       courseId: order.courseId,
       source: ENROLLMENT_SOURCE.WHISH,
     });
-    await Course.findByIdAndUpdate(order.courseId, {
-      $inc: { enrollmentCount: 1 },
-    });
+    enrollmentCountChanged = true;
   } else if (enrollment.status === ENROLLMENT_STATUS.REVOKED) {
     restoreEnrollmentFromRevoked(enrollment);
     enrollment.source = ENROLLMENT_SOURCE.WHISH;
     await enrollment.save();
-    await Course.findByIdAndUpdate(order.courseId, {
-      $inc: { enrollmentCount: 1 },
-    });
+    enrollmentCountChanged = true;
+  }
+
+  if (enrollmentCountChanged) {
+    await syncCourseEnrollmentCount(order.courseId);
   }
 
   await notifyCourseEnrolled(order.userId, course);
@@ -333,16 +336,6 @@ exports.submitQuizAttempt = async (req, res) => {
     }
 
     const lesson = await Lesson.findById(quiz.lessonId);
-    const enrollment = await Enrollment.findOne({
-      userId: req.user._id,
-      courseId: quiz.courseId,
-      status: { $in: [ENROLLMENT_STATUS.ACTIVE, ENROLLMENT_STATUS.COMPLETED] },
-    });
-
-    if (!enrollment) {
-      return res.status(403).json({ message: "Not enrolled" });
-    }
-
     const parsedAnswers = Array.isArray(answers) ? answers : [];
     let correct = 0;
     quiz.questions.forEach((q, i) => {
@@ -357,6 +350,26 @@ exports.submitQuizAttempt = async (req, res) => {
         ? Math.round((correct / quiz.questions.length) * 100)
         : 0;
     const passed = score >= (quiz.passingScore || 70);
+
+    if (isStaff(req.user)) {
+      return res.status(200).json({
+        attempt: null,
+        passed,
+        score,
+        preview: true,
+        message: "Admin preview — quiz attempt not saved",
+      });
+    }
+
+    const enrollment = await Enrollment.findOne({
+      userId: req.user._id,
+      courseId: quiz.courseId,
+      status: { $in: [ENROLLMENT_STATUS.ACTIVE, ENROLLMENT_STATUS.COMPLETED] },
+    });
+
+    if (!enrollment) {
+      return res.status(403).json({ message: "Not enrolled" });
+    }
 
     const attempt = await QuizAttempt.create({
       enrollmentId: enrollment._id,

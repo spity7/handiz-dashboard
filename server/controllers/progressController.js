@@ -5,7 +5,6 @@ const LessonProgress = require("../models/lessonProgressModel");
 const { ENROLLMENT_STATUS } = require("../constants/enrollmentStatus");
 const {
   recalculateEnrollmentProgress,
-  refreshEnrollmentProgress,
   serializeEnrollmentForClient,
 } = require("../utils/courseHelpers");
 const { canAccessLesson, isStaff } = require("../utils/courseAccess");
@@ -29,6 +28,13 @@ exports.updateLessonProgress = async (req, res) => {
       courseId: lesson.courseId,
       status: { $in: [ENROLLMENT_STATUS.ACTIVE, ENROLLMENT_STATUS.COMPLETED] },
     });
+
+    if (!enrollment && isStaff(req.user)) {
+      return res.status(200).json({
+        message: "Admin preview — progress not saved",
+        preview: true,
+      });
+    }
 
     if (!enrollment && !lesson.isPreview) {
       return res.status(403).json({ message: "Access denied" });
@@ -117,6 +123,10 @@ exports.getLessonProgress = async (req, res) => {
       return res.status(404).json({ message: "Course not found" });
     }
 
+    if (isStaff(req.user)) {
+      return res.status(200).json({ progress: [], enrollment: null });
+    }
+
     const enrollment = await Enrollment.findOne({
       userId: req.user._id,
       courseId: req.params.courseId,
@@ -129,13 +139,12 @@ exports.getLessonProgress = async (req, res) => {
       return res.status(404).json({ message: "Not enrolled in this course" });
     }
 
-    const refreshedEnrollment = await refreshEnrollmentProgress(enrollment);
     const progress = await LessonProgress.find({
-      enrollmentId: refreshedEnrollment._id,
+      enrollmentId: enrollment._id,
     });
     res.status(200).json({
       progress,
-      enrollment: await serializeEnrollmentForClient(refreshedEnrollment),
+      enrollment: await serializeEnrollmentForClient(enrollment),
     });
   } catch (error) {
     console.error("getLessonProgress error:", error);
