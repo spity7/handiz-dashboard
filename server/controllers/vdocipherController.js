@@ -1,12 +1,18 @@
 const crypto = require("crypto");
 const Course = require("../models/courseModel");
+const CourseModule = require("../models/courseModuleModel");
 const Lesson = require("../models/lessonModel");
 const {
   getUploadCredentials,
   deleteVideo,
   buildLessonVideoTitle,
+  isFolderNotFoundError,
 } = require("../utils/vdocipher");
-const { ensureCourseVdocipherFolder } = require("../utils/courseHelpers");
+const {
+  ensureCourseVdocipherFolder,
+  ensureModuleVdocipherFolder,
+  entityBelongsToCourse,
+} = require("../utils/courseHelpers");
 const {
   mapVdocipherStatusToEncodingStatus,
   updateLessonsForVdocipherVideo,
@@ -57,22 +63,56 @@ const verifyVdocipherWebhook = (req) => {
 };
 exports.getUploadCredentials = async (req, res) => {
   try {
-    const { title, courseId, moduleTitle } = req.body;
+    const { title, courseId, moduleTitle, moduleId } = req.body;
     let folderId;
+    let usedModuleFolder = false;
 
     if (courseId) {
       const course = await Course.findById(courseId);
       if (!course) {
         return res.status(404).json({ message: "Course not found" });
       }
-      folderId = await ensureCourseVdocipherFolder(course);
+      if (moduleId) {
+        const module = await CourseModule.findById(moduleId);
+        if (module && entityBelongsToCourse(module, course._id)) {
+          folderId = await ensureModuleVdocipherFolder(course, module);
+          usedModuleFolder = true;
+        } else {
+          folderId = await ensureCourseVdocipherFolder(course);
+        }
+      } else {
+        folderId = await ensureCourseVdocipherFolder(course);
+      }
     }
 
-    const videoTitle = buildLessonVideoTitle({
-      moduleTitle,
-      lessonTitle: title,
-    });
-    const data = await getUploadCredentials(videoTitle, folderId);
+    const videoTitle = usedModuleFolder
+      ? String(title || "").trim() || "Untitled lesson"
+      : buildLessonVideoTitle({
+          moduleTitle,
+          lessonTitle: title,
+        });
+
+    let data;
+    try {
+      data = await getUploadCredentials(videoTitle, folderId);
+    } catch (uploadError) {
+      if (courseId && isFolderNotFoundError(uploadError)) {
+        logger.warn(
+          `VdoCipher upload folder missing (course ${courseId}, folder ${folderId}); recreating course folder`,
+        );
+        const course = await Course.findById(courseId);
+        if (course) {
+          course.vdoCipherFolderId = "";
+          await course.save();
+          folderId = await ensureCourseVdocipherFolder(course);
+          data = await getUploadCredentials(videoTitle, folderId);
+        } else {
+          throw uploadError;
+        }
+      } else {
+        throw uploadError;
+      }
+    }
 
     res.status(200).json({
       clientPayload: data.clientPayload,

@@ -8,7 +8,8 @@ const {
   refreshEnrollmentProgress,
   serializeEnrollmentForClient,
 } = require("../utils/courseHelpers");
-const { canAccessLesson } = require("../utils/courseAccess");
+const { canAccessLesson, isStaff } = require("../utils/courseAccess");
+const { isLessonSequentiallyLocked } = require("../utils/courseHelpers");
 
 const COMPLETION_THRESHOLD = 0.9;
 
@@ -41,6 +42,17 @@ exports.updateLessonProgress = async (req, res) => {
 
     if (!canAccessLesson(req.user, lesson, enrollment)) {
       return res.status(403).json({ message: "Access denied" });
+    }
+
+    if (
+      !isStaff(req.user) &&
+      !lesson.isPreview &&
+      (await isLessonSequentiallyLocked(enrollment, lesson, course._id))
+    ) {
+      return res.status(403).json({
+        message: "Complete previous lessons before accessing this one",
+        sequentiallyLocked: true,
+      });
     }
 
     let progress = await LessonProgress.findOne({

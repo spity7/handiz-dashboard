@@ -1,9 +1,14 @@
+import { useState } from 'react'
 import { Card, CardBody, Col, Row } from 'react-bootstrap'
 import PageBreadcrumb from '@/components/layout/PageBreadcrumb'
 import PageMetaData from '@/components/PageTitle'
+import { useLmsAsyncBusy } from '@/context/LmsAsyncBusyContext'
 import CourseForm from '../components/CourseForm'
 
 const CreateCourse = () => {
+  const [formBusy, setFormBusy] = useState(false)
+  useLmsAsyncBusy(formBusy)
+
   return (
     <>
       <PageMetaData title="Create Course" />
@@ -12,7 +17,7 @@ const CreateCourse = () => {
         <Col>
           <Card>
             <CardBody>
-              <CourseForm />
+              <CourseForm onBusyChange={setFormBusy} />
             </CardBody>
           </Card>
         </Col>

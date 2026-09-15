@@ -901,9 +901,87 @@ html[data-bs-theme='dark'] {
   gap: 0.75rem 1rem;
 }
 
+.main-nav--async-busy {
+  pointer-events: none;
+  opacity: 0.65;
+  user-select: none;
+}
+
+.course-status-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.course-status-publish-hint {
+  margin-top: 0.35rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px dashed rgba(var(--#{$prefix}warning-rgb), 0.45);
+  background-color: rgba(var(--#{$prefix}warning-rgb), 0.08);
+  color: var(--#{$prefix}body-color);
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-bottom: 0.35rem;
+    font-weight: 600;
+    font-size: 0.8125rem;
+    color: var(--#{$prefix}warning-text-emphasis, var(--#{$prefix}warning));
+  }
+
+  &__icon {
+    display: inline-flex;
+    font-size: 1.05rem;
+    opacity: 0.95;
+  }
+
+  &__text,
+  &__action {
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    color: var(--#{$prefix}secondary-color);
+  }
+
+  &__action {
+    margin-top: 0.35rem;
+  }
+}
+
+.course-status-publish-ready {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin-top: 0.15rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: 0.5rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--#{$prefix}secondary-color);
+  background-color: rgba(var(--#{$prefix}success-rgb), 0.08);
+  border: 1px solid rgba(var(--#{$prefix}success-rgb), 0.22);
+
+  &__icon {
+    flex-shrink: 0;
+    margin-top: 0.1rem;
+    font-size: 1rem;
+    color: var(--#{$prefix}success);
+  }
+}
+
 .lms-section-nav {
   max-width: 100%;
   min-width: 0;
+
+  &--disabled {
+    pointer-events: none;
+    opacity: 0.65;
+  }
+
+  &__item--disabled {
+    cursor: not-allowed;
+  }
 
   &__track {
     display: inline-flex;
@@ -1061,6 +1139,39 @@ html[data-bs-theme='dark'] {
     &__text {
       align-items: center;
     }
+  }
+}
+
+// Table “Manage” actions (enrollments, lesson devices)
+.lms-table-manage-btn {
+  min-width: 5.75rem;
+  padding: 0.375rem 0.875rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.015em;
+  line-height: 1.25;
+  border-width: 1px;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+
+  --#{$prefix}btn-color: var(--#{$prefix}primary);
+  --#{$prefix}btn-bg: rgba(var(--#{$prefix}primary-rgb), 0.12);
+  --#{$prefix}btn-border-color: rgba(var(--#{$prefix}primary-rgb), 0.28);
+  --#{$prefix}btn-hover-color: #fff;
+  --#{$prefix}btn-hover-bg: var(--#{$prefix}primary);
+  --#{$prefix}btn-hover-border-color: var(--#{$prefix}primary);
+  --#{$prefix}btn-active-color: #fff;
+  --#{$prefix}btn-active-bg: var(--#{$prefix}primary);
+  --#{$prefix}btn-active-border-color: var(--#{$prefix}primary);
+  --#{$prefix}btn-disabled-color: var(--#{$prefix}secondary-color);
+  --#{$prefix}btn-disabled-bg: rgba(var(--#{$prefix}secondary-rgb), 0.08);
+  --#{$prefix}btn-disabled-border-color: rgba(var(--#{$prefix}border-color-rgb, 108, 117, 125), 0.35);
+
+  &:focus-visible {
+    box-shadow: 0 0 0 0.2rem rgba(var(--#{$prefix}primary-rgb), 0.28);
   }
 }
 

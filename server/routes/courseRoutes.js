@@ -21,6 +21,7 @@ const {
   updateLesson,
   deleteLesson,
   reorderCurriculum,
+  reconcileCourseVdocipherLibrary,
   getLessonBySlug,
   refreshLessonPlaybackOtp,
   upsertQuiz,
@@ -164,6 +165,12 @@ router.patch(
   protectRoute,
   authorizePermission("courses:manage"),
   reorderCurriculum,
+);
+router.post(
+  "/courses/:id/vdocipher/reconcile-library",
+  protectRoute,
+  authorizePermission("courses:manage"),
+  reconcileCourseVdocipherLibrary,
 );
 router.put(
   "/courses/:id/lessons/:lessonId/quiz",

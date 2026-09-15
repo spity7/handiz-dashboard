@@ -167,6 +167,17 @@ export const getVideoStatusLabel = (lesson) => {
   return status || 'Pending'
 }
 
+export const lessonVideoEncodingInProgress = (lesson) => {
+  if (lesson?.type !== 'video') return false
+  if (!lesson?.video?.vdoCipherVideoId) return false
+  const status = lesson?.video?.encodingStatus
+  if (status === 'ready' || status === 'failed') return false
+  return true
+}
+
+export const curriculumHasEncodingInProgress = (curriculum) =>
+  (curriculum || []).some((mod) => (mod.lessons || []).some(lessonVideoEncodingInProgress))
+
 export const getLessonVideoBadge = (lesson) => {
   if (lesson?.type !== 'video') return null
 

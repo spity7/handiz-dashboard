@@ -20,6 +20,7 @@ import {
   PASSING_SCORE_MIN,
   serializeLessonDraft,
   validateLessonForm,
+  curriculumHasEncodingInProgress,
 } from '../../components/lessonFormUtils'
 import CurriculumReorderDock from '../../components/CurriculumReorderDock'
 import { uploadVideoToVdocipher } from '@/utils/uploadVideoToVdocipher'
@@ -27,6 +28,8 @@ import useConfirmFormSubmit from '@/hooks/useConfirmFormSubmit'
 import { buildFormConfirmOptions } from '@/utils/formConfirm'
 import useGuardedAction from '@/hooks/useGuardedAction'
 import useRegisterUnsavedFormChanges from '@/hooks/useRegisterUnsavedFormChanges'
+import { useLmsAsyncBusy } from '@/context/LmsAsyncBusyContext'
+import { appendCourseStatusNotice } from '../../utils/courseStatusUi'
 
 const apiErrorMessage = (error, fallback) => {
   const data = error?.response?.data
@@ -36,9 +39,6 @@ const apiErrorMessage = (error, fallback) => {
   if (typeof data.error === 'string') return data.error
   return fallback
 }
-
-const courseRevertNotice = (result) =>
-  result?.courseRevertedToDraft ? result.courseStatusMessage || 'Course moved to Draft because it has no published lessons.' : ''
 
 const cloneCurriculum = (items) => JSON.parse(JSON.stringify(items || []))
 
@@ -68,6 +68,8 @@ const LESSON_STATUS_LABELS = {
   preview: 'Free preview',
   unpublished: 'Unpublished',
 }
+
+const LESSON_ENCODING_POLL_MS = 8000
 
 const LessonStatusBadge = ({ variant, children }) => <span className={`course-curriculum-badge course-curriculum-badge--${variant}`}>{children}</span>
 
@@ -113,6 +115,7 @@ const EditCourse = () => {
     deleteLesson,
     upsertQuiz,
     reorderCurriculum,
+    reconcileCourseVdocipherLibrary,
     getVdocipherUploadCredentials,
     deleteVdocipherVideo,
   } = useGlobalContext()
@@ -155,10 +158,36 @@ const EditCourse = () => {
   const [dragItem, setDragItem] = useState(null)
   const [dropTarget, setDropTarget] = useState(null)
   const [moduleFormBaseline, setModuleFormBaseline] = useState(null)
+  const [courseFormBusy, setCourseFormBusy] = useState(false)
+  const [syncingVdocipherLibrary, setSyncingVdocipherLibrary] = useState(false)
   const lessonOpenSnapshotRef = useRef('')
 
   const displayCurriculum = reorderMode ? draftCurriculum : curriculum
-  const actionsLocked = reorderMode || savingReorder || refreshing || Boolean(deletingModuleId) || Boolean(deletingLessonId)
+  const actionsLocked =
+    reorderMode ||
+    savingReorder ||
+    refreshing ||
+    savingLesson ||
+    savingModule ||
+    courseFormBusy ||
+    Boolean(deletingModuleId) ||
+    Boolean(deletingLessonId) ||
+    syncingVdocipherLibrary
+
+  useLmsAsyncBusy(
+    loading ||
+      refreshing ||
+      savingLesson ||
+      savingModule ||
+      savingReorder ||
+      courseFormBusy ||
+      syncingVdocipherLibrary ||
+      Boolean(deletingModuleId) ||
+      Boolean(deletingLessonId),
+  )
+
+  const courseFormDisabled =
+    reorderMode || refreshing || savingLesson || savingModule || savingReorder || Boolean(deletingModuleId) || Boolean(deletingLessonId)
 
   const hasReorderChanges = useMemo(() => {
     if (!reorderMode) return false
@@ -235,6 +264,14 @@ const EditCourse = () => {
     return { modules, lessons }
   }, [displayCurriculum])
 
+  const hasVdocipherVideos = useMemo(
+    () =>
+      curriculum.some((mod) =>
+        (mod.lessons || []).some((lesson) => lesson.type === 'video' && lesson.video?.vdoCipherVideoId),
+      ),
+    [curriculum],
+  )
+
   useEffect(() => {
     document.body.classList.toggle('course-reorder-active', reorderMode)
     return () => document.body.classList.remove('course-reorder-active')
@@ -264,8 +301,10 @@ const EditCourse = () => {
       setDragItem(null)
       setDropTarget(null)
       hasLoadedOnceRef.current = true
+      return data.course
     } catch (error) {
       Swal.fire('Error', apiErrorMessage(error, 'Failed to load course'), 'error')
+      return null
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -275,6 +314,34 @@ const EditCourse = () => {
   useEffect(() => {
     loadCourse()
   }, [loadCourse])
+
+  const encodingPollInFlightRef = useRef(false)
+
+  const refreshCurriculumForEncoding = useCallback(async () => {
+    if (encodingPollInFlightRef.current || reorderMode || savingLesson) return
+    encodingPollInFlightRef.current = true
+    try {
+      const data = await getCourseById(id)
+      setCourse(data.course)
+      setCurriculum(data.curriculum || [])
+    } catch (error) {
+      console.warn('Lesson encoding status refresh failed:', apiErrorMessage(error, 'Unknown error'))
+    } finally {
+      encodingPollInFlightRef.current = false
+    }
+  }, [getCourseById, id, reorderMode, savingLesson])
+
+  const encodingPollActive = useMemo(
+    () => !loading && !reorderMode && curriculumHasEncodingInProgress(curriculum),
+    [loading, reorderMode, curriculum],
+  )
+
+  useEffect(() => {
+    if (!encodingPollActive) return undefined
+    refreshCurriculumForEncoding()
+    const timer = window.setInterval(refreshCurriculumForEncoding, LESSON_ENCODING_POLL_MS)
+    return () => window.clearInterval(timer)
+  }, [encodingPollActive, refreshCurriculumForEncoding])
 
   const openModuleModal = (mod = null) => {
     if (actionsLocked) return
@@ -312,6 +379,7 @@ const EditCourse = () => {
       async () => {
         try {
           setSavingModule(true)
+          const statusBefore = course?.status
           if (editingModule) {
             await updateCourseModule(id, editingModule._id, moduleForm)
           } else {
@@ -319,8 +387,16 @@ const EditCourse = () => {
           }
           setShowModuleModal(false)
           setModuleFormBaseline(null)
-          await loadCourse()
-          await Swal.fire('Saved', editingModule ? 'Module updated successfully.' : 'Module added successfully.', 'success')
+          const refreshedCourse = await loadCourse()
+          const baseMessage = editingModule ? 'Module updated successfully.' : 'Module added successfully.'
+          await Swal.fire(
+            'Saved',
+            appendCourseStatusNotice(baseMessage, {
+              beforeStatus: statusBefore,
+              afterStatus: refreshedCourse?.status,
+            }),
+            'success',
+          )
         } catch (error) {
           Swal.fire('Error', apiErrorMessage(error, 'Failed to save module'), 'error')
         } finally {
@@ -346,8 +422,7 @@ const EditCourse = () => {
       setDeletingModuleId(moduleId)
       const result = await deleteCourseModule(id, moduleId)
       await loadCourse()
-      const revertNotice = courseRevertNotice(result)
-      await Swal.fire('Deleted', revertNotice ? `Module removed successfully.\n\n${revertNotice}` : 'Module removed successfully.', 'success')
+      await Swal.fire('Deleted', appendCourseStatusNotice('Module removed successfully.', { apiResult: result }), 'success')
     } catch (error) {
       Swal.fire('Error', apiErrorMessage(error, 'Failed to delete module'), 'error')
     } finally {
@@ -466,6 +541,28 @@ const EditCourse = () => {
     setDropTarget(null)
   }
 
+  const syncVdocipherLibrary = async () => {
+    if (actionsLocked || !hasVdocipherVideos) return
+    setSyncingVdocipherLibrary(true)
+    try {
+      const result = await reconcileCourseVdocipherLibrary(id)
+      const issues = result.folderIssues || []
+      let message = `Updated ${result.synced ?? 0} video title(s) in VdoCipher to match this curriculum.`
+      if (issues.length > 0) {
+        message += `\n\nVdoCipher’s API cannot move ${issues.length} video(s) into the correct module folder. In the VdoCipher dashboard, drag each into its module folder:\n${issues.map((item) => `• ${item.moduleTitle} — ${item.videoId}`).join('\n')}`
+      }
+      await Swal.fire(
+        issues.length > 0 ? 'Synced with manual step' : 'VdoCipher synced',
+        message,
+        issues.length > 0 ? 'info' : 'success',
+      )
+    } catch (error) {
+      Swal.fire('Error', apiErrorMessage(error, 'Failed to sync VdoCipher library'), 'error')
+    } finally {
+      setSyncingVdocipherLibrary(false)
+    }
+  }
+
   const confirmReorder = async () => {
     await confirmFormSubmit(buildFormConfirmOptions('reorder'), async () => {
       setSavingReorder(true)
@@ -485,8 +582,16 @@ const EditCourse = () => {
         setReorderBaseline([])
         setDragItem(null)
         setDropTarget(null)
-        await loadCourse()
-        await Swal.fire('Saved', 'Curriculum order updated.', 'success')
+        const statusBefore = course?.status
+        const refreshedCourse = await loadCourse()
+        await Swal.fire(
+          'Saved',
+          appendCourseStatusNotice('Curriculum order updated.', {
+            beforeStatus: statusBefore,
+            afterStatus: refreshedCourse?.status,
+          }),
+          'success',
+        )
       } catch (error) {
         Swal.fire('Error', apiErrorMessage(error, 'Failed to reorder curriculum'), 'error')
       } finally {
@@ -611,6 +716,7 @@ const EditCourse = () => {
         try {
           setSavingLesson(true)
           setLessonSavePhase('saving')
+          const statusBefore = course?.status
           const formData = new FormData()
           const mod = curriculum.find((item) => item._id === activeModuleId)
           const lessonOrder = editingLesson ? editingLesson.order : mod?.lessons?.length ?? 0
@@ -641,6 +747,7 @@ const EditCourse = () => {
             uploadedVideoId = await uploadVideoToVdocipher(videoFile, {
               title: lessonForm.title,
               courseId: id,
+              moduleId: activeModuleId,
               moduleTitle: mod?.title,
               getCredentials: getVdocipherUploadCredentials,
             })
@@ -666,10 +773,17 @@ const EditCourse = () => {
 
           setShowLessonModal(false)
           lessonOpenSnapshotRef.current = ''
-          await loadCourse()
-          const revertNotice = courseRevertNotice(lessonResult)
+          const refreshedCourse = await loadCourse()
           const savedMessage = editingLesson ? 'Lesson updated successfully.' : 'Lesson added successfully.'
-          await Swal.fire('Saved', revertNotice ? `${savedMessage}\n\n${revertNotice}` : savedMessage, 'success')
+          await Swal.fire(
+            'Saved',
+            appendCourseStatusNotice(savedMessage, {
+              beforeStatus: statusBefore,
+              afterStatus: refreshedCourse?.status,
+              apiResult: lessonResult,
+            }),
+            'success',
+          )
         } catch (error) {
           if (uploadedVideoId) {
             try {
@@ -703,8 +817,7 @@ const EditCourse = () => {
       setDeletingLessonId(lessonId)
       const result = await deleteLesson(id, lessonId)
       await loadCourse()
-      const revertNotice = courseRevertNotice(result)
-      await Swal.fire('Deleted', revertNotice ? `Lesson removed successfully.\n\n${revertNotice}` : 'Lesson removed successfully.', 'success')
+      await Swal.fire('Deleted', appendCourseStatusNotice('Lesson removed successfully.', { apiResult: result }), 'success')
     } catch (error) {
       Swal.fire('Error', apiErrorMessage(error, 'Failed to delete lesson'), 'error')
     } finally {
@@ -777,7 +890,7 @@ const EditCourse = () => {
             </div>
           )}
           <h5 className="mb-3">Course Details</h5>
-          <CourseForm course={course} onSaved={loadCourse} disabled={refreshing} />
+          <CourseForm course={course} onSaved={loadCourse} disabled={courseFormDisabled} onBusyChange={setCourseFormBusy} />
         </CardBody>
       </Card>
 
@@ -815,7 +928,22 @@ const EditCourse = () => {
             </div>
             {!reorderMode && (
               <div className="course-curriculum-header__actions">
-                <button type="button" className="course-curriculum-header__btn" disabled={!curriculum.length || actionsLocked} onClick={startReorder}>
+                {hasVdocipherVideos && (
+                  <button
+                    type="button"
+                    className="course-curriculum-header__btn"
+                    disabled={actionsLocked}
+                    onClick={() => guardAction(syncVdocipherLibrary)}
+                    title="Update VdoCipher video titles to match modules and lesson names">
+                    <IconifyIcon icon="bx:cloud-upload" className="course-curriculum-header__btn-icon" />
+                    {syncingVdocipherLibrary ? 'Syncing…' : 'Sync VdoCipher'}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="course-curriculum-header__btn"
+                  disabled={!curriculum.length || actionsLocked || reorderMode}
+                  onClick={startReorder}>
                   <IconifyIcon icon="bx:sort" className="course-curriculum-header__btn-icon" />
                   Reorder
                 </button>
@@ -914,10 +1042,15 @@ const EditCourse = () => {
                         </span>
                         {reorderMode && (
                           <div className="course-curriculum-reorder-group" onClick={(e) => e.stopPropagation()}>
-                            <ReorderArrow direction="up" disabled={idx === 0} onClick={() => moveModule(idx, -1)} label="Move module up" />
+                            <ReorderArrow
+                              direction="up"
+                              disabled={savingReorder || idx === 0}
+                              onClick={() => moveModule(idx, -1)}
+                              label="Move module up"
+                            />
                             <ReorderArrow
                               direction="down"
-                              disabled={idx === displayCurriculum.length - 1}
+                              disabled={savingReorder || idx === displayCurriculum.length - 1}
                               onClick={() => moveModule(idx, 1)}
                               label="Move module down"
                             />
@@ -964,7 +1097,11 @@ const EditCourse = () => {
                         {(mod.lessons || []).length === 0 && !reorderMode ? (
                           <div className="course-curriculum-lessons-empty">
                             <p className="mb-2">This module has no lessons yet.</p>
-                            <Button size="sm" variant="soft-primary" onClick={() => guardAction(() => openLessonModal(mod._id))}>
+                            <Button
+                              size="sm"
+                              variant="soft-primary"
+                              disabled={actionsLocked}
+                              onClick={() => guardAction(() => openLessonModal(mod._id))}>
                               <IconifyIcon icon="bx:plus" className="me-1" />
                               Add first lesson
                             </Button>
@@ -1042,13 +1179,13 @@ const EditCourse = () => {
                                   <div className="course-curriculum-reorder-group flex-shrink-0">
                                     <ReorderArrow
                                       direction="up"
-                                      disabled={lessonIndex === 0}
+                                      disabled={savingReorder || lessonIndex === 0}
                                       onClick={() => moveLesson(idx, lessonIndex, -1)}
                                       label="Move lesson up"
                                     />
                                     <ReorderArrow
                                       direction="down"
-                                      disabled={lessonIndex === (mod.lessons?.length || 0) - 1}
+                                      disabled={savingReorder || lessonIndex === (mod.lessons?.length || 0) - 1}
                                       onClick={() => moveLesson(idx, lessonIndex, 1)}
                                       label="Move lesson down"
                                     />

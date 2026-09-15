@@ -8,6 +8,7 @@ import { useAuthContext } from '@/context/useAuthContext'
 import { useUnsavedFormChanges } from '@/context/UnsavedFormChangesContext'
 import { useGlobalContext } from '@/context/useGlobalContext'
 import InstructorSelect from './InstructorSelect'
+import CourseStatusSelect from './CourseStatusSelect'
 import CourseMarketingVideosEditor from './CourseMarketingVideosEditor'
 import CourseAboutCourseEditor from './CourseAboutCourseEditor'
 import {
@@ -230,20 +231,25 @@ const buildComparableFromForm = (form, referenceSaved) => {
   return pickComparableFormValues(comparable, keys, referenceSaved)
 }
 
-const CourseForm = ({ course = null, onSaved, disabled = false }) => {
+const CourseForm = ({ course = null, onSaved, disabled = false, onBusyChange }) => {
   const { createCourse, updateCourse } = useGlobalContext()
   const { user: currentUser, loading: authLoading } = useAuthContext()
   const { acknowledgeSuccessfulFormSave } = useUnsavedFormChanges()
   const navigate = useNavigate()
   const confirmFormSubmit = useConfirmFormSubmit()
   const isEditing = Boolean(course?._id)
-  const canPublish = (course?.lessonCount ?? 0) > 0
+  /** Matches server: published-lesson count from recalculateCourseStats. */
+  const hasPublishedLesson = (course?.lessonCount ?? 0) > 0
   const instructorUser = useMemo(() => {
     if (course?.instructorId && typeof course.instructorId === 'object') return course.instructorId
     if (!isEditing && currentUser) return currentUser
     return null
   }, [course?.instructorId, currentUser, isEditing])
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    onBusyChange?.(loading)
+  }, [loading, onBusyChange])
   const [thumbnailFile, setThumbnailFile] = useState(null)
   const [heroImageDesktopFile, setHeroImageDesktopFile] = useState(null)
   const [heroImageMobileFile, setHeroImageMobileFile] = useState(null)
@@ -552,510 +558,489 @@ const CourseForm = ({ course = null, onSaved, disabled = false }) => {
 
   return (
     <form onSubmit={handleSubmit}>
-      <Row>
-        <Col md={6}>
-          <Form.Group className="mb-3">
-            <RequiredFormLabel htmlFor="course-title" required>
-              Title
-            </RequiredFormLabel>
-            <Form.Control
-              id="course-title"
-              name="title"
-              value={form.title}
-              onChange={handleChange}
-              placeholder="e.g. Introduction to Web Development"
+      <fieldset disabled={loading || disabled} className="course-form-fieldset border-0 p-0 m-0">
+        <Row>
+          <Col md={6}>
+            <Form.Group className="mb-3">
+              <RequiredFormLabel htmlFor="course-title" required>
+                Title
+              </RequiredFormLabel>
+              <Form.Control
+                id="course-title"
+                name="title"
+                value={form.title}
+                onChange={handleChange}
+                placeholder="e.g. Introduction to Web Development"
+                required
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Excerpt</Form.Label>
+              <Form.Control name="excerpt" value={form.excerpt} onChange={handleChange} placeholder="Short summary shown on the course catalog" />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Description</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={4}
+                name="description"
+                value={form.description}
+                onChange={handleChange}
+                placeholder="What students will learn, prerequisites, and course details"
+              />
+            </Form.Group>
+          </Col>
+          <Col md={6}>
+            <ThumbnailDropzoneInput
+              label="Thumbnail"
               required
+              text="Upload course thumbnail (required, 1 image only)"
+              showPreview
+              onFileUpload={(files) => setThumbnailFile(files[0] || null)}
             />
-          </Form.Group>
-          <Form.Group className="mb-3">
-            <Form.Label>Excerpt</Form.Label>
-            <Form.Control name="excerpt" value={form.excerpt} onChange={handleChange} placeholder="Short summary shown on the course catalog" />
-          </Form.Group>
-          <Form.Group className="mb-3">
-            <Form.Label>Description</Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={4}
-              name="description"
-              value={form.description}
-              onChange={handleChange}
-              placeholder="What students will learn, prerequisites, and course details"
-            />
-          </Form.Group>
-        </Col>
-        <Col md={6}>
-          <ThumbnailDropzoneInput
-            label="Thumbnail"
-            required
-            text="Upload course thumbnail (required, 1 image only)"
-            showPreview
-            onFileUpload={(files) => setThumbnailFile(files[0] || null)}
-          />
-          {course?.thumbnailUrl && !thumbnailFile && <img src={course.thumbnailUrl} alt="" className="img-fluid rounded mt-2" />}
-        </Col>
-      </Row>
+            {course?.thumbnailUrl && !thumbnailFile && <img src={course.thumbnailUrl} alt="" className="img-fluid rounded mt-2" />}
+          </Col>
+        </Row>
 
-      <Card className="mb-4 border">
-        <Card.Header className="bg-light fw-semibold">Course page hero images</Card.Header>
-        <Card.Body>
-          <p className="text-muted mb-4">
-            Required background images for the course detail page. Use a wide landscape image for desktop (16:9 or 21:9, subject on the right) and a
-            taller crop for mobile (4:5 or 9:16, subject in the upper area). The catalog thumbnail above is still used on course cards and listings.
-          </p>
-          <Row>
-            <Col md={6}>
-              <ThumbnailDropzoneInput
-                label="Desktop hero image"
-                required
-                text="Upload desktop hero background (required)"
-                showPreview
-                onFileUpload={(files) => setHeroImageDesktopFile(files[0] || null)}
-              />
-              {course?.heroImageDesktopUrl && !heroImageDesktopFile && (
-                <img src={course.heroImageDesktopUrl} alt="" className="img-fluid rounded mt-2" />
-              )}
-            </Col>
-            <Col md={6}>
-              <ThumbnailDropzoneInput
-                label="Mobile hero image"
-                required
-                text="Upload mobile hero background (required)"
-                showPreview
-                onFileUpload={(files) => setHeroImageMobileFile(files[0] || null)}
-              />
-              {course?.heroImageMobileUrl && !heroImageMobileFile && (
-                <img src={course.heroImageMobileUrl} alt="" className="img-fluid rounded mt-2" />
-              )}
-            </Col>
-          </Row>
-        </Card.Body>
-      </Card>
-
-      <CourseMarketingVideosEditor videos={marketingVideos} onChange={setMarketingVideos} />
-
-      <Card className="mb-4 border">
-        <Card.Header className="bg-light fw-semibold">Course page links</Card.Header>
-        <Card.Body>
-          <p className="text-muted mb-4">
-            Optional links for the storefront course detail page. Paste a YouTube or Vimeo URL for the intro video — no file upload needed. The
-            enrollment link replaces the LMS checkout button (e.g. a Google Form registration URL).
-          </p>
-          <Row>
-            <Col md={6}>
-              <Form.Group className="mb-3 mb-md-0">
-                <Form.Label>Intro video URL</Form.Label>
-                <Form.Control
-                  name="introVideoUrl"
-                  value={form.introVideoUrl}
-                  onChange={handleChange}
-                  placeholder="https://www.youtube.com/watch?v=..."
+        <Card className="mb-4 border">
+          <Card.Header className="bg-light fw-semibold">Course page hero images</Card.Header>
+          <Card.Body>
+            <p className="text-muted mb-4">
+              Required background images for the course detail page. Use a wide landscape image for desktop (16:9 or 21:9, subject on the right) and a
+              taller crop for mobile (4:5 or 9:16, subject in the upper area). The catalog thumbnail above is still used on course cards and listings.
+            </p>
+            <Row>
+              <Col md={6}>
+                <ThumbnailDropzoneInput
+                  label="Desktop hero image"
+                  required
+                  text="Upload desktop hero background (required)"
+                  showPreview
+                  onFileUpload={(files) => setHeroImageDesktopFile(files[0] || null)}
                 />
-                <Form.Text muted>Powers the &quot;Watch the Intro&quot; button on the course hero.</Form.Text>
-              </Form.Group>
-            </Col>
-            <Col md={6}>
-              <Form.Group>
-                <Form.Label>Enrollment / registration URL</Form.Label>
-                <Form.Control
-                  name="enrollmentUrl"
-                  value={form.enrollmentUrl}
-                  onChange={handleChange}
-                  placeholder="https://docs.google.com/forms/..."
+                {course?.heroImageDesktopUrl && !heroImageDesktopFile && (
+                  <img src={course.heroImageDesktopUrl} alt="" className="img-fluid rounded mt-2" />
+                )}
+              </Col>
+              <Col md={6}>
+                <ThumbnailDropzoneInput
+                  label="Mobile hero image"
+                  required
+                  text="Upload mobile hero background (required)"
+                  showPreview
+                  onFileUpload={(files) => setHeroImageMobileFile(files[0] || null)}
                 />
-                <Form.Text muted>Used instead of the LMS enroll link on the course detail page.</Form.Text>
-              </Form.Group>
-            </Col>
-          </Row>
-        </Card.Body>
-      </Card>
+                {course?.heroImageMobileUrl && !heroImageMobileFile && (
+                  <img src={course.heroImageMobileUrl} alt="" className="img-fluid rounded mt-2" />
+                )}
+              </Col>
+            </Row>
+          </Card.Body>
+        </Card>
 
-      <CourseAboutCourseEditor sections={aboutCourseSections} onChange={setAboutCourseSections} />
+        <CourseMarketingVideosEditor videos={marketingVideos} onChange={setMarketingVideos} />
 
-      <Card className="mb-4 border">
-        <Card.Header className="bg-light fw-semibold">Course page highlights</Card.Header>
-        <Card.Body>
-          <p className="text-muted mb-3">
-            Bullet points shown on the course detail hero panel. Leave empty to auto-generate from lesson count, duration, and default perks.
-          </p>
-          <Form.Group>
-            <Form.Label>Hero highlights</Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={5}
-              name="heroHighlights"
-              value={form.heroHighlights}
-              onChange={handleChange}
-              placeholder={'e.g. 10+ step-by-step video lessons\nSelf-paced — learn anytime\nLifetime access\nCertificate of completion'}
-            />
-            <Form.Text muted>Enter one highlight per line.</Form.Text>
-          </Form.Group>
-        </Card.Body>
-      </Card>
-
-      <Row>
-        <Col md={3}>
-          <Form.Group className="mb-3">
-            <Form.Label>Level</Form.Label>
-            <Form.Select name="level" value={form.level} onChange={handleChange}>
-              <option value="Beginner">Beginner</option>
-              <option value="Intermediate">Intermediate</option>
-              <option value="Advanced">Advanced</option>
-            </Form.Select>
-          </Form.Group>
-        </Col>
-        <Col md={3}>
-          <Form.Group className="mb-3">
-            <Form.Label>Status</Form.Label>
-            <Form.Select name="status" value={form.status} onChange={handleChange}>
-              <option value="Draft">Draft</option>
-              <option value="Coming Soon">Coming Soon</option>
-              {isEditing && (
-                <option value="Published" disabled={!canPublish}>
-                  Published
-                </option>
-              )}
-              {isEditing && <option value="Archived">Archived</option>}
-            </Form.Select>
-            {!isEditing && (
-              <Form.Text muted className="d-block mt-1">
-                Choose Coming Soon to list the course on the public catalog before lessons are ready.
-              </Form.Text>
-            )}
-            {isEditing && !canPublish && form.status !== 'Coming Soon' && (
-              <Form.Text muted className="d-block mt-1">
-                Publish becomes available after at least one lesson is published.
-              </Form.Text>
-            )}
-            {form.status === 'Coming Soon' && (
-              <Form.Text muted className="d-block mt-1">
-                Coming soon courses appear on /courses but are not clickable.
-              </Form.Text>
-            )}
-            {course?.publishedAt && (
-              <Form.Text muted className="d-block mt-1">
-                First published {formatDiscountEndsAt(course.publishedAt)}
-                {course.lastPublishedAt &&
-                  course.lastPublishedAt !== course.publishedAt &&
-                  ` · Last published ${formatDiscountEndsAt(course.lastPublishedAt)}`}
-              </Form.Text>
-            )}
-          </Form.Group>
-        </Col>
-        <Col md={3}>
-          <Form.Group className="mb-3">
-            <Form.Label>Order</Form.Label>
-            <Form.Control type="number" name="order" value={form.order} onChange={handleChange} placeholder="Lower numbers appear first" />
-          </Form.Group>
-        </Col>
-        <Col md={3}>
-          <Form.Group className="mb-3">
-            <Form.Label>Tags (comma-separated)</Form.Label>
-            <Form.Control name="tags" value={form.tags} onChange={handleChange} placeholder="e.g. design, beginner, marketing" />
-          </Form.Group>
-        </Col>
-      </Row>
-
-      <Row>
-        <Col md={6}>
-          <Form.Group className="mb-3">
-            <Form.Label>Instructor</Form.Label>
-            <InstructorSelect
-              value={form.instructorId}
-              selectedUser={instructorUser}
-              disabled={disabled || loading}
-              onChange={(instructorId) => setForm((prev) => ({ ...prev, instructorId: String(instructorId || '') }))}
-            />
-          </Form.Group>
-        </Col>
-      </Row>
-
-      <Card className="mb-4 border">
-        <Card.Header className="bg-light fw-semibold">Pricing</Card.Header>
-        <Card.Body>
-          <Form.Check
-            type="switch"
-            id="offer-free"
-            label="Offer this course for free"
-            name="isFree"
-            checked={form.isFree}
-            onChange={handleChange}
-            className="mb-1"
-          />
-          <Form.Text muted className="d-block mb-4">
-            {form.isFree
-              ? 'Students enroll at no cost. Add an original price below to show a limited-time free promotion.'
-              : 'Students pay at checkout. Toggle above to make the course free instead of using a 100% discount.'}
-          </Form.Text>
-
-          <Row className="g-3 align-items-end">
-            <Col md={4}>
-              <Form.Group>
-                <RequiredFormLabel htmlFor="course-list-price" required={!form.isFree}>
-                  {form.isFree ? 'Original price (compare-at)' : 'List price (USD)'}
-                </RequiredFormLabel>
-                <InputGroup>
-                  <InputGroup.Text>$</InputGroup.Text>
+        <Card className="mb-4 border">
+          <Card.Header className="bg-light fw-semibold">Course page links</Card.Header>
+          <Card.Body>
+            <p className="text-muted mb-4">
+              Optional links for the storefront course detail page. Paste a YouTube or Vimeo URL for the intro video — no file upload needed. The
+              enrollment link replaces the LMS checkout button (e.g. a Google Form registration URL).
+            </p>
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3 mb-md-0">
+                  <Form.Label>Intro video URL</Form.Label>
                   <Form.Control
-                    id="course-list-price"
-                    type="number"
-                    step="0.01"
-                    min={0}
-                    name="price"
-                    value={form.price}
+                    name="introVideoUrl"
+                    value={form.introVideoUrl}
                     onChange={handleChange}
-                    placeholder={form.isFree ? '10.00 (optional)' : '49.99'}
-                    required={!form.isFree}
+                    placeholder="https://www.youtube.com/watch?v=..."
                   />
-                </InputGroup>
-                <Form.Text muted>
-                  {form.isFree
-                    ? 'Optional. Shown crossed out on the storefront.'
-                    : `Standard price before any discount. Minimum checkout is ${formatUsd(MIN_PAID_COURSE_PRICE)}.`}
-                </Form.Text>
-              </Form.Group>
-            </Col>
-          </Row>
+                  <Form.Text muted>Powers the &quot;Watch the Intro&quot; button on the course hero.</Form.Text>
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label>Enrollment / registration URL</Form.Label>
+                  <Form.Control
+                    name="enrollmentUrl"
+                    value={form.enrollmentUrl}
+                    onChange={handleChange}
+                    placeholder="https://docs.google.com/forms/..."
+                  />
+                  <Form.Text muted>Used instead of the LMS enroll link on the course detail page.</Form.Text>
+                </Form.Group>
+              </Col>
+            </Row>
+          </Card.Body>
+        </Card>
 
-          {form.isFree && (
-            <>
-              <hr className="my-4" />
-              <Form.Check
-                type="switch"
-                id="free-has-expiry"
-                label="Set free offer expiration"
-                name="freeHasExpiry"
-                checked={form.freeHasExpiry}
+        <CourseAboutCourseEditor sections={aboutCourseSections} onChange={setAboutCourseSections} />
+
+        <Card className="mb-4 border">
+          <Card.Header className="bg-light fw-semibold">Course page highlights</Card.Header>
+          <Card.Body>
+            <p className="text-muted mb-3">
+              Bullet points shown on the course detail hero panel. Leave empty to auto-generate from lesson count, duration, and default perks.
+            </p>
+            <Form.Group>
+              <Form.Label>Hero highlights</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={5}
+                name="heroHighlights"
+                value={form.heroHighlights}
                 onChange={handleChange}
-                disabled={!canSaveFreeExpiration}
-                className="mb-3"
+                placeholder={'e.g. 10+ step-by-step video lessons\nSelf-paced — learn anytime\nLifetime access\nCertificate of completion'}
               />
-              {!canSaveFreeExpiration && (
-                <Form.Text muted className="d-block mb-3">
-                  Set a compare-at price to schedule an end date.
-                </Form.Text>
-              )}
-              {form.freeHasExpiry && (
-                <Row className="g-3">
-                  <Col md={4}>
-                    <Form.Group>
-                      <RequiredFormLabel htmlFor="course-free-ends-at" required={canSaveFreeExpiration}>
-                        Free offer ends on
-                      </RequiredFormLabel>
-                      <Form.Control
-                        id="course-free-ends-at"
-                        type="datetime-local"
-                        name="freeEndsAt"
-                        value={form.freeEndsAt}
-                        onChange={handleChange}
-                        min={toDatetimeLocalValue(new Date())}
-                        required={canSaveFreeExpiration}
-                        disabled={!canSaveFreeExpiration}
-                      />
-                      <Form.Text muted>
-                        {canSaveFreeExpiration
-                          ? `After this date, students pay ${formatUsd(freeOfferPostExpiryPrice)}.`
-                          : 'Add a compare-at price to save this end date.'}
-                      </Form.Text>
-                    </Form.Group>
-                  </Col>
-                </Row>
-              )}
-            </>
-          )}
+              <Form.Text muted>Enter one highlight per line.</Form.Text>
+            </Form.Group>
+          </Card.Body>
+        </Card>
 
-          {!form.isFree && (
-            <>
-              <hr className="my-4" />
-
-              <Form.Check
-                type="switch"
-                id="discount-enabled"
-                label="Offer a promotional discount"
-                name="discountEnabled"
-                checked={form.discountEnabled}
+        <Row>
+          <Col md={3}>
+            <Form.Group className="mb-3">
+              <Form.Label>Level</Form.Label>
+              <Form.Select name="level" value={form.level} onChange={handleChange}>
+                <option value="Beginner">Beginner</option>
+                <option value="Intermediate">Intermediate</option>
+                <option value="Advanced">Advanced</option>
+              </Form.Select>
+            </Form.Group>
+          </Col>
+          <Col md={3}>
+            <Form.Group className="mb-3">
+              <Form.Label>Status</Form.Label>
+              <CourseStatusSelect
+                name="status"
+                value={form.status}
                 onChange={handleChange}
-                disabled={!discountBounds.canDiscount}
-                className="mb-3"
+                isEditing={isEditing}
+                hasPublishedLesson={hasPublishedLesson}
+                publishedAt={course?.publishedAt}
+                lastPublishedAt={course?.lastPublishedAt}
+                formatPublishedDate={formatDiscountEndsAt}
               />
-              {!discountBounds.canDiscount && (
-                <Form.Text muted className="d-block mb-3">
-                  {discountBounds.hint}
-                </Form.Text>
-              )}
+            </Form.Group>
+          </Col>
+          <Col md={3}>
+            <Form.Group className="mb-3">
+              <Form.Label>Order</Form.Label>
+              <Form.Control type="number" name="order" value={form.order} onChange={handleChange} placeholder="Lower numbers appear first" />
+            </Form.Group>
+          </Col>
+          <Col md={3}>
+            <Form.Group className="mb-3">
+              <Form.Label>Tags (comma-separated)</Form.Label>
+              <Form.Control name="tags" value={form.tags} onChange={handleChange} placeholder="e.g. design, beginner, marketing" />
+            </Form.Group>
+          </Col>
+        </Row>
 
-              {form.discountEnabled && discountBounds.canDiscount && (
-                <Row className="g-3 align-items-end">
-                  <Col md={4}>
-                    <Form.Group>
-                      <Form.Label>Discount type</Form.Label>
-                      <Form.Select name="discountType" value={form.discountType} onChange={handleChange}>
-                        <option value={DISCOUNT_TYPE.PERCENT}>Percentage off</option>
-                        <option value={DISCOUNT_TYPE.FIXED}>Fixed amount off</option>
-                      </Form.Select>
-                    </Form.Group>
-                  </Col>
-                  <Col md={4}>
-                    <Form.Group>
-                      <RequiredFormLabel htmlFor="course-discount-value" required>
-                        Discount value
-                      </RequiredFormLabel>
-                      {form.discountType === DISCOUNT_TYPE.PERCENT ? (
-                        <InputGroup>
-                          <Form.Control
-                            id="course-discount-value"
-                            type="number"
-                            step="1"
-                            min={discountBounds.min}
-                            max={discountBounds.max}
-                            name="discountValue"
-                            value={form.discountValue}
-                            onChange={handleChange}
-                            placeholder="e.g. 20"
-                            required
-                          />
-                          <InputGroup.Text>%</InputGroup.Text>
-                        </InputGroup>
-                      ) : (
-                        <InputGroup>
-                          <InputGroup.Text>$</InputGroup.Text>
-                          <Form.Control
-                            id="course-discount-value"
-                            type="number"
-                            step="1"
-                            min={discountBounds.min}
-                            max={discountBounds.max}
-                            name="discountValue"
-                            value={form.discountValue}
-                            onChange={handleChange}
-                            placeholder="e.g. 10"
-                            required
-                          />
-                        </InputGroup>
-                      )}
-                      <Form.Text muted>{discountBounds.hint}</Form.Text>
-                    </Form.Group>
-                  </Col>
-                  <Col md={12}>
-                    <Form.Check
-                      type="switch"
-                      id="discount-has-expiry"
-                      label="Set discount expiration"
-                      name="discountHasExpiry"
-                      checked={form.discountHasExpiry}
+        <Row>
+          <Col md={6}>
+            <Form.Group className="mb-3">
+              <Form.Label>Instructor</Form.Label>
+              <InstructorSelect
+                value={form.instructorId}
+                selectedUser={instructorUser}
+                disabled={disabled || loading}
+                onChange={(instructorId) => setForm((prev) => ({ ...prev, instructorId: String(instructorId || '') }))}
+              />
+            </Form.Group>
+          </Col>
+        </Row>
+
+        <Card className="mb-4 border">
+          <Card.Header className="bg-light fw-semibold">Pricing</Card.Header>
+          <Card.Body>
+            <Form.Check
+              type="switch"
+              id="offer-free"
+              label="Offer this course for free"
+              name="isFree"
+              checked={form.isFree}
+              onChange={handleChange}
+              className="mb-1"
+            />
+            <Form.Text muted className="d-block mb-4">
+              {form.isFree
+                ? 'Students enroll at no cost. Add an original price below to show a limited-time free promotion.'
+                : 'Students pay at checkout. Toggle above to make the course free instead of using a 100% discount.'}
+            </Form.Text>
+
+            <Row className="g-3 align-items-end">
+              <Col md={4}>
+                <Form.Group>
+                  <RequiredFormLabel htmlFor="course-list-price" required={!form.isFree}>
+                    {form.isFree ? 'Original price (compare-at)' : 'List price (USD)'}
+                  </RequiredFormLabel>
+                  <InputGroup>
+                    <InputGroup.Text>$</InputGroup.Text>
+                    <Form.Control
+                      id="course-list-price"
+                      type="number"
+                      step="0.01"
+                      min={0}
+                      name="price"
+                      value={form.price}
                       onChange={handleChange}
-                      className="mb-2"
+                      placeholder={form.isFree ? '10.00 (optional)' : '49.99'}
+                      required={!form.isFree}
                     />
-                    {form.discountHasExpiry && (
-                      <Row className="g-3">
-                        <Col md={4}>
-                          <Form.Group>
-                            <RequiredFormLabel htmlFor="course-discount-ends-at" required>
-                              Ends on
-                            </RequiredFormLabel>
+                  </InputGroup>
+                  <Form.Text muted>
+                    {form.isFree
+                      ? 'Optional. Shown crossed out on the storefront.'
+                      : `Standard price before any discount. Minimum checkout is ${formatUsd(MIN_PAID_COURSE_PRICE)}.`}
+                  </Form.Text>
+                </Form.Group>
+              </Col>
+            </Row>
+
+            {form.isFree && (
+              <>
+                <hr className="my-4" />
+                <Form.Check
+                  type="switch"
+                  id="free-has-expiry"
+                  label="Set free offer expiration"
+                  name="freeHasExpiry"
+                  checked={form.freeHasExpiry}
+                  onChange={handleChange}
+                  disabled={!canSaveFreeExpiration}
+                  className="mb-3"
+                />
+                {!canSaveFreeExpiration && (
+                  <Form.Text muted className="d-block mb-3">
+                    Set a compare-at price to schedule an end date.
+                  </Form.Text>
+                )}
+                {form.freeHasExpiry && (
+                  <Row className="g-3">
+                    <Col md={4}>
+                      <Form.Group>
+                        <RequiredFormLabel htmlFor="course-free-ends-at" required={canSaveFreeExpiration}>
+                          Free offer ends on
+                        </RequiredFormLabel>
+                        <Form.Control
+                          id="course-free-ends-at"
+                          type="datetime-local"
+                          name="freeEndsAt"
+                          value={form.freeEndsAt}
+                          onChange={handleChange}
+                          min={toDatetimeLocalValue(new Date())}
+                          required={canSaveFreeExpiration}
+                          disabled={!canSaveFreeExpiration}
+                        />
+                        <Form.Text muted>
+                          {canSaveFreeExpiration
+                            ? `After this date, students pay ${formatUsd(freeOfferPostExpiryPrice)}.`
+                            : 'Add a compare-at price to save this end date.'}
+                        </Form.Text>
+                      </Form.Group>
+                    </Col>
+                  </Row>
+                )}
+              </>
+            )}
+
+            {!form.isFree && (
+              <>
+                <hr className="my-4" />
+
+                <Form.Check
+                  type="switch"
+                  id="discount-enabled"
+                  label="Offer a promotional discount"
+                  name="discountEnabled"
+                  checked={form.discountEnabled}
+                  onChange={handleChange}
+                  disabled={!discountBounds.canDiscount}
+                  className="mb-3"
+                />
+                {!discountBounds.canDiscount && (
+                  <Form.Text muted className="d-block mb-3">
+                    {discountBounds.hint}
+                  </Form.Text>
+                )}
+
+                {form.discountEnabled && discountBounds.canDiscount && (
+                  <Row className="g-3 align-items-end">
+                    <Col md={4}>
+                      <Form.Group>
+                        <Form.Label>Discount type</Form.Label>
+                        <Form.Select name="discountType" value={form.discountType} onChange={handleChange}>
+                          <option value={DISCOUNT_TYPE.PERCENT}>Percentage off</option>
+                          <option value={DISCOUNT_TYPE.FIXED}>Fixed amount off</option>
+                        </Form.Select>
+                      </Form.Group>
+                    </Col>
+                    <Col md={4}>
+                      <Form.Group>
+                        <RequiredFormLabel htmlFor="course-discount-value" required>
+                          Discount value
+                        </RequiredFormLabel>
+                        {form.discountType === DISCOUNT_TYPE.PERCENT ? (
+                          <InputGroup>
                             <Form.Control
-                              id="course-discount-ends-at"
-                              type="datetime-local"
-                              name="discountEndsAt"
-                              value={form.discountEndsAt}
+                              id="course-discount-value"
+                              type="number"
+                              step="1"
+                              min={discountBounds.min}
+                              max={discountBounds.max}
+                              name="discountValue"
+                              value={form.discountValue}
                               onChange={handleChange}
-                              min={toDatetimeLocalValue(new Date())}
+                              placeholder="e.g. 20"
                               required
                             />
-                            <Form.Text muted>After this date, students pay the list price. Time uses your local timezone.</Form.Text>
-                          </Form.Group>
-                        </Col>
-                      </Row>
-                    )}
-                  </Col>
-                </Row>
-              )}
-            </>
-          )}
+                            <InputGroup.Text>%</InputGroup.Text>
+                          </InputGroup>
+                        ) : (
+                          <InputGroup>
+                            <InputGroup.Text>$</InputGroup.Text>
+                            <Form.Control
+                              id="course-discount-value"
+                              type="number"
+                              step="1"
+                              min={discountBounds.min}
+                              max={discountBounds.max}
+                              name="discountValue"
+                              value={form.discountValue}
+                              onChange={handleChange}
+                              placeholder="e.g. 10"
+                              required
+                            />
+                          </InputGroup>
+                        )}
+                        <Form.Text muted>{discountBounds.hint}</Form.Text>
+                      </Form.Group>
+                    </Col>
+                    <Col md={12}>
+                      <Form.Check
+                        type="switch"
+                        id="discount-has-expiry"
+                        label="Set discount expiration"
+                        name="discountHasExpiry"
+                        checked={form.discountHasExpiry}
+                        onChange={handleChange}
+                        className="mb-2"
+                      />
+                      {form.discountHasExpiry && (
+                        <Row className="g-3">
+                          <Col md={4}>
+                            <Form.Group>
+                              <RequiredFormLabel htmlFor="course-discount-ends-at" required>
+                                Ends on
+                              </RequiredFormLabel>
+                              <Form.Control
+                                id="course-discount-ends-at"
+                                type="datetime-local"
+                                name="discountEndsAt"
+                                value={form.discountEndsAt}
+                                onChange={handleChange}
+                                min={toDatetimeLocalValue(new Date())}
+                                required
+                              />
+                              <Form.Text muted>After this date, students pay the list price. Time uses your local timezone.</Form.Text>
+                            </Form.Group>
+                          </Col>
+                        </Row>
+                      )}
+                    </Col>
+                  </Row>
+                )}
+              </>
+            )}
 
-          <div className="mt-4 p-3 rounded bg-light border">
-            <div className="fw-semibold mb-2">Storefront preview</div>
-            {form.isFree ? (
-              pricingPreview.freeOfferExpired ? (
+            <div className="mt-4 p-3 rounded bg-light border">
+              <div className="fw-semibold mb-2">Storefront preview</div>
+              {form.isFree ? (
+                pricingPreview.freeOfferExpired ? (
+                  <div>
+                    <div className="alert alert-warning py-2 mb-2">
+                      This free offer has expired
+                      {course?.pricing?.freeEndsAt ? ` (ended ${formatDiscountEndsAt(course.pricing.freeEndsAt)})` : ''}. Students currently pay{' '}
+                      {formatUsd(pricingPreview.listPrice)}.
+                    </div>
+                    <div className="fs-5 fw-bold">{formatUsd(pricingPreview.listPrice)}</div>
+                  </div>
+                ) : pricingPreview.hasCompareAt ? (
+                  <div>
+                    <div className="d-flex flex-wrap align-items-center gap-2">
+                      <span className="text-muted text-decoration-line-through">{formatUsd(pricingPreview.listPrice)}</span>
+                      <span className="fs-5 fw-bold text-success">FREE</span>
+                      <span className="badge bg-success-subtle text-success border border-success-subtle">
+                        Save {formatUsd(pricingPreview.savings)} (100% off)
+                      </span>
+                    </div>
+                    {pricingPreview.expiration && (
+                      <div className="mt-2">
+                        <span className={`badge ${pricingPreview.expiration.isEndingSoon ? 'text-bg-warning' : 'text-bg-secondary'}`}>
+                          Free offer ends {pricingPreview.expiration.endsAtLabel}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="fs-5 fw-bold text-success">FREE</div>
+                )
+              ) : pricingPreview.discountExpired ? (
                 <div>
                   <div className="alert alert-warning py-2 mb-2">
-                    This free offer has expired
-                    {course?.pricing?.freeEndsAt ? ` (ended ${formatDiscountEndsAt(course.pricing.freeEndsAt)})` : ''}. Students currently pay{' '}
-                    {formatUsd(pricingPreview.listPrice)}.
+                    This discount has expired
+                    {course?.pricing?.discount?.endsAt ? ` (ended ${formatDiscountEndsAt(course.pricing.discount.endsAt)})` : ''}. Students currently
+                    see {formatUsd(pricingPreview.listPrice)}.
                   </div>
                   <div className="fs-5 fw-bold">{formatUsd(pricingPreview.listPrice)}</div>
                 </div>
-              ) : pricingPreview.hasCompareAt ? (
+              ) : pricingPreview.hasDiscount ? (
                 <div>
                   <div className="d-flex flex-wrap align-items-center gap-2">
                     <span className="text-muted text-decoration-line-through">{formatUsd(pricingPreview.listPrice)}</span>
-                    <span className="fs-5 fw-bold text-success">FREE</span>
+                    <span className="fs-5 fw-bold text-success">{formatUsd(pricingPreview.salePrice)}</span>
                     <span className="badge bg-success-subtle text-success border border-success-subtle">
-                      Save {formatUsd(pricingPreview.savings)} (100% off)
+                      Save {formatUsd(pricingPreview.savings)} ({pricingPreview.label})
                     </span>
                   </div>
                   {pricingPreview.expiration && (
                     <div className="mt-2">
                       <span className={`badge ${pricingPreview.expiration.isEndingSoon ? 'text-bg-warning' : 'text-bg-secondary'}`}>
-                        Free offer ends {pricingPreview.expiration.endsAtLabel}
+                        Offer ends {pricingPreview.expiration.endsAtLabel}
                       </span>
                     </div>
                   )}
                 </div>
               ) : (
-                <div className="fs-5 fw-bold text-success">FREE</div>
-              )
-            ) : pricingPreview.discountExpired ? (
-              <div>
-                <div className="alert alert-warning py-2 mb-2">
-                  This discount has expired
-                  {course?.pricing?.discount?.endsAt ? ` (ended ${formatDiscountEndsAt(course.pricing.discount.endsAt)})` : ''}. Students currently
-                  see {formatUsd(pricingPreview.listPrice)}.
-                </div>
-                <div className="fs-5 fw-bold">{formatUsd(pricingPreview.listPrice)}</div>
-              </div>
-            ) : pricingPreview.hasDiscount ? (
-              <div>
-                <div className="d-flex flex-wrap align-items-center gap-2">
-                  <span className="text-muted text-decoration-line-through">{formatUsd(pricingPreview.listPrice)}</span>
-                  <span className="fs-5 fw-bold text-success">{formatUsd(pricingPreview.salePrice)}</span>
-                  <span className="badge bg-success-subtle text-success border border-success-subtle">
-                    Save {formatUsd(pricingPreview.savings)} ({pricingPreview.label})
-                  </span>
-                </div>
-                {pricingPreview.expiration && (
-                  <div className="mt-2">
-                    <span className={`badge ${pricingPreview.expiration.isEndingSoon ? 'text-bg-warning' : 'text-bg-secondary'}`}>
-                      Offer ends {pricingPreview.expiration.endsAtLabel}
-                    </span>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="fs-5 fw-bold">{formatUsd(Number(form.price || 0))}</div>
-            )}
-            <Form.Text muted className="d-block mt-2">
-              {form.isFree
-                ? pricingPreview.freeOfferExpired
-                  ? 'Enroll button will switch to paid checkout after the free offer ends.'
-                  : 'Enroll button will read “Enroll for Free” — no payment checkout.'
-                : 'Students are charged the sale price at checkout.'}
-            </Form.Text>
-          </div>
-        </Card.Body>
-      </Card>
+                <div className="fs-5 fw-bold">{formatUsd(Number(form.price || 0))}</div>
+              )}
+              <Form.Text muted className="d-block mt-2">
+                {form.isFree
+                  ? pricingPreview.freeOfferExpired
+                    ? 'Enroll button will switch to paid checkout after the free offer ends.'
+                    : 'Enroll button will read “Enroll for Free” — no payment checkout.'
+                  : 'Students are charged the sale price at checkout.'}
+              </Form.Text>
+            </div>
+          </Card.Body>
+        </Card>
 
-      <Button type="submit" disabled={loading || disabled || (isEditing && !hasChanges)}>
-        {loading ? (
-          <>
-            <Spinner animation="border" size="sm" className="me-2" />
-            Saving…
-          </>
-        ) : course ? (
-          'Update Course'
-        ) : (
-          'Create Course'
-        )}
-      </Button>
+        <Button type="submit" disabled={loading || disabled || (isEditing && !hasChanges)}>
+          {loading ? (
+            <>
+              <Spinner animation="border" size="sm" className="me-2" />
+              Saving…
+            </>
+          ) : course ? (
+            'Update Course'
+          ) : (
+            'Create Course'
+          )}
+        </Button>
+      </fieldset>
     </form>
   )
 }

@@ -122,9 +122,32 @@ const updateLessonsForVdocipherVideo = async (
   };
 };
 
+/** Poll VdoCipher for lessons still encoding (webhook fallback for admin UI). */
+const syncPendingLessonEncodingsForCourse = async (courseId) => {
+  const lessons = await Lesson.find({
+    courseId,
+    "video.vdoCipherVideoId": { $nin: [null, ""] },
+    "video.encodingStatus": { $nin: ["ready", "failed"] },
+  });
+
+  if (lessons.length === 0) {
+    return { checked: 0, synced: 0 };
+  }
+
+  const results = await Promise.all(
+    lessons.map((lesson) => syncLessonVideoFromVdocipher(lesson)),
+  );
+
+  return {
+    checked: lessons.length,
+    synced: results.filter((result) => result.synced).length,
+  };
+};
+
 module.exports = {
   mapVdocipherStatusToEncodingStatus,
   extractVdocipherVideoFields,
   syncLessonVideoFromVdocipher,
+  syncPendingLessonEncodingsForCourse,
   updateLessonsForVdocipherVideo,
 };

@@ -35,8 +35,17 @@ const {
   deleteVideo: deleteVdocipherVideo,
   deleteFolder: deleteVdocipherFolder,
   createFolder,
+  getFolder,
+  extractFolderId,
   buildCourseFolderName,
+  buildModuleFolderName,
+  buildLessonVideoTitle,
+  updateVideoMetadata,
+  moveVideoToFolder,
+  videoIsInFolder,
+  renameFolder,
 } = require("./vdocipher");
+const logger = require("../config/logger");
 
 const slugify = (text) =>
   String(text || "")
@@ -145,15 +154,146 @@ const rollbackLessonGcsUploads = async ({ gcsUrls, vdoCipherVideoId }) => {
   }
 };
 
+const createAndPersistCourseVdocipherFolder = async (course) => {
+  const folder = await createFolder(buildCourseFolderName(course));
+  const folderId = extractFolderId(folder);
+  if (!folderId) {
+    throw new Error("VdoCipher folder creation did not return an id");
+  }
+  course.vdoCipherFolderId = folderId;
+  await course.save();
+  return folderId;
+};
+
+const clearCourseVdocipherFolderId = async (course) => {
+  if (!course.vdoCipherFolderId) return;
+  course.vdoCipherFolderId = "";
+  await course.save();
+};
+
 const ensureCourseVdocipherFolder = async (course) => {
-  if (course.vdoCipherFolderId) {
-    return course.vdoCipherFolderId;
+  const storedId = String(course.vdoCipherFolderId || "").trim();
+  if (storedId && storedId !== "root") {
+    try {
+      await getFolder(storedId);
+      return storedId;
+    } catch (err) {
+      if (err.status !== 404) throw err;
+      console.warn(
+        "Stale VdoCipher folder id for course",
+        course._id,
+        storedId,
+        "— creating a new folder.",
+      );
+      await clearCourseVdocipherFolderId(course);
+    }
   }
 
-  const folder = await createFolder(buildCourseFolderName(course));
-  course.vdoCipherFolderId = folder.id;
-  await course.save();
-  return folder.id;
+  return createAndPersistCourseVdocipherFolder(course);
+};
+
+const clearModuleVdocipherFolderId = async (module) => {
+  if (!module.vdoCipherFolderId) return;
+  module.vdoCipherFolderId = "";
+  await module.save();
+};
+
+const createAndPersistModuleVdocipherFolder = async (course, module) => {
+  const parentFolderId = await ensureCourseVdocipherFolder(course);
+  const folder = await createFolder(
+    buildModuleFolderName(module),
+    parentFolderId,
+  );
+  const folderId = extractFolderId(folder);
+  if (!folderId) {
+    throw new Error("VdoCipher module folder creation did not return an id");
+  }
+  module.vdoCipherFolderId = folderId;
+  await module.save();
+  return folderId;
+};
+
+const ensureModuleVdocipherFolder = async (course, module) => {
+  const storedId = String(module.vdoCipherFolderId || "").trim();
+  if (storedId && storedId !== "root") {
+    try {
+      await getFolder(storedId);
+      return storedId;
+    } catch (err) {
+      if (err.status !== 404) throw err;
+      console.warn(
+        "Stale VdoCipher folder id for module",
+        module._id,
+        storedId,
+        "— creating a new folder.",
+      );
+      await clearModuleVdocipherFolderId(module);
+    }
+  }
+
+  return createAndPersistModuleVdocipherFolder(course, module);
+};
+
+/** Video title inside a module folder (module name comes from the folder path). */
+const buildModuleFolderVideoTitle = (lesson) =>
+  String(lesson?.title || "").trim() || "Untitled lesson";
+
+/** Align VdoCipher folder path + title when a lesson's module or name changes. */
+const syncLessonVideoInVdocipher = async (lesson, module, course) => {
+  const videoId = lesson?.video?.vdoCipherVideoId;
+  if (!videoId || lesson?.type !== "video" || !module || !course) {
+    return { synced: false };
+  }
+
+  const folderId = await ensureModuleVdocipherFolder(course, module);
+  const title = buildModuleFolderVideoTitle(lesson);
+  const moveResult = await moveVideoToFolder(videoId, folderId, {
+    title,
+    description: "",
+  });
+
+  if (!moveResult.moved) {
+    logger.warn(
+      `VdoCipher video ${videoId} could not be moved to module folder ${folderId} (${module.title}). Move it in the VdoCipher dashboard or re-save curriculum reorder after server update.`,
+    );
+    await updateVideoMetadata(videoId, { title, description: "" });
+    return { synced: true, folderMoved: false, ...moveResult };
+  }
+
+  return { synced: true, folderMoved: true, ...moveResult };
+};
+
+const syncAllCourseVdocipherLessonVideos = async (courseId) => {
+  const course = await Course.findById(courseId);
+  if (!course) return { synced: 0, folderIssues: [] };
+
+  const [modules, lessons] = await Promise.all([
+    CourseModule.find({ courseId: course._id }),
+    Lesson.find({
+      courseId: course._id,
+      type: "video",
+      "video.vdoCipherVideoId": { $nin: [null, ""] },
+    }),
+  ]);
+  const moduleById = new Map(modules.map((mod) => [String(mod._id), mod]));
+  const folderIssues = [];
+  let synced = 0;
+
+  for (const lesson of lessons) {
+    const module = moduleById.get(String(lesson.moduleId));
+    if (!module) continue;
+    const result = await syncLessonVideoInVdocipher(lesson, module, course);
+    if (result.synced) synced += 1;
+    if (result.synced && result.folderMoved === false) {
+      folderIssues.push({
+        lessonId: lesson._id,
+        videoId: lesson.video.vdoCipherVideoId,
+        moduleTitle: module.title,
+      });
+    }
+  }
+
+  return { synced, folderIssues };
 };
 
 const deleteLessonResourceFiles = async (lesson) => {
@@ -858,6 +998,10 @@ module.exports = {
   collectLessonGcsUploadUrls,
   rollbackLessonGcsUploads,
   ensureCourseVdocipherFolder,
+  ensureModuleVdocipherFolder,
+  syncLessonVideoInVdocipher,
+  syncAllCourseVdocipherLessonVideos,
+  buildModuleFolderVideoTitle,
   cleanupLessonMedia,
   cleanupLessonQuizOnly,
   cleanupLessonRelatedData,

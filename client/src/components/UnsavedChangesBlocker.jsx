@@ -1,6 +1,7 @@
 import { useContext, useEffect, useRef } from 'react'
 import { UNSAFE_NavigationContext as NavigationContext, useLocation, useNavigate } from 'react-router-dom'
 import { useUnsavedFormChanges } from '@/context/UnsavedFormChangesContext'
+import { useLmsAsyncBusyContext } from '@/context/LmsAsyncBusyContext'
 
 const normalizePath = (path) => {
   if (!path) return ''
@@ -25,17 +26,20 @@ const getHrefPath = (href) => {
 
 const UnsavedChangesBlocker = () => {
   const { hasUnsavedChanges, getHasUnsavedChanges, confirmDiscardUnsavedChanges, resetDiscardConfirmed } = useUnsavedFormChanges()
+  const { isAsyncBusy } = useLmsAsyncBusyContext()
   const { navigator } = useContext(NavigationContext)
   const location = useLocation()
   const navigate = useNavigate()
 
   const getHasUnsavedRef = useRef(getHasUnsavedChanges)
   const confirmRef = useRef(confirmDiscardUnsavedChanges)
+  const isAsyncBusyRef = useRef(isAsyncBusy)
   const locationPathRef = useRef(location.pathname)
   const navigateRef = useRef(navigate)
 
   getHasUnsavedRef.current = getHasUnsavedChanges
   confirmRef.current = confirmDiscardUnsavedChanges
+  isAsyncBusyRef.current = isAsyncBusy
   locationPathRef.current = location.pathname
   navigateRef.current = navigate
 
@@ -49,17 +53,22 @@ const UnsavedChangesBlocker = () => {
     const originalPush = navigator.push
     const originalReplace = navigator.replace
 
+    const getNextPath = (to) => normalizePath(typeof to === 'string' ? to : to?.pathname)
+
     const shouldBlock = (to) => {
-      if (!getHasUnsavedRef.current()) return false
-      const nextPath = normalizePath(typeof to === 'string' ? to : to?.pathname)
+      const nextPath = getNextPath(to)
       const currentPath = normalizePath(locationPathRef.current)
       if (!nextPath || nextPath === currentPath) return false
-      return true
+      return getHasUnsavedRef.current() || isAsyncBusyRef.current
     }
 
     const runNavigation = (originalFn, args) => {
       if (!shouldBlock(args[0])) {
         originalFn(...args)
+        return
+      }
+
+      if (isAsyncBusyRef.current && !getHasUnsavedRef.current()) {
         return
       }
 
@@ -81,7 +90,9 @@ const UnsavedChangesBlocker = () => {
 
   useEffect(() => {
     const onClickCapture = (event) => {
-      if (!getHasUnsavedRef.current()) return
+      const busy = isAsyncBusyRef.current
+      const unsaved = getHasUnsavedRef.current()
+      if (!busy && !unsaved) return
 
       const anchor = event.target.closest('a[href]')
       if (!anchor) return
@@ -100,6 +111,8 @@ const UnsavedChangesBlocker = () => {
       event.preventDefault()
       event.stopPropagation()
 
+      if (busy && !unsaved) return
+
       confirmRef.current().then((canProceed) => {
         if (!canProceed) return
         const search = href.includes('?') ? href.slice(href.indexOf('?')) : ''
@@ -113,17 +126,15 @@ const UnsavedChangesBlocker = () => {
   }, [])
 
   useEffect(() => {
-    if (!hasUnsavedChanges) return undefined
-
     const onBeforeUnload = (event) => {
-      if (!getHasUnsavedChanges()) return
+      if (!getHasUnsavedChanges() && !isAsyncBusy) return
       event.preventDefault()
       event.returnValue = ''
     }
 
     window.addEventListener('beforeunload', onBeforeUnload)
     return () => window.removeEventListener('beforeunload', onBeforeUnload)
-  }, [hasUnsavedChanges, getHasUnsavedChanges])
+  }, [hasUnsavedChanges, getHasUnsavedChanges, isAsyncBusy])
 
   return null
 }

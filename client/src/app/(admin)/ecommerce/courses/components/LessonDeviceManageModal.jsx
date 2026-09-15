@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Badge, Button, Col, Form, Modal, Row, Table } from 'react-bootstrap'
 import Swal from 'sweetalert2'
 import { useGlobalContext } from '@/context/useGlobalContext'
@@ -34,13 +34,23 @@ const DetailItem = ({ label, value, mono = false }) => (
   </div>
 )
 
-const LessonDeviceManageModal = ({ show, onHide, userId, userLabel, onUpdated }) => {
+const LessonDeviceManageModal = ({ show, onHide, userId, userLabel, onUpdated, onBusyChange }) => {
   const { getUserLessonDevice, resetUserLessonDevice, blockUserLessonDevice, unblockUserLessonDevice } = useGlobalContext()
   const [loading, setLoading] = useState(false)
   const [device, setDevice] = useState(null)
   const [events, setEvents] = useState([])
   const [blockReason, setBlockReason] = useState('')
   const [actionLoading, setActionLoading] = useState('')
+
+  const modalBusy = useMemo(() => loading || Boolean(actionLoading), [loading, actionLoading])
+
+  useEffect(() => {
+    if (!show) {
+      onBusyChange?.(false)
+      return
+    }
+    onBusyChange?.(modalBusy)
+  }, [show, modalBusy, onBusyChange])
 
   const loadDevice = useCallback(async () => {
     if (!userId) return
@@ -116,9 +126,21 @@ const LessonDeviceManageModal = ({ show, onHide, userId, userLabel, onUpdated })
     }
   }
 
+  const handleClose = () => {
+    if (modalBusy) return
+    onHide()
+  }
+
   return (
-    <Modal show={show} onHide={onHide} centered size="xl" scrollable className="lesson-device-manage-modal">
-      <Modal.Header closeButton>
+    <Modal
+      show={show}
+      onHide={handleClose}
+      centered
+      size="xl"
+      scrollable
+      className="lesson-device-manage-modal"
+      backdrop={modalBusy ? 'static' : true}>
+      <Modal.Header closeButton={!modalBusy}>
         <Modal.Title>Lesson device — {userLabel || 'Student'}</Modal.Title>
       </Modal.Header>
       <Modal.Body>
@@ -237,32 +259,34 @@ const LessonDeviceManageModal = ({ show, onHide, userId, userLabel, onUpdated })
 
             <hr className="my-4" />
 
-            <Form.Group>
-              <Form.Label>Block reason (optional)</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={2}
-                value={blockReason}
-                onChange={(event) => setBlockReason(event.target.value)}
-                placeholder="Shown internally for support reference"
-              />
-            </Form.Group>
+            <fieldset disabled={modalBusy} className="border-0 p-0 m-0">
+              <Form.Group>
+                <Form.Label>Block reason (optional)</Form.Label>
+                <Form.Control
+                  as="textarea"
+                  rows={2}
+                  value={blockReason}
+                  onChange={(event) => setBlockReason(event.target.value)}
+                  placeholder="Shown internally for support reference"
+                />
+              </Form.Group>
+            </fieldset>
           </>
         )}
       </Modal.Body>
       <Modal.Footer className="flex-wrap gap-2">
-        <Button variant="light" onClick={onHide}>
+        <Button variant="light" onClick={handleClose} disabled={modalBusy}>
           Close
         </Button>
-        <Button variant="outline-danger" disabled={!device || actionLoading} onClick={handleReset}>
+        <Button variant="outline-danger" disabled={!device || modalBusy} onClick={handleReset}>
           {actionLoading === 'reset' ? 'Resetting…' : 'Reset device'}
         </Button>
         {device?.status === 'blocked' ? (
-          <Button variant="outline-success" disabled={actionLoading} onClick={handleUnblock}>
+          <Button variant="outline-success" disabled={modalBusy} onClick={handleUnblock}>
             {actionLoading === 'unblock' ? 'Unblocking…' : 'Unblock access'}
           </Button>
         ) : (
-          <Button variant="danger" disabled={actionLoading} onClick={handleBlock}>
+          <Button variant="danger" disabled={modalBusy} onClick={handleBlock}>
             {actionLoading === 'block' ? 'Blocking…' : 'Block lesson access'}
           </Button>
         )}

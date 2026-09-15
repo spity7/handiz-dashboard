@@ -15,6 +15,7 @@ import LmsSectionNav from '../components/LmsSectionNav'
 import LessonDeviceManageModal from '../components/LessonDeviceManageModal'
 import useConfirmFormSubmit from '@/hooks/useConfirmFormSubmit'
 import { buildFormConfirmOptions } from '@/utils/formConfirm'
+import { useLmsAsyncBusy } from '@/context/LmsAsyncBusyContext'
 
 const CourseEnrollments = () => {
   const { getAllEnrollments, getAllCourses, adminCreateEnrollment, revokeEnrollment } = useGlobalContext()
@@ -28,7 +29,9 @@ const CourseEnrollments = () => {
   const [courseEnrollments, setCourseEnrollments] = useState([])
   const [saving, setSaving] = useState(false)
   const [reenrollingId, setReenrollingId] = useState(null)
+  const [revokingId, setRevokingId] = useState(null)
   const [deviceManageUser, setDeviceManageUser] = useState(null)
+  const [deviceModalBusy, setDeviceModalBusy] = useState(false)
   const confirmFormSubmit = useConfirmFormSubmit()
 
   const fetchEnrollments = useCallback(async () => {
@@ -38,6 +41,10 @@ const CourseEnrollments = () => {
   }, [getAllEnrollments, page])
 
   const { items: enrollments, loading, refresh } = useFetchList(fetchEnrollments)
+
+  const actionsLocked = loading || saving || Boolean(reenrollingId) || Boolean(revokingId) || deviceModalBusy
+
+  useLmsAsyncBusy(actionsLocked)
 
   useEffect(() => {
     getAllCourses(true)
@@ -155,11 +162,14 @@ const CourseEnrollments = () => {
       if (!result.isConfirmed) return
 
       try {
+        setRevokingId(enrollment._id)
         await revokeEnrollment(enrollment._id)
         refresh()
         Swal.fire('Revoked', 'Enrollment has been revoked.', 'success')
       } catch (error) {
         Swal.fire('Error', error?.response?.data?.message || 'Could not revoke enrollment.', 'error')
+      } finally {
+        setRevokingId(null)
       }
     },
     [revokeEnrollment, refresh],
@@ -214,7 +224,12 @@ const CourseEnrollments = () => {
           const userId = getEnrollmentUserId(enrollment)
           const label = `${enrollment.userId?.firstname || ''} ${enrollment.userId?.lastname || ''}`.trim() || enrollment.userId?.email
           return (
-            <Button size="sm" variant="outline-secondary" onClick={() => setDeviceManageUser({ userId, label })}>
+            <Button
+              size="sm"
+              variant="soft-primary"
+              className="lms-table-manage-btn"
+              disabled={actionsLocked}
+              onClick={() => setDeviceManageUser({ userId, label })}>
               Manage
             </Button>
           )
@@ -225,17 +240,25 @@ const CourseEnrollments = () => {
         header: 'Actions',
         cell: ({ row: { original: enrollment } }) =>
           enrollment.status === 'revoked' ? (
-            <Button size="sm" variant="outline-primary" disabled={reenrollingId === enrollment._id} onClick={() => handleReenroll(enrollment)}>
+            <Button
+              size="sm"
+              variant="outline-primary"
+              disabled={actionsLocked || reenrollingId === enrollment._id}
+              onClick={() => handleReenroll(enrollment)}>
               {reenrollingId === enrollment._id ? 'Re-enrolling…' : 'Re-enroll'}
             </Button>
           ) : (
-            <Button size="sm" variant="outline-danger" onClick={() => handleRevoke(enrollment)}>
-              Revoke
+            <Button
+              size="sm"
+              variant="outline-danger"
+              disabled={actionsLocked || revokingId === enrollment._id}
+              onClick={() => handleRevoke(enrollment)}>
+              {revokingId === enrollment._id ? 'Revoking…' : 'Revoke'}
             </Button>
           ),
       },
     ],
-    [handleRevoke, handleReenroll, reenrollingId],
+    [actionsLocked, handleRevoke, handleReenroll, reenrollingId, revokingId],
   )
 
   const emptyState = <LmsListEmptyState preset="enrollments" inTable onPrimaryAction={() => setShowCreate(true)} />
@@ -273,8 +296,10 @@ const CourseEnrollments = () => {
       <Row className="mb-3">
         <Col>
           <div className="courses-page-toolbar">
-            <LmsSectionNav />
-            <Button onClick={() => setShowCreate(true)}>Enroll Student</Button>
+            <LmsSectionNav disabled={actionsLocked} />
+            <Button disabled={actionsLocked} onClick={() => setShowCreate(true)}>
+              Enroll Student
+            </Button>
           </div>
         </Col>
       </Row>
@@ -302,13 +327,17 @@ const CourseEnrollments = () => {
                         Page {page} of {pagination.totalPages} ({pagination.total} total)
                       </small>
                       <div className="d-flex gap-2">
-                        <Button size="sm" variant="outline-secondary" disabled={page <= 1} onClick={() => setPage((current) => current - 1)}>
+                        <Button
+                          size="sm"
+                          variant="outline-secondary"
+                          disabled={actionsLocked || page <= 1}
+                          onClick={() => setPage((current) => current - 1)}>
                           Previous
                         </Button>
                         <Button
                           size="sm"
                           variant="outline-secondary"
-                          disabled={page >= pagination.totalPages}
+                          disabled={actionsLocked || page >= pagination.totalPages}
                           onClick={() => setPage((current) => current + 1)}>
                           Next
                         </Button>
@@ -322,32 +351,34 @@ const CourseEnrollments = () => {
         </Col>
       </Row>
 
-      <Modal show={showCreate} onHide={() => setShowCreate(false)} centered>
-        <Modal.Header closeButton>
+      <Modal show={showCreate} onHide={() => !saving && setShowCreate(false)} centered backdrop={saving ? 'static' : true}>
+        <Modal.Header closeButton={!saving}>
           <Modal.Title>Enroll Student</Modal.Title>
         </Modal.Header>
         <Form onSubmit={handleCreate}>
           <Modal.Body>
-            <Form.Group className="mb-3">
-              <Form.Label>Student</Form.Label>
-              <StudentSelect
-                value={form.userId}
-                courseId={form.courseId}
-                courseEnrollments={courseEnrollments}
-                onChange={(userId) => setForm((current) => ({ ...current, userId }))}
-              />
-              <Form.Text>
-                Admins cannot be enrolled. Students already active in the selected course are disabled; revoked students can be re-enrolled.
-              </Form.Text>
-            </Form.Group>
-            <Form.Group>
-              <Form.Label>Course</Form.Label>
-              <CourseSelect value={form.courseId} onChange={(courseId) => setForm((current) => ({ ...current, courseId }))} courses={courses} />
-              <Form.Text>Search by course title or slug.</Form.Text>
-            </Form.Group>
+            <fieldset disabled={saving} className="border-0 p-0 m-0">
+              <Form.Group className="mb-3">
+                <Form.Label>Student</Form.Label>
+                <StudentSelect
+                  value={form.userId}
+                  courseId={form.courseId}
+                  courseEnrollments={courseEnrollments}
+                  onChange={(userId) => setForm((current) => ({ ...current, userId }))}
+                />
+                <Form.Text>
+                  Admins cannot be enrolled. Students already active in the selected course are disabled; revoked students can be re-enrolled.
+                </Form.Text>
+              </Form.Group>
+              <Form.Group>
+                <Form.Label>Course</Form.Label>
+                <CourseSelect value={form.courseId} onChange={(courseId) => setForm((current) => ({ ...current, courseId }))} courses={courses} />
+                <Form.Text>Search by course title or slug.</Form.Text>
+              </Form.Group>
+            </fieldset>
           </Modal.Body>
           <Modal.Footer>
-            <Button variant="light" onClick={() => setShowCreate(false)}>
+            <Button variant="light" onClick={() => setShowCreate(false)} disabled={saving}>
               Cancel
             </Button>
             <Button type="submit" disabled={saving || !form.userId || !form.courseId}>
@@ -362,6 +393,7 @@ const CourseEnrollments = () => {
         userId={deviceManageUser?.userId}
         userLabel={deviceManageUser?.label}
         onHide={() => setDeviceManageUser(null)}
+        onBusyChange={setDeviceModalBusy}
       />
     </>
   )

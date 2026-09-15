@@ -45,6 +45,9 @@ const {
   collectLessonGcsUploadUrls,
   rollbackLessonGcsUploads,
   ensureCourseVdocipherFolder,
+  ensureModuleVdocipherFolder,
+  syncLessonVideoInVdocipher,
+  syncAllCourseVdocipherLessonVideos,
   revokeCourseEnrollments,
   reactivateArchivedCourseEnrollments,
   releaseCourseSlug,
@@ -65,9 +68,11 @@ const {
   getPlaybackOtpTtlSeconds,
   buildWatermarkAnnotate,
   deleteVideo: deleteVdocipherVideo,
+  renameFolder,
 } = require("../utils/vdocipher");
 const {
   syncLessonVideoFromVdocipher,
+  syncPendingLessonEncodingsForCourse,
 } = require("../utils/vdocipherLessonVideo");
 const {
   resolveLessonPlaybackAccess,
@@ -390,6 +395,8 @@ exports.getCourseById = async (req, res) => {
       INSTRUCTOR_PUBLIC_SELECT,
     );
     if (!course) return res.status(404).json({ message: "Course not found" });
+
+    await syncPendingLessonEncodingsForCourse(course._id);
 
     const curriculum = await buildCurriculum(course._id, {
       includeUnpublished: true,
@@ -949,6 +956,15 @@ exports.createModule = async (req, res) => {
       order: order !== undefined ? Number(order) : 0,
     });
 
+    try {
+      await ensureModuleVdocipherFolder(course, module);
+    } catch (folderError) {
+      console.warn(
+        "VdoCipher module folder creation failed; will retry on upload:",
+        folderError.message,
+      );
+    }
+
     res.status(201).json({ message: "Module created", module });
   } catch (error) {
     console.error("createModule error:", error);
@@ -967,10 +983,39 @@ exports.updateModule = async (req, res) => {
     }
 
     const { title, description, order } = req.body;
+    const previousModuleTitle = module.title;
     if (title) module.title = title;
     if (description !== undefined) module.description = description;
     if (order !== undefined) module.order = Number(order);
     await module.save();
+
+    if (title && title !== previousModuleTitle) {
+      if (module.vdoCipherFolderId) {
+        try {
+          await renameFolder(module.vdoCipherFolderId, module.title);
+        } catch (folderRenameError) {
+          console.warn(
+            "VdoCipher module folder rename failed:",
+            folderRenameError.message,
+          );
+        }
+      }
+      const videoLessons = await Lesson.find({
+        moduleId: module._id,
+        type: "video",
+        "video.vdoCipherVideoId": { $nin: [null, ""] },
+      });
+      for (const lesson of videoLessons) {
+        try {
+          await syncLessonVideoInVdocipher(lesson, module, course);
+        } catch (vdocipherSyncError) {
+          console.warn(
+            "VdoCipher lesson video sync failed:",
+            vdocipherSyncError.message,
+          );
+        }
+      }
+    }
 
     res.status(200).json({ message: "Module updated", module });
   } catch (error) {
@@ -1117,6 +1162,13 @@ exports.createLesson = async (req, res) => {
     await recalculateCourseStats(course._id);
     await recalculateAllEnrollmentsForCourse(course._id);
 
+    if (
+      lesson.video?.vdoCipherVideoId &&
+      lesson.video.encodingStatus !== "ready"
+    ) {
+      await syncLessonVideoFromVdocipher(lesson);
+    }
+
     res.status(201).json({ message: "Lesson created", lesson });
   } catch (error) {
     console.error("createLesson error:", error);
@@ -1151,6 +1203,8 @@ exports.updateLesson = async (req, res) => {
     const resourceFiles = req.files?.resources || [];
     const blockImageFiles = req.files?.blockImages || [];
     const previousType = lesson.type;
+    const previousTitle = lesson.title;
+    const previousModuleId = String(lesson.moduleId || "");
 
     if (title) {
       lesson.title = title;
@@ -1238,9 +1292,38 @@ exports.updateLesson = async (req, res) => {
       lesson.video.encodingStatus = "processing";
     }
 
+    const titleChanged = Boolean(title && title !== previousTitle);
+    const moduleChanged =
+      Boolean(moduleId) && String(moduleId) !== previousModuleId;
+
     await lesson.save();
     const stats = await recalculateCourseStats(lesson.courseId);
     await recalculateAllEnrollmentsForCourse(course._id);
+
+    if (
+      lesson.video?.vdoCipherVideoId &&
+      lesson.video.encodingStatus !== "ready"
+    ) {
+      await syncLessonVideoFromVdocipher(lesson);
+    }
+
+    if (
+      nextType === "video" &&
+      lesson.video?.vdoCipherVideoId &&
+      (titleChanged || moduleChanged)
+    ) {
+      try {
+        const moduleDoc = await CourseModule.findById(lesson.moduleId);
+        if (moduleDoc) {
+          await syncLessonVideoInVdocipher(lesson, moduleDoc, course);
+        }
+      } catch (vdocipherSyncError) {
+        console.warn(
+          "VdoCipher lesson video sync failed:",
+          vdocipherSyncError.message,
+        );
+      }
+    }
 
     res.status(200).json({
       message: "Lesson updated",
@@ -1290,9 +1373,15 @@ exports.reorderCurriculum = async (req, res) => {
       return res.status(400).json({ message: "modules array is required" });
     }
 
+    const courseModules = await CourseModule.find({ courseId: course._id });
+    const moduleById = new Map(
+      courseModules.map((entry) => [String(entry._id), entry]),
+    );
+    const vdocipherRelocations = [];
+
     for (const mod of modules) {
       if (mod._id) {
-        const courseModule = await CourseModule.findById(mod._id);
+        const courseModule = moduleById.get(String(mod._id));
         if (!courseModule || !entityBelongsToCourse(courseModule, course._id)) {
           return res.status(400).json({
             message: `Invalid module in reorder payload: ${mod._id}`,
@@ -1312,13 +1401,46 @@ exports.reorderCurriculum = async (req, res) => {
                 message: `Invalid lesson in reorder payload: ${lesson._id}`,
               });
             }
+            const previousModuleId = String(existingLesson.moduleId);
+            const newModuleId = String(mod._id);
             await Lesson.findByIdAndUpdate(lesson._id, {
               order: lesson.order,
               moduleId: mod._id,
             });
+            if (
+              previousModuleId !== newModuleId &&
+              existingLesson.type === "video" &&
+              existingLesson.video?.vdoCipherVideoId
+            ) {
+              vdocipherRelocations.push({
+                lesson: existingLesson,
+                module: moduleById.get(newModuleId),
+              });
+            }
           }
         }
       }
+    }
+
+    for (const { lesson, module: targetModule } of vdocipherRelocations) {
+      if (!targetModule) continue;
+      try {
+        await syncLessonVideoInVdocipher(lesson, targetModule, course);
+      } catch (vdocipherSyncError) {
+        console.warn(
+          "VdoCipher lesson video sync after reorder failed:",
+          vdocipherSyncError.message,
+        );
+      }
+    }
+
+    try {
+      await syncAllCourseVdocipherLessonVideos(course._id);
+    } catch (vdocipherBulkSyncError) {
+      console.warn(
+        "VdoCipher bulk lesson sync after reorder failed:",
+        vdocipherBulkSyncError.message,
+      );
     }
 
     const curriculum = await buildCurriculum(req.params.id, {
@@ -1495,5 +1617,25 @@ exports.upsertQuiz = async (req, res) => {
   } catch (error) {
     console.error("upsertQuiz error:", error);
     res.status(500).json({ message: "Server error saving quiz" });
+  }
+};
+
+exports.reconcileCourseVdocipherLibrary = async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id);
+    if (!course) return res.status(404).json({ message: "Course not found" });
+
+    const result = await syncAllCourseVdocipherLessonVideos(course._id);
+
+    res.status(200).json({
+      message: "VdoCipher library sync completed",
+      ...result,
+    });
+  } catch (error) {
+    console.error("reconcileCourseVdocipherLibrary error:", error);
+    res.status(500).json({
+      message: "Server error syncing VdoCipher library",
+      error: error.message,
+    });
   }
 };

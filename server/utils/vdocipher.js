@@ -60,12 +60,39 @@ const createFolder = async (name, parent = "root") => {
   });
 };
 
+/** Lists sub-folders under `folderId`; 404 means the folder id is invalid. */
+const getFolder = async (folderId) => {
+  if (!folderId || folderId === "root") {
+    const err = new Error("Folder not found");
+    err.status = 404;
+    throw err;
+  }
+  return vdocipherFetch(`/videos/folders/${encodeURIComponent(folderId)}`);
+};
+
+const extractFolderId = (payload) => {
+  if (!payload || typeof payload !== "object") return null;
+  const id = payload.id || payload.folderId;
+  return id ? String(id).trim() : null;
+};
+
+const isFolderNotFoundError = (error) =>
+  error?.status === 404 &&
+  String(error?.message || "")
+    .toLowerCase()
+    .includes("folder not found");
+
 const buildCourseFolderName = (course) => {
   const title = String(course?.title || "Untitled course").trim();
   const slug = String(course?.slug || "").trim();
   const name = slug ? `${title} (${slug})` : title;
   return name.slice(0, 200);
 };
+
+const buildModuleFolderName = (module) =>
+  String(module?.title || "Untitled module")
+    .trim()
+    .slice(0, 200);
 
 const buildLessonVideoTitle = ({ moduleTitle, lessonTitle } = {}) => {
   const lesson = String(lessonTitle || "").trim();
@@ -130,6 +157,97 @@ const getVideo = async (videoId) => {
   return vdocipherFetch(`/videos/${videoId}`);
 };
 
+const listVideosInFolder = async (folderId, { limit = 50 } = {}) => {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (folderId) params.set("folderId", folderId);
+  const data = await vdocipherFetch(`/videos?${params.toString()}`);
+  return data?.rows || data?.videos || [];
+};
+
+const updateVideoMetadata = async (
+  videoId,
+  { title, folderId, description } = {},
+) => {
+  if (!videoId) return;
+  const body = {};
+  const trimmedTitle = String(title || "").trim();
+  const trimmedFolderId = String(folderId || "").trim();
+  if (trimmedTitle) {
+    body.title = trimmedTitle;
+    body.description = description !== undefined ? String(description) : "";
+  }
+  if (trimmedFolderId && trimmedFolderId !== "root") {
+    body.folderId = trimmedFolderId;
+  }
+  if (!Object.keys(body).length) return;
+  return vdocipherFetch(`/videos/${encodeURIComponent(videoId)}`, {
+    method: "POST",
+    body,
+  });
+};
+
+const videoIsInFolder = async (videoId, folderId) => {
+  if (!videoId || !folderId) return false;
+  const rows = await listVideosInFolder(folderId, { limit: 100 });
+  return rows.some((row) => row.id === videoId);
+};
+
+/**
+ * VdoCipher only sets folder at upload time; POST may accept folderId but often
+ * does not relocate. We verify listing and try the legacy /videos/move endpoint.
+ */
+const moveVideoToFolder = async (
+  videoId,
+  folderId,
+  { title, description = "" } = {},
+) => {
+  const trimmedTitle = String(title || "").trim();
+  if (!videoId || !folderId || !trimmedTitle) {
+    return { moved: false, reason: "missing_params" };
+  }
+
+  if (await videoIsInFolder(videoId, folderId)) {
+    await updateVideoMetadata(videoId, { title: trimmedTitle, description });
+    return { moved: true, method: "already_in_folder" };
+  }
+
+  await updateVideoMetadata(videoId, {
+    title: trimmedTitle,
+    description,
+    folderId,
+  });
+  if (await videoIsInFolder(videoId, folderId)) {
+    return { moved: true, method: "metadata" };
+  }
+
+  try {
+    await vdocipherFetch("/videos/move", {
+      method: "POST",
+      body: { videoId, folderId },
+    });
+    if (await videoIsInFolder(videoId, folderId)) {
+      return { moved: true, method: "move_api" };
+    }
+  } catch {
+    // undocumented / plan-limited on some accounts
+  }
+
+  return { moved: false, reason: "folder_unchanged" };
+};
+
+const updateVideoTitle = async (videoId, title) =>
+  updateVideoMetadata(videoId, { title });
+
+const renameFolder = async (folderId, name) => {
+  if (!folderId || folderId === "root") return;
+  const trimmed = String(name || "").trim();
+  if (!trimmed) return;
+  return vdocipherFetch(`/videos/folders/${encodeURIComponent(folderId)}`, {
+    method: "PUT",
+    body: { name: trimmed },
+  });
+};
+
 module.exports = {
   getUploadCredentials,
   getPlaybackOtp,
@@ -138,7 +256,17 @@ module.exports = {
   deleteVideo,
   deleteFolder,
   getVideo,
+  listVideosInFolder,
+  videoIsInFolder,
+  moveVideoToFolder,
+  updateVideoTitle,
+  updateVideoMetadata,
+  renameFolder,
+  getFolder,
+  extractFolderId,
+  isFolderNotFoundError,
   createFolder,
   buildCourseFolderName,
+  buildModuleFolderName,
   buildLessonVideoTitle,
 };

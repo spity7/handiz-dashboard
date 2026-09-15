@@ -26,8 +26,11 @@ const NAV_ITEMS = [
   },
 ]
 
-const LmsSectionNav = ({ className }) => (
-  <nav className={clsx('lms-section-nav', className)} aria-label="LMS section navigation">
+const LmsSectionNav = ({ className, disabled = false }) => (
+  <nav
+    className={clsx('lms-section-nav', className, disabled && 'lms-section-nav--disabled')}
+    aria-label="LMS section navigation"
+    aria-busy={disabled || undefined}>
     <div className="lms-section-nav__track" role="tablist" aria-label="LMS sections">
       {NAV_ITEMS.map(({ to, label, hint, icon, accent }) => (
         <NavLink
@@ -36,8 +39,18 @@ const LmsSectionNav = ({ className }) => (
           end
           role="tab"
           title={hint}
+          aria-disabled={disabled || undefined}
+          tabIndex={disabled ? -1 : undefined}
+          onClick={(event) => {
+            if (disabled) event.preventDefault()
+          }}
           className={({ isActive }) =>
-            clsx('lms-section-nav__item', `lms-section-nav__item--${accent}`, isActive && 'lms-section-nav__item--active')
+            clsx(
+              'lms-section-nav__item',
+              `lms-section-nav__item--${accent}`,
+              isActive && 'lms-section-nav__item--active',
+              disabled && 'lms-section-nav__item--disabled',
+            )
           }>
           <span className="lms-section-nav__icon-wrap" aria-hidden="true">
             <IconifyIcon icon={icon} className="lms-section-nav__icon" />

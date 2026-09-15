@@ -8,6 +8,7 @@ import { useGlobalContext } from '@/context/useGlobalContext'
 import useFetchList from '@/hooks/useFetchList'
 import LmsListEmptyState from '../components/LmsListEmptyState'
 import LmsSectionNav from '../components/LmsSectionNav'
+import { useLmsAsyncBusy } from '@/context/LmsAsyncBusyContext'
 
 const statusVariant = (status) => {
   if (status === 'paid') return 'success'
@@ -20,6 +21,8 @@ const CourseOrders = () => {
   const { getOrders } = useGlobalContext()
   const fetchOrders = useCallback(async () => getOrders(), [getOrders])
   const { items: orders, loading } = useFetchList(fetchOrders)
+
+  useLmsAsyncBusy(loading)
 
   const totalRevenue = orders.filter((o) => o.status === 'paid').reduce((sum, o) => sum + (o.amount || 0), 0)
 
@@ -64,7 +67,7 @@ const CourseOrders = () => {
       <Row className="mb-3">
         <Col>
           <div className="courses-page-toolbar">
-            <LmsSectionNav />
+            <LmsSectionNav disabled={loading} />
           </div>
         </Col>
       </Row>

@@ -6,6 +6,7 @@ import { LayoutProvider } from '@/context/useLayoutContext'
 import { HelmetProvider } from 'react-helmet-async'
 import { GlobalProvider } from '@/context/useGlobalContext'
 import { UnsavedFormChangesProvider } from '@/context/UnsavedFormChangesContext'
+import { LmsAsyncBusyProvider } from '@/context/LmsAsyncBusyContext'
 import UnsavedChangesBlocker from '@/components/UnsavedChangesBlocker'
 import AsyncActionOverlay from '@/components/AsyncActionOverlay'
 import AppToastContainer from '@/components/AppToastContainer'
@@ -25,12 +26,14 @@ const AppProvidersWrapper = ({ children }) => {
     <AuthProvider>
       <GlobalProvider>
         <UnsavedFormChangesProvider>
-          <LayoutProvider>
-            {children}
-            <UnsavedChangesBlocker />
-            <AsyncActionOverlay />
-            <AppToastContainer />
-          </LayoutProvider>
+          <LmsAsyncBusyProvider>
+            <LayoutProvider>
+              {children}
+              <UnsavedChangesBlocker />
+              <AsyncActionOverlay />
+              <AppToastContainer />
+            </LayoutProvider>
+          </LmsAsyncBusyProvider>
         </UnsavedFormChangesProvider>
       </GlobalProvider>
     </AuthProvider>

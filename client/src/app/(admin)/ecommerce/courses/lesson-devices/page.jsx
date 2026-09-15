@@ -10,6 +10,7 @@ import { useGlobalContext } from '@/context/useGlobalContext'
 import useFetchList from '@/hooks/useFetchList'
 import LmsSectionNav from '../components/LmsSectionNav'
 import LessonDeviceManageModal from '../components/LessonDeviceManageModal'
+import { useLmsAsyncBusy } from '@/context/LmsAsyncBusyContext'
 
 const TABLE_PAGE_SIZE = 10
 const FOCUS_DISMISS_MS = 4500
@@ -38,6 +39,7 @@ const LessonDevicesPage = () => {
   const [highlightUserId, setHighlightUserId] = useState(null)
   const [highlightDismissing, setHighlightDismissing] = useState(false)
   const [openDeviceOnLoad, setOpenDeviceOnLoad] = useState(false)
+  const [deviceModalBusy, setDeviceModalBusy] = useState(false)
 
   useEffect(() => {
     if (deepLinkHandled.current) return
@@ -70,6 +72,10 @@ const LessonDevicesPage = () => {
   }, [getAllLessonDevices, highlightUserId, page, search])
 
   const { items: devices, loading, refresh } = useFetchList(fetchDevices)
+
+  const actionsLocked = loading || deviceModalBusy
+
+  useLmsAsyncBusy(actionsLocked)
 
   useEffect(() => {
     if (!openDeviceOnLoad || !highlightUserId || loading) return
@@ -147,7 +153,9 @@ const LessonDevicesPage = () => {
         cell: ({ row: { original: device } }) => (
           <Button
             size="sm"
-            variant="outline-primary"
+            variant="soft-primary"
+            className="lms-table-manage-btn"
+            disabled={actionsLocked}
             onClick={() =>
               setManageUser({
                 userId: device.userId,
@@ -159,7 +167,7 @@ const LessonDevicesPage = () => {
         ),
       },
     ],
-    [],
+    [actionsLocked],
   )
 
   const handleSearch = (event) => {
@@ -182,16 +190,18 @@ const LessonDevicesPage = () => {
       <Row className="mb-3">
         <Col>
           <div className="courses-page-toolbar">
-            <LmsSectionNav />
+            <LmsSectionNav disabled={actionsLocked} />
             <Form onSubmit={handleSearch} className="d-flex gap-2 ms-md-auto" style={{ minWidth: 'min(100%, 22rem)' }}>
-              <Form.Control
-                placeholder="Search by name, username, or email"
-                value={searchInput}
-                onChange={(event) => setSearchInput(event.target.value)}
-              />
-              <Button type="submit" variant="outline-secondary">
-                Search
-              </Button>
+              <fieldset disabled={actionsLocked} className="d-flex gap-2 border-0 p-0 m-0 flex-grow-1">
+                <Form.Control
+                  placeholder="Search by name, username, or email"
+                  value={searchInput}
+                  onChange={(event) => setSearchInput(event.target.value)}
+                />
+                <Button type="submit" variant="outline-secondary">
+                  Search
+                </Button>
+              </fieldset>
             </Form>
           </div>
         </Col>
@@ -229,13 +239,17 @@ const LessonDevicesPage = () => {
                         Page {page} of {pagination.totalPages} ({pagination.total} total)
                       </small>
                       <div className="d-flex gap-2">
-                        <Button size="sm" variant="outline-secondary" disabled={page <= 1} onClick={() => setPage((current) => current - 1)}>
+                        <Button
+                          size="sm"
+                          variant="outline-secondary"
+                          disabled={actionsLocked || page <= 1}
+                          onClick={() => setPage((current) => current - 1)}>
                           Previous
                         </Button>
                         <Button
                           size="sm"
                           variant="outline-secondary"
-                          disabled={page >= pagination.totalPages}
+                          disabled={actionsLocked || page >= pagination.totalPages}
                           onClick={() => setPage((current) => current + 1)}>
                           Next
                         </Button>
@@ -255,6 +269,7 @@ const LessonDevicesPage = () => {
         userLabel={manageUser?.label}
         onHide={() => setManageUser(null)}
         onUpdated={refresh}
+        onBusyChange={setDeviceModalBusy}
       />
     </>
   )

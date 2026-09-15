@@ -514,6 +514,11 @@ export const GlobalProvider = ({ children }) => {
     return response.data
   }
 
+  const reconcileCourseVdocipherLibrary = async (courseId) => {
+    const response = await axiosInstance.post(`/courses/${courseId}/vdocipher/reconcile-library`)
+    return response.data
+  }
+
   const upsertQuiz = async (courseId, lessonId, data) => {
     const response = await axiosInstance.put(`/courses/${courseId}/lessons/${lessonId}/quiz`, data)
     return response.data
@@ -569,11 +574,12 @@ export const GlobalProvider = ({ children }) => {
     return response.data.orders
   }
 
-  const getVdocipherUploadCredentials = async (title, { courseId, moduleTitle } = {}) => {
+  const getVdocipherUploadCredentials = async (title, { courseId, moduleTitle, moduleId } = {}) => {
     const response = await axiosInstance.post('/vdocipher/upload-credentials', {
       title,
       courseId,
       moduleTitle,
+      moduleId,
     })
     return response.data
   }
@@ -676,6 +682,7 @@ export const GlobalProvider = ({ children }) => {
         updateLesson,
         deleteLesson,
         reorderCurriculum,
+        reconcileCourseVdocipherLibrary,
         upsertQuiz,
         getCourseEnrollments,
         getAllEnrollments,

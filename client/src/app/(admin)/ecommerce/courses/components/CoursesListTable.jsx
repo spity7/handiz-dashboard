@@ -7,6 +7,7 @@ import ReactTable from '@/components/Table'
 import LmsListEmptyState from './LmsListEmptyState'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
 import { useGlobalContext } from '@/context/useGlobalContext'
+import { useLmsAsyncBusy } from '@/context/LmsAsyncBusyContext'
 import { formatUsd, getPublicPriceDisplay } from '@/utils/coursePricing'
 
 const ALL_FILTER = ''
@@ -123,7 +124,7 @@ const matchesPricingFilter = (course, filter) => {
   }
 }
 
-const TableHeaderSearch = ({ label, value, onChange, placeholder }) => (
+const TableHeaderSearch = ({ label, value, onChange, placeholder, disabled = false }) => (
   <Form.Control
     size="sm"
     type="text"
@@ -133,17 +134,19 @@ const TableHeaderSearch = ({ label, value, onChange, placeholder }) => (
     aria-label={label}
     placeholder={placeholder}
     autoComplete="off"
+    disabled={disabled}
   />
 )
 
-const TableHeaderCountFilter = ({ label, operator, value, onOperatorChange, onValueChange }) => (
+const TableHeaderCountFilter = ({ label, operator, value, onOperatorChange, onValueChange, disabled = false }) => (
   <div className="d-flex gap-1 courses-table-count-filter">
     <Form.Select
       size="sm"
       value={operator}
       onChange={(e) => onOperatorChange(e.target.value)}
       className="courses-table-filter-op"
-      aria-label={`${label} operator`}>
+      aria-label={`${label} operator`}
+      disabled={disabled}>
       <option value={ALL_FILTER}>Any</option>
       <option value={COUNT_OPERATORS.EQ}>Equal (=)</option>
       <option value={COUNT_OPERATORS.GTE}>At least (≥)</option>
@@ -161,14 +164,20 @@ const TableHeaderCountFilter = ({ label, operator, value, onOperatorChange, onVa
       className="courses-table-filter-num"
       aria-label={label}
       placeholder="0"
-      disabled={!operator}
+      disabled={disabled || !operator}
       autoComplete="off"
     />
   </div>
 )
 
-const TableHeaderFilter = ({ label, value, onChange, children }) => (
-  <Form.Select size="sm" value={value} onChange={(e) => onChange(e.target.value)} className="courses-table-filter" aria-label={label}>
+const TableHeaderFilter = ({ label, value, onChange, children, disabled = false }) => (
+  <Form.Select
+    size="sm"
+    value={value}
+    onChange={(e) => onChange(e.target.value)}
+    className="courses-table-filter"
+    aria-label={label}
+    disabled={disabled}>
     {children}
   </Form.Select>
 )
@@ -223,6 +232,8 @@ const CoursesListTable = ({ courses, onRefresh, refreshing = false }) => {
   }, [courses, courseSearch, statusFilter, pricingFilter, lessonsOperator, lessonsValue, enrollmentsOperator, enrollmentsValue])
 
   const isTableBusy = Boolean(courseAction) || refreshing
+
+  useLmsAsyncBusy(isTableBusy)
 
   const runCourseAction = useCallback(
     async ({ id, type, action, successTitle, successMessage, errorMessage }) => {
@@ -322,7 +333,13 @@ const CoursesListTable = ({ courses, onRefresh, refreshing = false }) => {
         header: () => (
           <div className="d-flex flex-column gap-1 courses-table-filters">
             <span className="fw-semibold">Course</span>
-            <TableHeaderSearch label="Search courses" value={courseSearch} onChange={setCourseSearch} placeholder="Search title or slug..." />
+            <TableHeaderSearch
+              label="Search courses"
+              value={courseSearch}
+              onChange={setCourseSearch}
+              placeholder="Search title or slug..."
+              disabled={isTableBusy}
+            />
           </div>
         ),
         meta: { className: 'courses-list-col-title' },
@@ -344,7 +361,7 @@ const CoursesListTable = ({ courses, onRefresh, refreshing = false }) => {
         header: () => (
           <div className="d-flex flex-column gap-1 courses-table-filters">
             <span className="fw-semibold">Status</span>
-            <TableHeaderFilter label="Filter by status" value={statusFilter} onChange={setStatusFilter}>
+            <TableHeaderFilter label="Filter by status" value={statusFilter} onChange={setStatusFilter} disabled={isTableBusy}>
               <option value={ALL_FILTER}>All statuses</option>
               <option value={COURSE_STATUS.DRAFT}>{COURSE_STATUS.DRAFT}</option>
               <option value={COURSE_STATUS.COMING_SOON}>{COURSE_STATUS.COMING_SOON}</option>
@@ -369,7 +386,7 @@ const CoursesListTable = ({ courses, onRefresh, refreshing = false }) => {
         header: () => (
           <div className="d-flex flex-column gap-1 courses-table-filters">
             <span className="fw-semibold">Pricing</span>
-            <TableHeaderFilter label="Filter by pricing" value={pricingFilter} onChange={setPricingFilter}>
+            <TableHeaderFilter label="Filter by pricing" value={pricingFilter} onChange={setPricingFilter} disabled={isTableBusy}>
               <option value={ALL_FILTER}>All pricing</option>
               <option value={PRICING_FILTER.FREE}>Free</option>
               <option value={PRICING_FILTER.PAID}>Paid</option>
@@ -419,6 +436,7 @@ const CoursesListTable = ({ courses, onRefresh, refreshing = false }) => {
               value={lessonsValue}
               onOperatorChange={handleLessonsOperatorChange}
               onValueChange={setLessonsValue}
+              disabled={isTableBusy}
             />
           </div>
         ),
@@ -435,6 +453,7 @@ const CoursesListTable = ({ courses, onRefresh, refreshing = false }) => {
               value={enrollmentsValue}
               onOperatorChange={handleEnrollmentsOperatorChange}
               onValueChange={setEnrollmentsValue}
+              disabled={isTableBusy}
             />
           </div>
         ),
@@ -446,7 +465,13 @@ const CoursesListTable = ({ courses, onRefresh, refreshing = false }) => {
           <div className="d-flex flex-column gap-1 courses-table-filters">
             <span className="fw-semibold">Action</span>
             {hasActiveFilters ? (
-              <Button variant="soft-warning" size="sm" className="courses-table-clear-filters" onClick={clearFilters} title="Clear all table filters">
+              <Button
+                variant="soft-warning"
+                size="sm"
+                className="courses-table-clear-filters"
+                onClick={clearFilters}
+                title="Clear all table filters"
+                disabled={isTableBusy}>
                 <IconifyIcon icon="bx:reset" className="courses-table-clear-filters__icon" aria-hidden="true" />
                 Clear filters
               </Button>
