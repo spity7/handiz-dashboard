@@ -9,6 +9,8 @@ const {
 const { canEnrollInCourse } = require("../utils/courseAccess");
 const {
   buildCurriculum,
+  buildSequentialLockMap,
+  usesSequentialLessonProgression,
   sanitizeLessonForClient,
   notifyCourseEnrolled,
   serializeEnrollmentForClient,
@@ -179,6 +181,12 @@ exports.getEnrollmentById = async (req, res) => {
       hideEmptyModules: true,
     });
 
+    const staff = isStaff(req.user);
+    const sequentialLockMap =
+      !staff && usesSequentialLessonProgression(course)
+        ? await buildSequentialLockMap(refreshedEnrollment, course)
+        : new Map();
+
     const sanitizedCurriculum = curriculum.map((mod) => ({
       ...mod,
       lessons: mod.lessons.map((lesson) => {
@@ -187,9 +195,12 @@ exports.getEnrollmentById = async (req, res) => {
           lesson,
           refreshedEnrollment,
         );
+        const sequentiallyLocked =
+          hasAccess && sequentialLockMap.get(String(lesson._id)) === true;
         return sanitizeLessonForClient(lesson, {
           hasAccess,
-          isStaff: isStaff(req.user),
+          isStaff: staff,
+          sequentiallyLocked,
         });
       }),
     }));

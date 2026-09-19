@@ -17,7 +17,10 @@ const {
   buildCertificatePdfBuffer,
   formatStudentName,
 } = require("./certificatePdf");
-const { COURSE_STATUS } = require("../constants/courseStatus");
+const {
+  COURSE_STATUS,
+  LESSON_PROGRESSION,
+} = require("../constants/courseStatus");
 const {
   normalizeCoursePricing,
   computeSalePrice,
@@ -625,9 +628,41 @@ const getPublishedLessonsForCourse = async (courseId) => {
   );
 };
 
-const buildSequentialLockMap = async (enrollment, courseId) => {
+const normalizeLessonProgression = (value) => {
+  if (String(value || "").toLowerCase() === LESSON_PROGRESSION.SEQUENTIAL) {
+    return LESSON_PROGRESSION.SEQUENTIAL;
+  }
+  return LESSON_PROGRESSION.OPEN;
+};
+
+const usesSequentialLessonProgression = (course) =>
+  normalizeLessonProgression(course?.lessonProgression) ===
+  LESSON_PROGRESSION.SEQUENTIAL;
+
+const resolveCourseForProgression = async (courseOrId) => {
+  if (
+    courseOrId &&
+    typeof courseOrId === "object" &&
+    courseOrId.lessonProgression !== undefined
+  ) {
+    return courseOrId;
+  }
+  const courseId =
+    courseOrId && typeof courseOrId === "object" ? courseOrId._id : courseOrId;
+  if (!courseId) return null;
+  return Course.findById(courseId).select("lessonProgression");
+};
+
+const buildSequentialLockMap = async (enrollment, courseOrId) => {
   const lockMap = new Map();
   if (!enrollment) return lockMap;
+
+  const course = await resolveCourseForProgression(courseOrId);
+  if (!usesSequentialLessonProgression(course)) return lockMap;
+
+  const courseId =
+    course?._id ??
+    (typeof courseOrId === "object" ? courseOrId._id : courseOrId);
 
   const lessons = await getPublishedLessonsForCourse(courseId);
   if (lessons.length === 0) return lockMap;
@@ -655,9 +690,14 @@ const buildSequentialLockMap = async (enrollment, courseId) => {
   return lockMap;
 };
 
-const isLessonSequentiallyLocked = async (enrollment, lesson, courseId) => {
+const isLessonSequentiallyLocked = async (enrollment, lesson, courseOrId) => {
   if (!enrollment || !lesson || lesson.isPreview) return false;
-  const lockMap = await buildSequentialLockMap(enrollment, courseId);
+  const course = await resolveCourseForProgression(courseOrId);
+  if (!usesSequentialLessonProgression(course)) return false;
+  const lockMap = await buildSequentialLockMap(
+    enrollment,
+    course ?? courseOrId,
+  );
   return lockMap.get(String(lesson._id)) === true;
 };
 
@@ -1081,6 +1121,8 @@ module.exports = {
   courseStatsSideEffects,
   COURSE_REVERTED_TO_DRAFT_MESSAGE,
   getPublishedLessonsForCourse,
+  normalizeLessonProgression,
+  usesSequentialLessonProgression,
   buildSequentialLockMap,
   isLessonSequentiallyLocked,
   recalculateEnrollmentProgress,

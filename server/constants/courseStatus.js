@@ -46,6 +46,14 @@ const LESSON_CONTENT_BLOCK_TYPES = [
   "file",
 ];
 
+/** How enrolled students may access published lessons (preview rules unchanged). */
+const LESSON_PROGRESSION = {
+  SEQUENTIAL: "sequential",
+  OPEN: "open",
+};
+
+const LESSON_PROGRESSION_VALUES = Object.values(LESSON_PROGRESSION);
+
 module.exports = {
   COURSE_STATUS,
   COURSE_STATUS_VALUES,
@@ -58,4 +66,6 @@ module.exports = {
   LESSON_TYPE,
   LESSON_TYPE_VALUES,
   LESSON_CONTENT_BLOCK_TYPES,
+  LESSON_PROGRESSION,
+  LESSON_PROGRESSION_VALUES,
 };

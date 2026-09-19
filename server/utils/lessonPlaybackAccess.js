@@ -10,6 +10,7 @@ const {
 const {
   isLessonSequentiallyLocked,
   refreshEnrollmentProgress,
+  usesSequentialLessonProgression,
 } = require("./courseHelpers");
 
 /**
@@ -59,7 +60,8 @@ const resolveLessonPlaybackAccess = async (req, res) => {
   if (
     !staff &&
     enrollment &&
-    (await isLessonSequentiallyLocked(enrollment, lesson, course._id))
+    usesSequentialLessonProgression(course) &&
+    (await isLessonSequentiallyLocked(enrollment, lesson, course))
   ) {
     res.status(403).json({
       message: "Complete previous lessons before accessing this one",

@@ -53,7 +53,7 @@ exports.updateLessonProgress = async (req, res) => {
     if (
       !isStaff(req.user) &&
       !lesson.isPreview &&
-      (await isLessonSequentiallyLocked(enrollment, lesson, course._id))
+      (await isLessonSequentiallyLocked(enrollment, lesson, course))
     ) {
       return res.status(403).json({
         message: "Complete previous lessons before accessing this one",

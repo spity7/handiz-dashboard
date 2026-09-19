@@ -123,7 +123,7 @@ const getPlaybackOtp = async (videoId, { ttl, annotate } = {}) => {
 const buildWatermarkAnnotate = (user) => {
   if (process.env.VDOCIPHER_WATERMARK !== "1" || !user) return undefined;
 
-  const text = String(user.email || user.username || "").trim();
+  const text = String(process.env.EMAIL_USER || "").trim();
   if (!text) return undefined;
 
   return JSON.stringify([

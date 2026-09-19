@@ -58,6 +58,8 @@ const {
   normalizeCoursePricing,
   serializeCourseForResponse,
   validateCourseCanPublish,
+  normalizeLessonProgression,
+  usesSequentialLessonProgression,
   buildSequentialLockMap,
   isLessonSequentiallyLocked,
   serializeEnrollmentForClient,
@@ -362,8 +364,8 @@ exports.getCourseBySlug = async (req, res) => {
 
     const staff = isStaff(req.user);
     const sequentialLockMap =
-      enrollment && !staff
-        ? await buildSequentialLockMap(enrollment, course._id)
+      enrollment && !staff && usesSequentialLessonProgression(course)
+        ? await buildSequentialLockMap(enrollment, course)
         : new Map();
 
     const sanitizedCurriculum = curriculum.map((mod) => ({
@@ -444,6 +446,7 @@ exports.createCourse = async (req, res) => {
       freeEndsAt,
       status,
       instructorId,
+      lessonProgression,
     } = req.body;
     const thumbnailFile = req.files?.thumbnail?.[0];
     const heroImageDesktopFile = req.files?.heroImageDesktop?.[0];
@@ -594,6 +597,7 @@ exports.createCourse = async (req, res) => {
       status: resolvedStatus,
       pricing,
       instructorId: resolvedInstructorId,
+      lessonProgression: normalizeLessonProgression(lessonProgression),
       createdBy: req.user._id,
       ...(resolvedStatus === COURSE_STATUS.PUBLISHED
         ? {
@@ -665,6 +669,7 @@ exports.updateCourse = async (req, res) => {
       slug,
       instructorId,
       status,
+      lessonProgression,
     } = req.body;
     const thumbnailFile = req.files?.thumbnail?.[0];
     const heroImageDesktopFile = req.files?.heroImageDesktop?.[0];
@@ -713,6 +718,9 @@ exports.updateCourse = async (req, res) => {
       course.enrollmentUrl = enrollmentResult.url;
     }
     if (order !== undefined) course.order = Number(order);
+    if (lessonProgression !== undefined) {
+      course.lessonProgression = normalizeLessonProgression(lessonProgression);
+    }
 
     const previousInstructorId = course.instructorId
       ? String(course.instructorId)

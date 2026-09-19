@@ -7,6 +7,8 @@ const {
   COURSE_CURRENCY,
   COURSE_DISCOUNT_TYPE,
   COURSE_DISCOUNT_TYPE_VALUES,
+  LESSON_PROGRESSION,
+  LESSON_PROGRESSION_VALUES,
   MIN_PAID_COURSE_PRICE,
 } = require("../constants/courseStatus");
 const softDeletePlugin = require("../utils/softDeletePlugin");
@@ -88,6 +90,11 @@ const courseSchema = new mongoose.Schema(
       type: String,
       enum: COURSE_LEVEL_VALUES,
       default: COURSE_LEVEL.BEGINNER,
+    },
+    lessonProgression: {
+      type: String,
+      enum: LESSON_PROGRESSION_VALUES,
+      default: LESSON_PROGRESSION.OPEN,
     },
     tags: [{ type: String, trim: true }],
     heroHighlights: {

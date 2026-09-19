@@ -102,6 +102,7 @@ const emptyCourseFormValues = (currentUser) => ({
   freeHasExpiry: false,
   freeEndsAt: '',
   status: 'Draft',
+  lessonProgression: 'open',
   tags: '',
   instructorId: String(currentUser?._id || ''),
 })
@@ -130,6 +131,7 @@ const buildFormValuesFromCourse = (course, currentUser) => {
     freeHasExpiry: Boolean(course.pricing?.freeEndsAt),
     freeEndsAt: toDatetimeLocalValue(course.pricing?.freeEndsAt),
     status: course.status || 'Draft',
+    lessonProgression: course.lessonProgression === 'sequential' ? 'sequential' : 'open',
     tags: normalizeTags(course.tags || []),
     instructorId: String(instructorId || ''),
   }
@@ -154,6 +156,7 @@ const getComparableFormValues = (form) => ({
   freeHasExpiry: Boolean(form.freeHasExpiry),
   freeEndsAt: form.freeEndsAt || '',
   status: form.status || 'Draft',
+  lessonProgression: form.lessonProgression === 'sequential' ? 'sequential' : 'open',
   tags: normalizeTags(form.tags),
   instructorId: String(form.instructorId || ''),
 })
@@ -177,6 +180,7 @@ const courseFormSavedToRawShape = (saved) => ({
   freeHasExpiry: saved.freeHasExpiry ?? false,
   freeEndsAt: saved.freeEndsAt ?? '',
   status: saved.status ?? 'Draft',
+  lessonProgression: saved.lessonProgression === 'sequential' ? 'sequential' : 'open',
   tags: typeof saved.tags === 'string' ? saved.tags : normalizeTags(saved.tags),
   instructorId: saved.instructorId ?? '',
 })
@@ -208,6 +212,7 @@ const buildInitialCourseFormState = (course, currentUser) => {
     freeHasExpiry: saved.freeHasExpiry,
     freeEndsAt: saved.freeEndsAt,
     status: saved.status,
+    lessonProgression: saved.lessonProgression,
     tags: course ? (course.tags || []).join(', ') : '',
     instructorId: saved.instructorId,
   }
@@ -739,7 +744,7 @@ const CourseForm = ({ course = null, onSaved, disabled = false, onBusyChange }) 
           </Col>
         </Row>
 
-        <Row>
+        <Row className="align-items-end">
           <Col md={6}>
             <Form.Group className="mb-3">
               <Form.Label>Instructor</Form.Label>
@@ -749,6 +754,16 @@ const CourseForm = ({ course = null, onSaved, disabled = false, onBusyChange }) 
                 disabled={disabled || loading}
                 onChange={(instructorId) => setForm((prev) => ({ ...prev, instructorId: String(instructorId || '') }))}
               />
+            </Form.Group>
+          </Col>
+          <Col md={6}>
+            <Form.Group className="mb-3">
+              <Form.Label>Lesson access (enrolled students)</Form.Label>
+              <Form.Select name="lessonProgression" value={form.lessonProgression} onChange={handleChange}>
+                <option value="sequential">Sequential — unlock each lesson after the previous is completed</option>
+                <option value="open">Open — all published lessons available once enrolled</option>
+              </Form.Select>
+              <Form.Text muted>Free preview lessons are unchanged. Progress and certificates still track completion.</Form.Text>
             </Form.Group>
           </Col>
         </Row>
