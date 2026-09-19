@@ -104,11 +104,53 @@ const buildLessonVideoTitle = ({ moduleTitle, lessonTitle } = {}) => {
 const getPlaybackOtpTtlSeconds = () =>
   parseInt(process.env.VDOCIPHER_OTP_TTL || "300", 10);
 
-const getPlaybackOtp = async (videoId, { ttl, annotate } = {}) => {
+const addPlaybackHostPattern = (patterns, value) => {
+  const raw = String(value || "").trim();
+  if (!raw) return;
+
+  try {
+    const url = raw.includes("://") ? new URL(raw) : new URL(`https://${raw}`);
+    patterns.add(url.host);
+    if (url.hostname && url.hostname !== url.host) {
+      patterns.add(url.hostname);
+    }
+    return;
+  } catch {
+    const host = raw.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+    if (host) patterns.add(host);
+  }
+};
+
+/**
+ * VdoCipher OTP whitelisthref must be a string (not an array).
+ * Multiple hosts: (host1|host2) — see VdoCipher domain restriction docs.
+ */
+const buildPlaybackWhitelistHref = (req) => {
+  const patterns = new Set();
+  addPlaybackHostPattern(patterns, process.env.LMS_SITE_URL);
+  addPlaybackHostPattern(patterns, process.env.HANDIZ_SITE_URL);
+  addPlaybackHostPattern(patterns, process.env.DASHBOARD_URL);
+  if (req?.headers?.origin)
+    addPlaybackHostPattern(patterns, req.headers.origin);
+  if (req?.headers?.referer) {
+    addPlaybackHostPattern(patterns, req.headers.referer);
+  }
+
+  if (!patterns.size) return undefined;
+
+  const hosts = [...patterns];
+  if (hosts.length === 1) return hosts[0];
+  return `(${hosts.join("|")})`;
+};
+
+const getPlaybackOtp = async (videoId, { ttl, annotate, req } = {}) => {
   const body = {};
   const otpTtl = ttl || getPlaybackOtpTtlSeconds();
   if (otpTtl) body.ttl = otpTtl;
   if (annotate) body.annotate = annotate;
+
+  const whitelisthref = buildPlaybackWhitelistHref(req);
+  if (whitelisthref) body.whitelisthref = whitelisthref;
 
   return vdocipherFetch(`/videos/${videoId}/otp`, {
     method: "POST",

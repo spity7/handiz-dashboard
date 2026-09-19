@@ -1468,7 +1468,7 @@ exports.reorderCurriculum = async (req, res) => {
   }
 };
 
-const buildLessonVideoPlayback = async (lesson, user) => {
+const buildLessonVideoPlayback = async (lesson, user, req) => {
   if (!lesson.video?.vdoCipherVideoId) {
     return {
       error: { status: 404, message: "Video not found for this lesson." },
@@ -1502,6 +1502,7 @@ const buildLessonVideoPlayback = async (lesson, user) => {
 
   const otpPayload = await getPlaybackOtp(lesson.video.vdoCipherVideoId, {
     annotate: buildWatermarkAnnotate(user),
+    req,
   });
 
   return {
@@ -1523,7 +1524,7 @@ exports.getLessonBySlug = async (req, res) => {
     let playback = null;
 
     if (lesson.type === "video") {
-      const videoResult = await buildLessonVideoPlayback(lesson, req.user);
+      const videoResult = await buildLessonVideoPlayback(lesson, req.user, req);
       if (videoResult.error) {
         return res.status(videoResult.error.status).json({
           message: videoResult.error.message,
@@ -1577,7 +1578,7 @@ exports.refreshLessonPlaybackOtp = async (req, res) => {
       return res.status(400).json({ message: "This lesson has no video." });
     }
 
-    const videoResult = await buildLessonVideoPlayback(lesson, req.user);
+    const videoResult = await buildLessonVideoPlayback(lesson, req.user, req);
     if (videoResult.error) {
       return res.status(videoResult.error.status).json({
         message: videoResult.error.message,
