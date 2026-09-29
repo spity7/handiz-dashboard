@@ -14,11 +14,23 @@ import 'react-quill/dist/quill.snow.css'
 import useConfirmFormSubmit from '@/hooks/useConfirmFormSubmit'
 import { buildFormConfirmOptions } from '@/utils/formConfirm'
 import useRegisterUnsavedFormDirty from '@/hooks/useRegisterUnsavedFormDirty'
+import { useUnsavedFormChanges } from '@/context/UnsavedFormChangesContext'
+import { useLmsAsyncBusy } from '@/context/LmsAsyncBusyContext'
+
+const OFFICE_STATUS_OPTIONS = ['Hiring', 'Not Hiring']
+
+function normalizeOfficeStatus(status) {
+  if (!Array.isArray(status) || status.length === 0) return ''
+  if (status.includes('Hiring')) return 'Hiring'
+  if (status.includes('Not Hiring')) return 'Not Hiring'
+  return status[0]
+}
 
 const EditOffice = () => {
   const { id } = useParams()
   const navigate = useNavigate()
   const confirmFormSubmit = useConfirmFormSubmit()
+  const { acknowledgeSuccessfulFormSave } = useUnsavedFormChanges()
   const { getOfficeById, updateOffice } = useGlobalContext()
 
   const [office, setOffice] = useState(null)
@@ -28,10 +40,11 @@ const EditOffice = () => {
   const [email, setEmail] = useState('')
   const [instagram, setInstagram] = useState('')
   const [linkedin, setLinkedin] = useState('')
+  const [link, setLink] = useState('')
   const [order, setOrder] = useState(999)
   const [teamNb, setTeamNb] = useState(0)
   const [category, setCategory] = useState([])
-  const [status, setStatus] = useState([])
+  const [status, setStatus] = useState('')
 
   const [thumbnail, setThumbnail] = useState(null)
   const [preview, setPreview] = useState(null)
@@ -48,11 +61,12 @@ const EditOffice = () => {
         setEmail(data.email)
         setInstagram(data.instagram)
         setLinkedin(data.linkedin)
+        setLink(data.link || '')
 
         setOrder(data.order ?? 999)
         setTeamNb(data.teamNb ?? 0)
         setCategory(data.category || [])
-        setStatus(data.status || [])
+        setStatus(normalizeOfficeStatus(data.status))
         setPreview(data.thumbnailUrl)
       } catch (error) {
         alert('Failed to load office')
@@ -69,10 +83,11 @@ const EditOffice = () => {
         email: office.email,
         instagram: office.instagram,
         linkedin: office.linkedin,
+        link: office.link || '',
         order: office.order ?? 999,
         teamNb: office.teamNb ?? 0,
         category: office.category || [],
-        status: office.status || [],
+        status: normalizeOfficeStatus(office.status),
       }
     : null
 
@@ -83,6 +98,7 @@ const EditOffice = () => {
     email,
     instagram,
     linkedin,
+    link,
     order,
     teamNb,
     category,
@@ -90,6 +106,7 @@ const EditOffice = () => {
   }
 
   useRegisterUnsavedFormDirty(officeFormSnapshot, officeFormCurrent, { extraDirty: Boolean(thumbnail) })
+  useLmsAsyncBusy(loading)
 
   const handleFileChange = (e) => {
     readThumbnailInput(e, {
@@ -114,8 +131,8 @@ const EditOffice = () => {
       alert('Please select at least one  Category')
       return
     }
-    if (status.length === 0) {
-      alert('Please select at least one  Status')
+    if (!status) {
+      alert('Please select a status')
       return
     }
 
@@ -129,6 +146,7 @@ const EditOffice = () => {
         formData.append('email', email)
         formData.append('instagram', instagram)
         formData.append('linkedin', linkedin)
+        formData.append('link', link.trim())
 
         formData.append('order', order)
         formData.append('teamNb', teamNb)
@@ -137,9 +155,29 @@ const EditOffice = () => {
 
         location.forEach((c) => formData.append('location', c))
         category.forEach((c) => formData.append('category', c))
-        status.forEach((s) => formData.append('status', s))
+        formData.append('status', status)
 
         await updateOffice(id, formData)
+        setOffice((prev) =>
+          prev
+            ? {
+                ...prev,
+                title,
+                location,
+                locationMap,
+                email,
+                instagram,
+                linkedin,
+                link: link.trim(),
+                order,
+                teamNb,
+                category,
+                status: [status],
+              }
+            : prev,
+        )
+        setThumbnail(null)
+        acknowledgeSuccessfulFormSave()
         alert('Office updated successfully!')
         navigate('/ecommerce/offices')
       } catch (error) {
@@ -165,122 +203,147 @@ const EditOffice = () => {
           <Card>
             <CardBody>
               <form onSubmit={handleSubmit}>
-                <Row>
-                  <Col lg={3}>
-                    <div className="mb-3">
-                      <label className="form-label">Office Title</label>
-                      <input type="text" className="form-control" value={title} onChange={(e) => setTitle(e.target.value)} required />
-                    </div>
-                  </Col>
-
-                  <Col lg={3}>
-                    <label className="form-label fw-bold">Location *</label>
-                    {['LB - Beirut', 'LB - North', 'LB - South', 'LB - Mount Leb', 'LB - Bekaa'].map((item) => (
-                      <div key={item}>
-                        <input type="checkbox" checked={location.includes(item)} onChange={() => toggleCheckbox(item, location, setLocation)} />{' '}
-                        {item}
+                <fieldset disabled={loading} style={{ border: 'none', margin: 0, padding: 0 }}>
+                  <Row>
+                    <Col lg={3}>
+                      <div className="mb-3">
+                        <label className="form-label">Office Title</label>
+                        <input type="text" className="form-control" value={title} onChange={(e) => setTitle(e.target.value)} required />
                       </div>
-                    ))}
-                    {location.length === 0 && <p className="text-danger">Select at least one location</p>}
-                  </Col>
+                    </Col>
 
-                  <Col lg={3}>
-                    <div className="mb-3">
-                      <label className="form-label">Location Map</label>
-                      <input type="text" className="form-control" value={locationMap} onChange={(e) => setLocationMap(e.target.value)} required />
-                    </div>
-                  </Col>
-
-                  <Col lg={3}>
-                    <div className="mb-3">
-                      <label className="form-label">Order</label>
-                      <input
-                        type="number"
-                        className="form-control"
-                        value={order}
-                        onChange={(e) => setOrder(Number(e.target.value))}
-                        placeholder="Enter Order"
-                        required
-                      />
-                    </div>
-                  </Col>
-                </Row>
-
-                <Row className="mb-3">
-                  <Col lg={3}>
-                    <div className="mb-3">
-                      <label className="form-label">Instagram</label>
-                      <input type="text" className="form-control" value={instagram} onChange={(e) => setInstagram(e.target.value)} required />
-                    </div>
-                  </Col>
-                  <Col lg={3}>
-                    <div className="mb-3">
-                      <label className="form-label">Linkedin</label>
-                      <input type="text" className="form-control" value={linkedin} onChange={(e) => setLinkedin(e.target.value)} required />
-                    </div>
-                  </Col>
-
-                  <Col lg={3}>
-                    <div className="mb-3">
-                      <label className="form-label">Email</label>
-                      <input type="text" className="form-control" value={email} onChange={(e) => setEmail(e.target.value)} required />
-                    </div>
-                  </Col>
-
-                  <Col lg={3}>
-                    <div className="mb-3">
-                      <label className="form-label">TeamNb</label>
-                      <input
-                        type="number"
-                        className="form-control"
-                        value={teamNb}
-                        onChange={(e) => setTeamNb(Number(e.target.value))}
-                        placeholder="Enter TeamNb"
-                        required
-                      />
-                    </div>
-                  </Col>
-                </Row>
-
-                <Row>
-                  <Col lg={6}>
-                    <div className="mb-3">
-                      <label className="form-label">Office Thumbnail</label>
-                      <input type="file" className="form-control" accept={THUMBNAIL_ACCEPT_STRING} onChange={handleFileChange} />
-                      {preview && (
-                        <div className="mt-3">
-                          <p className="fw-bold mb-1">Preview:</p>
-                          <img src={preview} alt="Office Thumbnail" style={{ width: 80, height: 80, objectFit: 'contain' }} />
+                    <Col lg={3}>
+                      <label className="form-label fw-bold">Location *</label>
+                      {['LB - Beirut', 'LB - North', 'LB - South', 'LB - Mount Leb', 'LB - Bekaa'].map((item) => (
+                        <div key={item}>
+                          <input type="checkbox" checked={location.includes(item)} onChange={() => toggleCheckbox(item, location, setLocation)} />{' '}
+                          {item}
                         </div>
-                      )}
-                    </div>
-                  </Col>
+                      ))}
+                      {location.length === 0 && <p className="text-danger">Select at least one location</p>}
+                    </Col>
 
-                  <Col lg={3}>
-                    <label className="form-label fw-bold">Category *</label>
-                    {['Architecture', 'Interior', 'Landscape', 'Urban Planning'].map((item) => (
-                      <div key={item}>
-                        <input type="checkbox" checked={category.includes(item)} onChange={() => toggleCheckbox(item, category, setCategory)} />{' '}
-                        {item}
+                    <Col lg={3}>
+                      <div className="mb-3">
+                        <label className="form-label">Location Map</label>
+                        <input type="text" className="form-control" value={locationMap} onChange={(e) => setLocationMap(e.target.value)} required />
                       </div>
-                    ))}
-                    {category.length === 0 && <p className="text-danger">Select at least one category</p>}
-                  </Col>
+                    </Col>
 
-                  <Col lg={3}>
-                    <label className="form-label fw-bold">Status *</label>
-                    {['Hiring', 'Not Hiring'].map((item) => (
-                      <div key={item}>
-                        <input type="checkbox" checked={status.includes(item)} onChange={() => toggleCheckbox(item, status, setStatus)} /> {item}
+                    <Col lg={3}>
+                      <div className="mb-3">
+                        <label className="form-label">Order</label>
+                        <input
+                          type="number"
+                          className="form-control"
+                          value={order}
+                          onChange={(e) => setOrder(Number(e.target.value))}
+                          placeholder="Enter Order"
+                          required
+                        />
                       </div>
-                    ))}
-                    {status.length === 0 && <p className="text-danger">Select at least one status</p>}
-                  </Col>
-                </Row>
+                    </Col>
+                  </Row>
 
-                <Button type="submit" disabled={loading}>
-                  {loading ? 'Updating...' : 'Update Office'}
-                </Button>
+                  <Row className="mb-3">
+                    <Col lg={3}>
+                      <div className="mb-3">
+                        <label className="form-label">Instagram</label>
+                        <input type="text" className="form-control" value={instagram} onChange={(e) => setInstagram(e.target.value)} required />
+                      </div>
+                    </Col>
+                    <Col lg={3}>
+                      <div className="mb-3">
+                        <label className="form-label">Linkedin</label>
+                        <input type="text" className="form-control" value={linkedin} onChange={(e) => setLinkedin(e.target.value)} required />
+                      </div>
+                    </Col>
+
+                    <Col lg={3}>
+                      <div className="mb-3">
+                        <label className="form-label">Website link</label>
+                        <input
+                          type="url"
+                          className="form-control"
+                          value={link}
+                          onChange={(e) => setLink(e.target.value)}
+                          placeholder="https://studio.example.com"
+                        />
+                      </div>
+                    </Col>
+
+                    <Col lg={3}>
+                      <div className="mb-3">
+                        <label className="form-label">Email</label>
+                        <input type="text" className="form-control" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                      </div>
+                    </Col>
+
+                    <Col lg={3}>
+                      <div className="mb-3">
+                        <label className="form-label">TeamNb</label>
+                        <input
+                          type="number"
+                          className="form-control"
+                          value={teamNb}
+                          onChange={(e) => setTeamNb(Number(e.target.value))}
+                          placeholder="Enter TeamNb"
+                          required
+                        />
+                      </div>
+                    </Col>
+                  </Row>
+
+                  <Row>
+                    <Col lg={6}>
+                      <div className="mb-3">
+                        <label className="form-label">Office Thumbnail</label>
+                        <input type="file" className="form-control" accept={THUMBNAIL_ACCEPT_STRING} onChange={handleFileChange} />
+                        {preview && (
+                          <div className="mt-3">
+                            <p className="fw-bold mb-1">Preview:</p>
+                            <img src={preview} alt="Office Thumbnail" style={{ width: 80, height: 80, objectFit: 'contain' }} />
+                          </div>
+                        )}
+                      </div>
+                    </Col>
+
+                    <Col lg={3}>
+                      <label className="form-label fw-bold">Category *</label>
+                      {['Architecture', 'Interior', 'Landscape', 'Urban Planning'].map((item) => (
+                        <div key={item}>
+                          <input type="checkbox" checked={category.includes(item)} onChange={() => toggleCheckbox(item, category, setCategory)} />{' '}
+                          {item}
+                        </div>
+                      ))}
+                      {category.length === 0 && <p className="text-danger">Select at least one category</p>}
+                    </Col>
+
+                    <Col lg={3}>
+                      <label className="form-label fw-bold">Status *</label>
+                      {OFFICE_STATUS_OPTIONS.map((item) => (
+                        <div key={item} className="form-check">
+                          <input
+                            type="radio"
+                            className="form-check-input"
+                            id={`office-status-${item}`}
+                            name="office-status"
+                            checked={status === item}
+                            onChange={() => setStatus(item)}
+                          />
+                          <label className="form-check-label" htmlFor={`office-status-${item}`}>
+                            {item}
+                          </label>
+                        </div>
+                      ))}
+                      {!status && <p className="text-danger">Select a status</p>}
+                    </Col>
+                  </Row>
+
+                  <Button type="submit" disabled={loading}>
+                    {loading ? 'Updating...' : 'Update Office'}
+                  </Button>
+                </fieldset>
               </form>
             </CardBody>
           </Card>

@@ -1,14 +1,22 @@
 import clsx from 'clsx'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import ReactTable from '@/components/Table'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
 import { useGlobalContext } from '@/context/useGlobalContext'
+import { useLmsAsyncBusy } from '@/context/LmsAsyncBusyContext'
 import Swal from 'sweetalert2'
 
-const OfficesListTable = ({ offices }) => {
-  const { deleteOffice } = useGlobalContext() // ✅ hook inside component
+const OfficesListTable = ({ offices, onRefresh, actionsLocked = false }) => {
+  const { deleteOffice } = useGlobalContext()
+  const [deletingId, setDeletingId] = useState(null)
+
+  const tableLocked = actionsLocked || deletingId !== null
+  useLmsAsyncBusy(deletingId !== null)
 
   const handleDelete = async (id) => {
+    if (tableLocked) return
+
     const result = await Swal.fire({
       title: 'Are you sure?',
       text: 'This will permanently delete the office!',
@@ -17,15 +25,17 @@ const OfficesListTable = ({ offices }) => {
       confirmButtonText: 'Yes, delete it!',
     })
 
-    if (result.isConfirmed) {
-      try {
-        await deleteOffice(id)
-        Swal.fire('Deleted!', 'Office has been deleted.', 'success')
-        // Optionally refresh table data from parent component
-        window.location.reload()
-      } catch (error) {
-        Swal.fire('Error', error?.response?.data?.message || 'Delete failed', 'error')
-      }
+    if (!result.isConfirmed) return
+
+    setDeletingId(id)
+    try {
+      await deleteOffice(id)
+      Swal.fire('Deleted!', 'Office has been deleted.', 'success')
+      if (onRefresh) await onRefresh()
+    } catch (error) {
+      Swal.fire('Error', error?.response?.data?.message || 'Delete failed', 'error')
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -73,16 +83,34 @@ const OfficesListTable = ({ offices }) => {
         row: {
           original: { _id },
         },
-      }) => (
-        <div className="d-flex gap-2">
-          <Link to={`/ecommerce/offices/edit/${_id}`} className="btn btn-sm btn-soft-secondary" title="Edit Office">
-            <IconifyIcon icon="bx:edit" className="fs-18" />
-          </Link>
-          <button type="button" className="btn btn-sm btn-soft-danger" title="Delete Office" onClick={() => handleDelete(_id)}>
-            <IconifyIcon icon="bx:trash" className="fs-18" />
-          </button>
-        </div>
-      ),
+      }) => {
+        const rowDeleting = deletingId === _id
+        return (
+          <div className="d-flex gap-2">
+            <Link
+              to={`/ecommerce/offices/edit/${_id}`}
+              className={clsx('btn btn-sm btn-soft-secondary', tableLocked && 'disabled pe-none')}
+              title="Edit Office"
+              aria-disabled={tableLocked}
+              tabIndex={tableLocked ? -1 : undefined}>
+              <IconifyIcon icon="bx:edit" className="fs-18" />
+            </Link>
+            <button
+              type="button"
+              className="btn btn-sm btn-soft-danger"
+              title="Delete Office"
+              disabled={tableLocked}
+              aria-busy={rowDeleting}
+              onClick={() => handleDelete(_id)}>
+              {rowDeleting ? (
+                <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" />
+              ) : (
+                <IconifyIcon icon="bx:trash" className="fs-18" />
+              )}
+            </button>
+          </div>
+        )
+      },
     },
   ]
 

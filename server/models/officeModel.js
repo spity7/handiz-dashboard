@@ -34,6 +34,11 @@ const officeSchema = new mongoose.Schema(
       required: [true, "Office linkedin is required"],
       trim: true,
     },
+    link: {
+      type: String,
+      trim: true,
+      default: "",
+    },
     teamNb: {
       type: Number,
       required: [true, "Office teamNb is required"],

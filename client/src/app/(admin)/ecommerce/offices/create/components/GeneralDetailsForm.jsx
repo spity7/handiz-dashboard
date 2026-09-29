@@ -14,6 +14,7 @@ import ComponentContainerCard from '@/components/ComponentContainerCard'
 import useConfirmFormSubmit from '@/hooks/useConfirmFormSubmit'
 import { buildFormConfirmOptions } from '@/utils/formConfirm'
 import useRegisterRhfFormDirty from '@/hooks/useRegisterRhfFormDirty'
+import { useLmsAsyncBusy } from '@/context/LmsAsyncBusyContext'
 
 const OFFICE_FORM_DEFAULTS = {
   title: '',
@@ -22,10 +23,11 @@ const OFFICE_FORM_DEFAULTS = {
   email: '',
   instagram: '',
   linkedin: '',
+  link: '',
   order: 999,
   teamNb: 0,
   category: [],
-  status: [],
+  status: '',
 }
 
 const generalFormSchema = yup.object({
@@ -35,11 +37,27 @@ const generalFormSchema = yup.object({
   email: yup.string().required('Email is required'),
   instagram: yup.string().required('Instagram is required'),
   linkedin: yup.string().required('Linkedin is required'),
+  link: yup
+    .string()
+    .trim()
+    .transform((v) => v || '')
+    .test('is-url-or-empty', 'Enter a valid URL (https://…)', (value) => {
+      if (!value) return true
+      try {
+        const normalized = /^https?:\/\//i.test(value) ? value : `https://${value}`
+        new URL(normalized)
+        return true
+      } catch {
+        return false
+      }
+    }),
   order: yup.number().typeError('Order must be a number').required('Order is required'),
   teamNb: yup.number().typeError('TeamNb must be a number').required('TeamNb is required'),
   category: yup.array().of(yup.string()).min(1, 'Select at least one category').required(),
-  status: yup.array().of(yup.string()).min(1, 'Select at least one status').required(),
+  status: yup.string().oneOf(['Hiring', 'Not Hiring'], 'Select a status').required('Select a status'),
 })
+
+const OFFICE_STATUS_OPTIONS = ['Hiring', 'Not Hiring']
 
 const normalizeQuillValue = (value) => {
   if (!value || value === '<p><br></p>' || value === '<br/>') return ''
@@ -67,6 +85,7 @@ const GeneralDetailsForm = () => {
 
   const formValues = watch()
   useRegisterRhfFormDirty(OFFICE_FORM_DEFAULTS, formValues, { extraDirty: Boolean(thumbnailFile) })
+  useLmsAsyncBusy(loading)
 
   const onSubmit = async (data) => {
     if (!thumbnailFile) {
@@ -84,6 +103,7 @@ const GeneralDetailsForm = () => {
         formData.append('email', data.email)
         formData.append('instagram', data.instagram)
         formData.append('linkedin', data.linkedin)
+        formData.append('link', data.link?.trim() || '')
 
         formData.append('thumbnail', thumbnailFile)
         formData.append('order', data.order)
@@ -91,7 +111,7 @@ const GeneralDetailsForm = () => {
 
         data.category.forEach((value) => formData.append('category', value))
         data.location.forEach((value) => formData.append('location', value))
-        data.status.forEach((value) => formData.append('status', value))
+        formData.append('status', data.status)
 
         await createOffice(formData)
 
@@ -105,10 +125,11 @@ const GeneralDetailsForm = () => {
           email: '',
           instagram: '',
           linkedin: '',
+          link: '',
           order: 999,
           teamNb: 0,
           category: [],
-          status: [],
+          status: '',
         })
 
         setThumbnailFile(null)
@@ -129,162 +150,190 @@ const GeneralDetailsForm = () => {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
-      <Row>
-        <Col lg={3}>
-          <TextFormInput
-            control={control}
-            label="Office Title"
-            placeholder="Enter Office title"
-            containerClassTitle="mb-3"
-            id="office-title"
-            name="title"
-            // error={errors.title?.message}
-          />
-        </Col>
-
-        <Col lg={3}>
-          <ComponentContainerCard title="Location">
-            <Controller
-              name="location"
+      <fieldset disabled={loading} style={{ border: 'none', margin: 0, padding: 0 }}>
+        <Row>
+          <Col lg={3}>
+            <TextFormInput
               control={control}
-              render={({ field }) => (
-                <>
-                  {['LB - Beirut', 'LB - North', 'LB - South', 'LB - Mount Leb', 'LB - Bekaa'].map((item) => (
-                    <FormCheck key={item} label={item} checked={field.value.includes(item)} onChange={() => toggleCheckboxValue(item, field)} />
-                  ))}
-                </>
-              )}
+              label="Office Title"
+              placeholder="Enter Office title"
+              containerClassTitle="mb-3"
+              id="office-title"
+              name="title"
+              // error={errors.title?.message}
             />
-            {errors.location && <p className="text-danger">{errors.location.message}</p>}
-          </ComponentContainerCard>
-        </Col>
+          </Col>
 
-        <Col lg={3}>
-          <TextFormInput
-            control={control}
-            label="Location Map"
-            placeholder="Enter Location Map"
-            containerClassTitle="mb-3"
-            id="office-location-map"
-            name="locationMap"
-            // error={errors.locationMap?.message}
-          />
-        </Col>
+          <Col lg={3}>
+            <ComponentContainerCard title="Location">
+              <Controller
+                name="location"
+                control={control}
+                render={({ field }) => (
+                  <>
+                    {['LB - Beirut', 'LB - North', 'LB - South', 'LB - Mount Leb', 'LB - Bekaa'].map((item) => (
+                      <FormCheck key={item} label={item} checked={field.value.includes(item)} onChange={() => toggleCheckboxValue(item, field)} />
+                    ))}
+                  </>
+                )}
+              />
+              {errors.location && <p className="text-danger">{errors.location.message}</p>}
+            </ComponentContainerCard>
+          </Col>
 
-        <Col lg={3}>
-          <TextFormInput control={control} label="Order" placeholder="Enter display order" containerClassName="mb-3" name="order" type="number" />
-        </Col>
-      </Row>
-
-      <Row>
-        <Col lg={3}>
-          <TextFormInput
-            control={control}
-            label="Instagram"
-            placeholder="Enter Instagram"
-            containerClassTitle="mb-3"
-            id="office-instagram"
-            name="instagram"
-            // error={errors.instagram?.message}
-          />
-        </Col>
-        <Col lg={3}>
-          <TextFormInput
-            control={control}
-            label="Linkedin"
-            placeholder="Enter Linkedin"
-            containerClassTitle="mb-3"
-            id="office-linkedin"
-            name="linkedin"
-            // error={errors.linkedin?.message}
-          />
-        </Col>
-
-        <Col lg={3}>
-          <TextFormInput
-            control={control}
-            label="Email"
-            placeholder="Enter Email"
-            containerClassTitle="mb-3"
-            id="office-email"
-            name="email"
-            // error={errors.email?.message}
-          />
-        </Col>
-
-        <Col lg={3}>
-          <TextFormInput control={control} label="TeamNb" placeholder="Enter display teamNb" containerClassName="mb-3" name="teamNb" type="number" />
-        </Col>
-      </Row>
-
-      <Row>
-        <Col lg={6}>
-          <ThumbnailDropzoneInput
-            label="Office Thumbnail"
-            labelClassName="fs-14 mb-1"
-            iconProps={{
-              icon: 'bx:cloud-upload',
-              height: 36,
-              width: 36,
-            }}
-            text="Upload Thumbnail image"
-            showPreview
-            resetTrigger={resetDropzones}
-            onFileUpload={(files) => {
-              if (files.length > 1) {
-                alert('Only one thumbnail is allowed')
-                // 🧹 Immediately reset the Dropzone
-                setThumbnailFile(null)
-                setResetDropzones(true)
-                setTimeout(() => setResetDropzones(false), 0)
-                return
-              }
-
-              // ✅ valid single file
-              setThumbnailFile(files[0])
-            }}
-          />
-          {errors.thumbnail && <p className="text-danger mt-1">{errors.thumbnail.message}</p>}
-        </Col>
-
-        <Col lg={3}>
-          <ComponentContainerCard title="Category">
-            <Controller
-              name="category"
+          <Col lg={3}>
+            <TextFormInput
               control={control}
-              render={({ field }) => (
-                <>
-                  {['Architecture', 'Interior', 'Landscape', 'Urban Planning'].map((item) => (
-                    <FormCheck key={item} label={item} checked={field.value.includes(item)} onChange={() => toggleCheckboxValue(item, field)} />
-                  ))}
-                </>
-              )}
+              label="Location Map"
+              placeholder="Enter Location Map"
+              containerClassTitle="mb-3"
+              id="office-location-map"
+              name="locationMap"
+              // error={errors.locationMap?.message}
             />
-            {errors.category && <p className="text-danger">{errors.category.message}</p>}
-          </ComponentContainerCard>
-        </Col>
+          </Col>
 
-        <Col lg={3}>
-          <ComponentContainerCard title="Status">
-            <Controller
-              name="status"
+          <Col lg={3}>
+            <TextFormInput control={control} label="Order" placeholder="Enter display order" containerClassName="mb-3" name="order" type="number" />
+          </Col>
+        </Row>
+
+        <Row>
+          <Col lg={3}>
+            <TextFormInput
               control={control}
-              render={({ field }) => (
-                <>
-                  {['Hiring', 'Not Hiring'].map((item) => (
-                    <FormCheck key={item} label={item} checked={field.value.includes(item)} onChange={() => toggleCheckboxValue(item, field)} />
-                  ))}
-                </>
-              )}
+              label="Instagram"
+              placeholder="Enter Instagram"
+              containerClassTitle="mb-3"
+              id="office-instagram"
+              name="instagram"
+              // error={errors.instagram?.message}
             />
-            {errors.status && <p className="text-danger">{errors.status.message}</p>}
-          </ComponentContainerCard>
-        </Col>
-      </Row>
+          </Col>
+          <Col lg={3}>
+            <TextFormInput
+              control={control}
+              label="Linkedin"
+              placeholder="Enter Linkedin"
+              containerClassTitle="mb-3"
+              id="office-linkedin"
+              name="linkedin"
+              // error={errors.linkedin?.message}
+            />
+          </Col>
 
-      <Button type="submit" disabled={loading} className="mt-4">
-        {loading ? 'Creating...' : 'Create Office'}
-      </Button>
+          <Col lg={3}>
+            <TextFormInput
+              control={control}
+              label="Website link"
+              placeholder="https://studio.example.com"
+              containerClassTitle="mb-3"
+              id="office-link"
+              name="link"
+            />
+          </Col>
+
+          <Col lg={3}>
+            <TextFormInput
+              control={control}
+              label="Email"
+              placeholder="Enter Email"
+              containerClassTitle="mb-3"
+              id="office-email"
+              name="email"
+              // error={errors.email?.message}
+            />
+          </Col>
+
+          <Col lg={3}>
+            <TextFormInput
+              control={control}
+              label="TeamNb"
+              placeholder="Enter display teamNb"
+              containerClassName="mb-3"
+              name="teamNb"
+              type="number"
+            />
+          </Col>
+        </Row>
+
+        <Row>
+          <Col lg={6}>
+            <ThumbnailDropzoneInput
+              label="Office Thumbnail"
+              labelClassName="fs-14 mb-1"
+              iconProps={{
+                icon: 'bx:cloud-upload',
+                height: 36,
+                width: 36,
+              }}
+              text="Upload Thumbnail image"
+              showPreview
+              resetTrigger={resetDropzones}
+              onFileUpload={(files) => {
+                if (files.length > 1) {
+                  alert('Only one thumbnail is allowed')
+                  // 🧹 Immediately reset the Dropzone
+                  setThumbnailFile(null)
+                  setResetDropzones(true)
+                  setTimeout(() => setResetDropzones(false), 0)
+                  return
+                }
+
+                // ✅ valid single file
+                setThumbnailFile(files[0])
+              }}
+            />
+            {errors.thumbnail && <p className="text-danger mt-1">{errors.thumbnail.message}</p>}
+          </Col>
+
+          <Col lg={3}>
+            <ComponentContainerCard title="Category">
+              <Controller
+                name="category"
+                control={control}
+                render={({ field }) => (
+                  <>
+                    {['Architecture', 'Interior', 'Landscape', 'Urban Planning'].map((item) => (
+                      <FormCheck key={item} label={item} checked={field.value.includes(item)} onChange={() => toggleCheckboxValue(item, field)} />
+                    ))}
+                  </>
+                )}
+              />
+              {errors.category && <p className="text-danger">{errors.category.message}</p>}
+            </ComponentContainerCard>
+          </Col>
+
+          <Col lg={3}>
+            <ComponentContainerCard title="Status">
+              <Controller
+                name="status"
+                control={control}
+                render={({ field }) => (
+                  <>
+                    {OFFICE_STATUS_OPTIONS.map((item) => (
+                      <FormCheck
+                        key={item}
+                        type="radio"
+                        id={`office-status-${item}`}
+                        name="office-status"
+                        label={item}
+                        checked={field.value === item}
+                        onChange={() => field.onChange(item)}
+                      />
+                    ))}
+                  </>
+                )}
+              />
+              {errors.status && <p className="text-danger">{errors.status.message}</p>}
+            </ComponentContainerCard>
+          </Col>
+        </Row>
+
+        <Button type="submit" disabled={loading} className="mt-4">
+          {loading ? 'Creating...' : 'Create Office'}
+        </Button>
+      </fieldset>
     </form>
   )
 }
