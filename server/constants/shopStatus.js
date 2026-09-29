@@ -1,0 +1,50 @@
+const SHOP_PRODUCT_STATUS = {
+  DRAFT: "Draft",
+  PUBLISHED: "Published",
+  ARCHIVED: "Archived",
+};
+
+const SHOP_PRODUCT_STATUS_VALUES = Object.values(SHOP_PRODUCT_STATUS);
+
+const SHOP_CURRENCY = "USD";
+
+const SHOP_DISCOUNT_TYPE = {
+  PERCENT: "percent",
+  FIXED: "fixed",
+};
+
+const SHOP_DISCOUNT_TYPE_VALUES = Object.values(SHOP_DISCOUNT_TYPE);
+
+const SHOP_PAYMENT_STATUS = {
+  PENDING: "pending",
+  PAID: "paid",
+  FAILED: "failed",
+  REFUNDED: "refunded",
+};
+
+const SHOP_PAYMENT_STATUS_VALUES = Object.values(SHOP_PAYMENT_STATUS);
+
+const SHOP_FULFILLMENT_STATUS = {
+  PENDING: "pending",
+  PROCESSING: "processing",
+  SHIPPED: "shipped",
+  DELIVERED: "delivered",
+  CANCELLED: "cancelled",
+};
+
+const SHOP_FULFILLMENT_STATUS_VALUES = Object.values(SHOP_FULFILLMENT_STATUS);
+
+const MIN_PAID_SHOP_PRICE = 1;
+
+module.exports = {
+  SHOP_PRODUCT_STATUS,
+  SHOP_PRODUCT_STATUS_VALUES,
+  SHOP_CURRENCY,
+  SHOP_DISCOUNT_TYPE,
+  SHOP_DISCOUNT_TYPE_VALUES,
+  SHOP_PAYMENT_STATUS,
+  SHOP_PAYMENT_STATUS_VALUES,
+  SHOP_FULFILLMENT_STATUS,
+  SHOP_FULFILLMENT_STATUS_VALUES,
+  MIN_PAID_SHOP_PRICE,
+};

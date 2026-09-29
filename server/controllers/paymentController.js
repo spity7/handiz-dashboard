@@ -1,6 +1,9 @@
 const Course = require("../models/courseModel");
 const Enrollment = require("../models/enrollmentModel");
 const Order = require("../models/orderModel");
+const ShopOrder = require("../models/shopOrderModel");
+const { SHOP_PAYMENT_STATUS } = require("../constants/shopStatus");
+const { fulfillPaidShopOrder } = require("./shopPaymentController");
 const Certificate = require("../models/certificateModel");
 const Quiz = require("../models/quizModel");
 const QuizAttempt = require("../models/quizAttemptModel");
@@ -220,58 +223,123 @@ const verifyWhishPayment = async (req) => {
     return { ok: false, status: 400, message: "Missing payment parameters" };
   }
 
-  const order = await Order.findOne({ whishExternalId: String(externalId) });
-  if (!order) {
+  const externalIdStr = String(externalId);
+  const courseOrder = await Order.findOne({ whishExternalId: externalIdStr });
+  const shopOrder = courseOrder
+    ? null
+    : await ShopOrder.findOne({ whishExternalId: externalIdStr });
+
+  if (!courseOrder && !shopOrder) {
     return { ok: false, status: 404, message: "Order not found" };
   }
 
-  if (order.status === ORDER_STATUS.PAID) {
-    return { ok: true, order, alreadyPaid: true };
+  const status = await whish.getPaymentStatus(currency, externalId);
+
+  if (courseOrder) {
+    if (courseOrder.status === ORDER_STATUS.PAID) {
+      return { ok: true, order: courseOrder, alreadyPaid: true };
+    }
+
+    if (status.collectStatus === "pending") {
+      return {
+        ok: false,
+        status: 409,
+        message: "Payment still pending",
+        order: courseOrder,
+      };
+    }
+
+    if (status.collectStatus !== "success") {
+      await Order.findByIdAndUpdate(courseOrder._id, {
+        status: ORDER_STATUS.FAILED,
+        failureReason: callbackData.errorMessage || status.collectStatus,
+      });
+      return {
+        ok: false,
+        status: 400,
+        message: "Payment not confirmed",
+        order: courseOrder,
+      };
+    }
+
+    if (
+      status.amount != null &&
+      !whish.validateAmount(
+        status.amount,
+        courseOrder.amount,
+        courseOrder.currency,
+      )
+    ) {
+      await Order.findByIdAndUpdate(courseOrder._id, {
+        status: ORDER_STATUS.FAILED,
+        failureReason: "Amount mismatch",
+      });
+      return {
+        ok: false,
+        status: 400,
+        message: "Payment amount mismatch",
+        order: courseOrder,
+      };
+    }
+
+    await fulfillPaidEnrollment({
+      userId: courseOrder.userId,
+      courseId: courseOrder.courseId,
+      externalId: externalIdStr,
+      transactionId: status.transactionId,
+    });
+
+    return { ok: true, order: courseOrder };
   }
 
-  const status = await whish.getPaymentStatus(currency, externalId);
+  if (shopOrder.paymentStatus === SHOP_PAYMENT_STATUS.PAID) {
+    return { ok: true, order: shopOrder, alreadyPaid: true };
+  }
 
   if (status.collectStatus === "pending") {
     return {
       ok: false,
       status: 409,
       message: "Payment still pending",
-      order,
+      order: shopOrder,
     };
   }
 
   if (status.collectStatus !== "success") {
-    await Order.findByIdAndUpdate(order._id, {
-      status: ORDER_STATUS.FAILED,
+    await ShopOrder.findByIdAndUpdate(shopOrder._id, {
+      paymentStatus: SHOP_PAYMENT_STATUS.FAILED,
       failureReason: callbackData.errorMessage || status.collectStatus,
     });
-    return { ok: false, status: 400, message: "Payment not confirmed", order };
+    return {
+      ok: false,
+      status: 400,
+      message: "Payment not confirmed",
+      order: shopOrder,
+    };
   }
 
   if (
     status.amount != null &&
-    !whish.validateAmount(status.amount, order.amount, order.currency)
+    !whish.validateAmount(status.amount, shopOrder.total, shopOrder.currency)
   ) {
-    await Order.findByIdAndUpdate(order._id, {
-      status: ORDER_STATUS.FAILED,
+    await ShopOrder.findByIdAndUpdate(shopOrder._id, {
+      paymentStatus: SHOP_PAYMENT_STATUS.FAILED,
       failureReason: "Amount mismatch",
     });
     return {
       ok: false,
       status: 400,
       message: "Payment amount mismatch",
-      order,
+      order: shopOrder,
     };
   }
 
-  await fulfillPaidEnrollment({
-    userId: order.userId,
-    courseId: order.courseId,
-    externalId: String(externalId),
+  await fulfillPaidShopOrder({
+    externalId: externalIdStr,
     transactionId: status.transactionId,
   });
 
-  return { ok: true, order };
+  return { ok: true, order: shopOrder };
 };
 
 exports.handleWhishSuccessCallback = async (req, res) => {
@@ -293,10 +361,21 @@ exports.handleWhishFailureCallback = async (req, res) => {
     const { externalId, errorMessage } = callbackData;
 
     if (externalId) {
+      const externalIdStr = String(externalId);
       await Order.findOneAndUpdate(
-        { whishExternalId: String(externalId), status: ORDER_STATUS.PENDING },
+        { whishExternalId: externalIdStr, status: ORDER_STATUS.PENDING },
         {
           status: ORDER_STATUS.FAILED,
+          failureReason: errorMessage || "Payment failed",
+        },
+      );
+      await ShopOrder.findOneAndUpdate(
+        {
+          whishExternalId: externalIdStr,
+          paymentStatus: SHOP_PAYMENT_STATUS.PENDING,
+        },
+        {
+          paymentStatus: SHOP_PAYMENT_STATUS.FAILED,
           failureReason: errorMessage || "Payment failed",
         },
       );

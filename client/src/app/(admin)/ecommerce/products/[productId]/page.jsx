@@ -1,40 +1,72 @@
-import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { Card, CardBody, Col, Row } from 'react-bootstrap';
-import PageBreadcrumb from '@/components/layout/PageBreadcrumb';
-import { getProductById } from '@/helpers/data';
-import ProductDetailView from './components/ProductDetailView';
-import ProductImages from './components/ProductImages';
-import PageMetaData from '@/components/PageTitle';
-const ProductDetail = () => {
-  const [product, setProduct] = useState();
-  const {
-    productId
-  } = useParams();
-  const navigate = useNavigate();
+import { useEffect, useState } from 'react'
+import { Badge, Card, CardBody, Col, Row } from 'react-bootstrap'
+import { Link, useParams } from 'react-router-dom'
+import PageBreadcrumb from '@/components/layout/PageBreadcrumb'
+import PageMetaData from '@/components/PageTitle'
+import { useGlobalContext } from '@/context/useGlobalContext'
+
+const ProductDetails = () => {
+  const { productId } = useParams()
+  const { getShopProductById } = useGlobalContext()
+  const [product, setProduct] = useState(null)
+
   useEffect(() => {
-    (async () => {
-      if (productId) {
-        const data = await getProductById(productId);
-        if (data) setProduct(data);else navigate('/pages/error-404-alt');
-      }
-    })();
-  }, [productId]);
-  return <>
-      <PageBreadcrumb title="Product Details" subName="Ecommerce" />
-      <PageMetaData title={product?.name ?? 'Product Details'} />
+    getShopProductById(productId).then(setProduct).catch(console.error)
+  }, [getShopProductById, productId])
+
+  if (!product) {
+    return <p className="p-4">Loading…</p>
+  }
+
+  return (
+    <>
+      <PageMetaData title={product.title} />
+      <PageBreadcrumb title={product.title} subName="Shop" />
       <Row>
-        <Col>
+        <Col lg={8}>
           <Card>
             <CardBody>
-              <Row>
-                <Col lg={4}>{product && <ProductImages product={product} />}</Col>
-                <Col lg={8}>{product && <ProductDetailView product={product} />}</Col>
-              </Row>
+              <div className="d-flex justify-content-between align-items-start mb-3">
+                <div>
+                  <h4>{product.title}</h4>
+                  <p className="text-muted mb-0">{product.sku || 'No SKU'}</p>
+                </div>
+                <Link to={`/ecommerce/products/edit/${product._id}`} className="btn btn-primary btn-sm">
+                  Edit
+                </Link>
+              </div>
+              <Badge bg={product.status === 'Published' ? 'success' : 'secondary'} className="me-2">
+                {product.status}
+              </Badge>
+              {product.featured && <Badge bg="warning">Featured</Badge>}
+              <p className="mt-3">{product.excerpt}</p>
+              <div className="text-muted small" dangerouslySetInnerHTML={{ __html: product.description }} />
+            </CardBody>
+          </Card>
+        </Col>
+        <Col lg={4}>
+          <Card>
+            <CardBody>
+              <img src={product.thumbnailUrl} alt="" className="img-fluid rounded mb-3" />
+              <p>
+                <strong>Price:</strong> ${Number(product.unitPrice ?? product.price).toFixed(2)}
+              </p>
+              <p>
+                <strong>Stock:</strong> {product.trackInventory ? product.stockQuantity : 'Not tracked'}
+              </p>
+              {(product.gallery || []).length > 0 && (
+                <div className="d-flex flex-wrap gap-2 mt-2">
+                  {product.gallery.map((url) => (
+                    <img key={url} src={url} alt="" className="rounded" style={{ width: 72, height: 72, objectFit: 'cover' }} />
+                  ))}
+                </div>
+              )}
             </CardBody>
           </Card>
         </Col>
       </Row>
-    </>;
-};
-export default ProductDetail;
+    </>
+  )
+}
+
+export default ProductDetails

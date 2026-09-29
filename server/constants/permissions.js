@@ -14,6 +14,9 @@ const PERMISSIONS = {
   "courses:orders:read": [ROLES.ADMIN],
   "enrollments:manage": [ROLES.ADMIN],
   "cms:manage": [ROLES.ADMIN],
+  "shop:manage": [ROLES.ADMIN],
+  "shop:orders:read": [ROLES.ADMIN],
+  "shop:orders:manage": [ROLES.ADMIN],
   "users:read": [ROLES.ADMIN],
   "users:manage": [ROLES.ADMIN],
 };

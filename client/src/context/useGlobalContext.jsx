@@ -400,6 +400,84 @@ export const GlobalProvider = ({ children }) => {
     return response.data
   }
 
+  const getShopCategories = async () => {
+    const response = await axiosInstance.get('/shop/categories')
+    return response.data.categories
+  }
+
+  const createShopCategory = async (data) => {
+    const response = await axiosInstance.post('/shop/categories', data)
+    return response.data.category
+  }
+
+  const updateShopCategory = async (id, data) => {
+    const response = await axiosInstance.put(`/shop/categories/${id}`, data)
+    return response.data.category
+  }
+
+  const deleteShopCategory = async (id) => {
+    const response = await axiosInstance.delete(`/shop/categories/${id}`)
+    return response.data
+  }
+
+  const getAllShopProducts = async () => {
+    const response = await axiosInstance.get('/shop/products', {
+      params: { admin: 'true' },
+    })
+    return response.data.products
+  }
+
+  const getShopProductById = async (id) => {
+    const response = await axiosInstance.get(`/shop/products/${id}`)
+    return response.data.product
+  }
+
+  const createShopProduct = async (data) => {
+    const response = await axiosInstance.post('/shop/products', data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return response.data
+  }
+
+  const updateShopProduct = async (id, data) => {
+    const response = await axiosInstance.put(`/shop/products/${id}`, data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return response.data
+  }
+
+  const deleteShopProduct = async (id) => {
+    const response = await axiosInstance.delete(`/shop/products/${id}`)
+    return response.data
+  }
+
+  const deleteShopProductGalleryImage = async (id, url) => {
+    const response = await axiosInstance.delete(`/shop/products/${id}/gallery`, {
+      data: { url },
+    })
+    return response.data
+  }
+
+  const getShopOrders = async (params = {}) => {
+    const response = await axiosInstance.get('/shop/orders', { params })
+    return response.data
+  }
+
+  const getShopOrderById = async (id) => {
+    const response = await axiosInstance.get(`/shop/orders/${id}`)
+    return response.data.order
+  }
+
+  const updateShopOrderFulfillment = async (id, payload) => {
+    const response = await axiosInstance.patch(`/shop/orders/${id}/fulfillment`, payload)
+    return response.data
+  }
+
+  const cancelShopOrder = async (id) => {
+    const response = await axiosInstance.patch(`/shop/orders/${id}/cancel`)
+    return response.data
+  }
+
   const createAboutUs = async (data) => {
     const response = await axiosInstance.post('/about-us', data, {
       headers: { 'Content-Type': 'multipart/form-data' },
@@ -662,6 +740,20 @@ export const GlobalProvider = ({ children }) => {
         updateOffice,
         deleteOffice,
         deleteOfficeGalleryImage,
+        getShopCategories,
+        createShopCategory,
+        updateShopCategory,
+        deleteShopCategory,
+        getAllShopProducts,
+        getShopProductById,
+        createShopProduct,
+        updateShopProduct,
+        deleteShopProduct,
+        deleteShopProductGalleryImage,
+        getShopOrders,
+        getShopOrderById,
+        updateShopOrderFulfillment,
+        cancelShopOrder,
         createAboutUs,
         getAboutUs,
         getAboutUsById,

@@ -136,6 +136,30 @@ export const MENU_ITEMS = [
         roles: ['Admin'],
       },
       {
+        key: 'ecommerce-shop',
+        label: 'Shop',
+        url: '/ecommerce/products',
+        parentKey: 'ecommerce',
+        roles: ['Admin'],
+        suppressDeepRouteExpand: true,
+        children: [
+          {
+            key: 'ecommerce-shop-categories',
+            label: 'Categories',
+            url: '/ecommerce/shop/categories',
+            parentKey: 'ecommerce-shop',
+            roles: ['Admin'],
+          },
+          {
+            key: 'ecommerce-shop-orders',
+            label: 'Orders',
+            url: '/ecommerce/shop/orders',
+            parentKey: 'ecommerce-shop',
+            roles: ['Admin'],
+          },
+        ],
+      },
+      {
         key: 'ecommerce-about-us',
         label: 'About Us',
         url: '/pages/about-us',

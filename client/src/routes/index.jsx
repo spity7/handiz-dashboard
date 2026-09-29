@@ -48,6 +48,10 @@ const EcommerceOfficeUpdate = lazy(() => import('@/app/(admin)/ecommerce/offices
 const EcommerceProducts = lazy(() => import('@/app/(admin)/ecommerce/products/page'))
 const EcommerceProductDetails = lazy(() => import('@/app/(admin)/ecommerce/products/[productId]/page'))
 const EcommerceProductCreate = lazy(() => import('@/app/(admin)/ecommerce/products/create/page'))
+const EcommerceProductEdit = lazy(() => import('@/app/(admin)/ecommerce/products/edit/[id]/page'))
+const ShopCategories = lazy(() => import('@/app/(admin)/ecommerce/shop/categories/page'))
+const ShopOrders = lazy(() => import('@/app/(admin)/ecommerce/shop/orders/page'))
+const ShopOrderDetail = lazy(() => import('@/app/(admin)/ecommerce/shop/orders/[id]/page'))
 const EcommerceCustomers = lazy(() => import('@/app/(admin)/ecommerce/customers/page'))
 const EcommerceSellers = lazy(() => import('@/app/(admin)/ecommerce/sellers/page'))
 const EcommerceOrders = lazy(() => import('@/app/(admin)/ecommerce/orders/page'))
@@ -380,6 +384,26 @@ const appsRoutes = [
     name: 'Create Product',
     path: '/ecommerce/products/create',
     element: <EcommerceProductCreate />,
+  },
+  {
+    name: 'Edit Product',
+    path: '/ecommerce/products/edit/:id',
+    element: <EcommerceProductEdit />,
+  },
+  {
+    name: 'Shop Categories',
+    path: '/ecommerce/shop/categories',
+    element: <ShopCategories />,
+  },
+  {
+    name: 'Shop Orders',
+    path: '/ecommerce/shop/orders',
+    element: <ShopOrders />,
+  },
+  {
+    name: 'Shop Order Detail',
+    path: '/ecommerce/shop/orders/:id',
+    element: <ShopOrderDetail />,
   },
   {
     name: 'Customers',

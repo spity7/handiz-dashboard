@@ -1,30 +1,27 @@
-# React + TypeScript + Vite
+# Handiz Admin (client)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Vite + React admin UI for Handiz. It talks to the Express API in `../server`.
 
-Currently, two official plugins are available:
+**Project docs (setup, Docker, env files, Shop admin):** see [README.md](../README.md) in the repo root. Shop API details: [server/SHOP.md](../server/SHOP.md).
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Local development
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
-
-- Configure the top-level `parserOptions` property like this:
-
-```js
-export default {
-  // other rules...
-  parserOptions: {
-    ecmaVersion: 'latest',
-    sourceType: 'module',
-    project: ['./tsconfig.json', './tsconfig.node.json'],
-    tsconfigRootDir: __dirname,
-  },
-}
+```bash
+cp .env.example .env
+npm install
+npm run dev
 ```
 
-- Replace `plugin:@typescript-eslint/recommended` to `plugin:@typescript-eslint/recommended-type-checked` or `plugin:@typescript-eslint/strict-type-checked`
-- Optionally add `plugin:@typescript-eslint/stylistic-type-checked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and add `plugin:react/recommended` & `plugin:react/jsx-runtime` to the `extends` list
+| Variable            | Typical local value             |
+| ------------------- | ------------------------------- |
+| `VITE_API_BASE_URL` | `http://localhost:5016/api/v1/` |
+
+Start the API from `../server` before using the dashboard. Shop management: **Shop** menu → Products, Categories, Orders.
+
+## Build
+
+```bash
+npm run build
+```
+
+Production Docker builds use root `docker-compose.yml` and `.env` `VITE_*` build args (see root README).

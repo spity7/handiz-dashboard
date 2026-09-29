@@ -24,6 +24,7 @@ const progressRoutes = require("./routes/progressRoutes");
 const lessonDeviceRoutes = require("./routes/lessonDeviceRoutes");
 const vdocipherRoutes = require("./routes/vdocipherRoutes");
 const webhookRoutes = require("./routes/webhookRoutes");
+const shopRoutes = require("./routes/shopRoutes");
 const { handleVdocipherWebhook } = require("./controllers/vdocipherController");
 const logger = require("./config/logger");
 const handleMulterError = require("./middlewares/handleMulterError");
@@ -110,6 +111,7 @@ app.use("/api/v1", enrollmentRoutes);
 app.use("/api/v1", progressRoutes);
 app.use("/api/v1", lessonDeviceRoutes);
 app.use("/api/v1", vdocipherRoutes);
+app.use("/api/v1", shopRoutes);
 app.post("/api/v1/webhooks/vdocipher", handleVdocipherWebhook);
 // app.use("/api/v1", propertyRoutes);
 

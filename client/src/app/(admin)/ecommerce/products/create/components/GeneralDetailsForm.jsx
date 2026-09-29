@@ -1,128 +1,252 @@
-import { yupResolver } from '@hookform/resolvers/yup';
-import { Col, Row } from 'react-bootstrap';
-import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import ReactQuill from 'react-quill';
-import * as yup from 'yup';
-import SelectFormInput from '@/components/form/SelectFormInput';
-import TextAreaFormInput from '@/components/form/TextAreaFormInput';
-import TextFormInput from '@/components/form/TextFormInput';
-import { getAllProductCategories } from '@/helpers/data';
-import { renameKeys } from '@/utils/rename-object-keys';
-import 'react-quill/dist/quill.snow.css';
-const generalFormSchema = yup.object({
-  name: yup.string().required(),
-  reference: yup.string().optional(),
-  descQuill: yup.string().optional(),
-  description: yup.string().required(),
-  categories: yup.string().required(),
-  price: yup.number().required(),
-  comment: yup.string().optional()
-});
-const GeneralDetailsForm = () => {
-  const [productDescriptionContent, setProductDescriptionContent] = useState(`<h2>Describe Your Product...</h2>`);
-  const [productCategories, setProductCategories] = useState();
-  const {
-    control
-  } = useForm({
-    resolver: yupResolver(generalFormSchema)
-  });
+import { yupResolver } from '@hookform/resolvers/yup'
+import { Col, Row, Button, FormCheck } from 'react-bootstrap'
+import { useEffect, useState } from 'react'
+import { useForm, Controller } from 'react-hook-form'
+import ReactQuill from 'react-quill'
+import * as yup from 'yup'
+import TextFormInput from '@/components/form/TextFormInput'
+import SelectFormInput from '@/components/form/SelectFormInput'
+import 'react-quill/dist/quill.snow.css'
+import { useGlobalContext } from '@/context/useGlobalContext'
+import ThumbnailDropzoneInput from '@/components/form/ThumbnailDropzoneInput'
+import ComponentContainerCard from '@/components/ComponentContainerCard'
+import useConfirmFormSubmit from '@/hooks/useConfirmFormSubmit'
+import { buildFormConfirmOptions } from '@/utils/formConfirm'
+import useRegisterRhfFormDirty from '@/hooks/useRegisterRhfFormDirty'
+import { useLmsAsyncBusy } from '@/context/LmsAsyncBusyContext'
+import { useNavigate } from 'react-router-dom'
+
+const STATUS_OPTIONS = ['Draft', 'Published', 'Archived']
+
+const DEFAULTS = {
+  title: '',
+  sku: '',
+  excerpt: '',
+  descQuill: '',
+  price: 0,
+  salePrice: 0,
+  status: 'Draft',
+  sortOrder: 999,
+  stockQuantity: 0,
+  lowStockThreshold: 5,
+  categoryIds: [],
+  featured: false,
+  trackInventory: true,
+}
+
+const schema = yup.object({
+  title: yup.string().required('Title is required'),
+  price: yup.number().min(0).required('Price is required'),
+  salePrice: yup.number().min(0).nullable(),
+  status: yup.string().oneOf(STATUS_OPTIONS).required(),
+  sortOrder: yup.number().required(),
+  stockQuantity: yup.number().min(0).required(),
+})
+
+const normalizeQuillValue = (value) => {
+  if (!value || value === '<p><br></p>') return ''
+  return value
+}
+
+const GeneralDetailsForm = ({ product, mode = 'create' }) => {
+  const navigate = useNavigate()
+  const { createShopProduct, updateShopProduct, getShopCategories } = useGlobalContext()
+  const confirmFormSubmit = useConfirmFormSubmit()
+  const [loading, setLoading] = useState(false)
+  const [thumbnailFile, setThumbnailFile] = useState(null)
+  const [galleryFiles, setGalleryFiles] = useState([])
+  const [categories, setCategories] = useState([])
+
   useEffect(() => {
-    const fetchCategories = async () => {
-      const data = await getAllProductCategories();
-      if (!data) return null;
-      const categoryOptions = data.map(category => {
-        return renameKeys(category, {
-          id: 'value',
-          name: 'label'
-        });
-      });
-      setProductCategories(categoryOptions);
-    };
-    fetchCategories();
-  }, []);
-  return <form>
+    getShopCategories().then((list) => setCategories(Array.isArray(list) ? list : []))
+  }, [getShopCategories])
+
+  const {
+    control,
+    handleSubmit,
+    reset,
+    watch,
+    formState: { errors },
+  } = useForm({
+    mode: 'onChange',
+    resolver: yupResolver(schema),
+    defaultValues: DEFAULTS,
+  })
+
+  useEffect(() => {
+    if (product && mode === 'edit') {
+      reset({
+        title: product.title || '',
+        sku: product.sku || '',
+        excerpt: product.excerpt || '',
+        descQuill: product.description || '',
+        price: product.price ?? 0,
+        salePrice: product.salePrice ?? 0,
+        status: product.status || 'Draft',
+        sortOrder: product.sortOrder ?? 999,
+        stockQuantity: product.stockQuantity ?? 0,
+        lowStockThreshold: product.lowStockThreshold ?? 5,
+        categoryIds: (product.categoryIds || []).map((c) => (typeof c === 'object' ? c._id : c)),
+        featured: Boolean(product.featured),
+        trackInventory: product.trackInventory !== false,
+      })
+    }
+  }, [product, mode, reset])
+
+  const formValues = watch()
+  useRegisterRhfFormDirty(DEFAULTS, formValues, {
+    extraDirty: Boolean(thumbnailFile) || galleryFiles.length > 0,
+  })
+  useLmsAsyncBusy(loading)
+
+  const buildFormData = (data) => {
+    const formData = new FormData()
+    formData.append('title', data.title)
+    formData.append('sku', data.sku || '')
+    formData.append('excerpt', data.excerpt || '')
+    formData.append('description', normalizeQuillValue(data.descQuill))
+    formData.append('price', data.price)
+    formData.append('salePrice', data.salePrice || 0)
+    formData.append('status', data.status)
+    formData.append('sortOrder', data.sortOrder)
+    formData.append('stockQuantity', data.stockQuantity)
+    formData.append('lowStockThreshold', data.lowStockThreshold)
+    formData.append('featured', data.featured ? 'true' : 'false')
+    formData.append('trackInventory', data.trackInventory ? 'true' : 'false')
+    formData.append('categoryIds', JSON.stringify(data.categoryIds || []))
+    if (thumbnailFile) formData.append('thumbnail', thumbnailFile)
+    galleryFiles.forEach((file) => formData.append('gallery', file))
+    return formData
+  }
+
+  const onSubmit = async (data) => {
+    if (mode === 'create' && !thumbnailFile) {
+      alert('Thumbnail image is required')
+      return
+    }
+
+    const action = mode === 'edit' ? 'update' : 'create'
+    await confirmFormSubmit(buildFormConfirmOptions(action, { subject: 'this product' }), async () => {
+      try {
+        setLoading(true)
+        const formData = buildFormData(data)
+        if (mode === 'edit') {
+          await updateShopProduct(product._id, formData)
+          alert('Product updated')
+          navigate(`/ecommerce/products/${product._id}`)
+        } else {
+          const result = await createShopProduct(formData)
+          alert('Product created')
+          navigate(`/ecommerce/products/${result.product?._id || ''}`)
+        }
+      } catch (e) {
+        alert(e?.response?.data?.message || 'Save failed')
+      } finally {
+        setLoading(false)
+      }
+    })
+  }
+
+  const categoryOptions = categories.map((c) => ({ value: c._id, label: c.name }))
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)}>
       <Row>
-        <Col lg={6}>
-          <TextFormInput control={control} label="Product Name" placeholder="Enter product name" containerClassName="mb-3" id="product-name" name="name" />
+        <Col lg={8}>
+          <ComponentContainerCard title="General">
+            <TextFormInput control={control} name="title" label="Title" containerClassName="mb-3" />
+            <TextFormInput control={control} name="sku" label="SKU" containerClassName="mb-3" />
+            <TextFormInput control={control} name="excerpt" label="Excerpt" containerClassName="mb-3" />
+            <div className="mb-3">
+              <label className="form-label">Description</label>
+              <Controller
+                name="descQuill"
+                control={control}
+                render={({ field }) => <ReactQuill theme="snow" value={field.value} onChange={field.onChange} />}
+              />
+            </div>
+          </ComponentContainerCard>
+
+          <ComponentContainerCard title="Pricing & inventory" className="mt-3">
+            <Row>
+              <Col md={4}>
+                <TextFormInput control={control} name="price" label="Price (USD)" type="number" containerClassName="mb-3" />
+              </Col>
+              <Col md={4}>
+                <TextFormInput control={control} name="salePrice" label="Sale price" type="number" containerClassName="mb-3" />
+              </Col>
+              <Col md={4}>
+                <TextFormInput control={control} name="sortOrder" label="Sort order" type="number" containerClassName="mb-3" />
+              </Col>
+            </Row>
+            <Row>
+              <Col md={4}>
+                <TextFormInput control={control} name="stockQuantity" label="Stock" type="number" containerClassName="mb-3" />
+              </Col>
+              <Col md={4}>
+                <TextFormInput control={control} name="lowStockThreshold" label="Low stock threshold" type="number" containerClassName="mb-3" />
+              </Col>
+              <Col md={4}>
+                <SelectFormInput
+                  control={control}
+                  name="status"
+                  label="Status"
+                  options={STATUS_OPTIONS.map((s) => ({ value: s, label: s }))}
+                  containerClassName="mb-3"
+                />
+              </Col>
+            </Row>
+            <Controller
+              name="featured"
+              control={control}
+              render={({ field }) => (
+                <FormCheck
+                  type="switch"
+                  id="featured"
+                  label="Featured on shop home"
+                  checked={field.value}
+                  onChange={field.onChange}
+                  className="mb-2"
+                />
+              )}
+            />
+            <Controller
+              name="trackInventory"
+              control={control}
+              render={({ field }) => (
+                <FormCheck type="switch" id="trackInventory" label="Track inventory" checked={field.value} onChange={field.onChange} />
+              )}
+            />
+          </ComponentContainerCard>
         </Col>
-        <Col lg={6}>
-          <TextFormInput control={control} name="reference" placeholder="Enter reference name" label="Reference" containerClassName="mb-3" />
+        <Col lg={4}>
+          <ComponentContainerCard title="Media">
+            <ThumbnailDropzoneInput
+              label={mode === 'edit' ? 'Replace thumbnail (optional)' : 'Thumbnail'}
+              onFileChange={setThumbnailFile}
+              existingUrl={mode === 'edit' ? product?.thumbnailUrl : undefined}
+            />
+            <div className="mt-3">
+              <label className="form-label">Gallery images</label>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                className="form-control"
+                onChange={(e) => setGalleryFiles(Array.from(e.target.files || []))}
+              />
+            </div>
+          </ComponentContainerCard>
+          <ComponentContainerCard title="Categories" className="mt-3">
+            <SelectFormInput control={control} name="categoryIds" label="Categories" options={categoryOptions} isMulti containerClassName="mb-3" />
+          </ComponentContainerCard>
+          <Button type="submit" variant="primary" className="w-100 mt-3" disabled={loading}>
+            {mode === 'edit' ? 'Save product' : 'Create product'}
+          </Button>
         </Col>
       </Row>
-      <Row>
-        <Col lg={12}>
-          <div className="mb-5">
-            <label className="form-label">Product Description</label>
-            <ReactQuill theme="snow" style={{
-            height: 195
-          }} className="pb-sm-3 pb-5 pb-xl-0" modules={{
-            toolbar: [[{
-              font: []
-            }, {
-              size: []
-            }], ['bold', 'italic', 'underline', 'strike'], [{
-              color: []
-            }, {
-              background: []
-            }], [{
-              script: 'super'
-            }, {
-              script: 'sub'
-            }], [{
-              header: [false, 1, 2, 3, 4, 5, 6]
-            }, 'blockquote', 'code-block'], [{
-              list: 'ordered'
-            }, {
-              list: 'bullet'
-            }, {
-              indent: '-1'
-            }, {
-              indent: '+1'
-            }], ['direction', {
-              align: []
-            }], ['link', 'image', 'video'], ['clean']]
-          }} value={productDescriptionContent} onChange={setProductDescriptionContent} />
-          </div>
-        </Col>
-        <Col lg={6}>
-          <TextAreaFormInput control={control} containerClassName="mb-3" label="Product Summary" rows={5} id="product-summary-area" name="description" />
-        </Col>
-        <Col lg={6}>
-          {productCategories && <div className="mb-3">
-              <label htmlFor="productSummary" className="form-label">
-                Categories
-              </label>
-              <SelectFormInput className="select2" control={control} name="categories" options={productCategories} />
-            </div>}
+    </form>
+  )
+}
 
-          <TextFormInput control={control} name="price" label="Price" containerClassName="mb-3" placeholder="Enter Amount" />
-        </Col>
-      </Row>
-      <div className="mb-3">
-        <label className="form-label">Status</label>
-        <br />
-        <div className="form-check form-check-inline">
-          <input className="form-check-input" name="radio" type="radio" id="onlineStatus" defaultValue="Online" defaultChecked />
-          <label className="form-check-label" htmlFor="onlineStatus">
-            Online
-          </label>
-        </div>
-        <div className="form-check form-check-inline">
-          <input className="form-check-input" name="radio" type="radio" id="offlineStatus" defaultValue="Offline" />
-          <label className="form-check-label" htmlFor="offlineStatus">
-            Offline
-          </label>
-        </div>
-        <div className="form-check form-check-inline">
-          <input className="form-check-input" name="radio" type="radio" id="draftStatus" defaultValue="Draft" />
-          <label className="form-check-label" htmlFor="draftStatus">
-            Draft
-          </label>
-        </div>
-      </div>
-
-      <TextAreaFormInput control={control} label="Comment" name="comment" containerClassName="mb-3" />
-    </form>;
-};
-export default GeneralDetailsForm;
+export default GeneralDetailsForm
