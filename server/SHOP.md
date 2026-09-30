@@ -28,6 +28,12 @@ Dashboard: **Shop** menu → Products (`/ecommerce/products`), Categories, Order
 
 Permissions: `shop:manage`, `shop:orders:read`, `shop:orders:manage` (Admin).
 
+## Product pricing
+
+Shop products use **list price** (`price`) and optional **sale price** (`salePrice`, `0` = no sale). The API exposes computed **`listPrice`** / **`unitPrice`** on every product response; cart and checkout always recompute from the database.
+
+Legacy promo `discount` fields were removed. To clean existing MongoDB documents: `node scripts/migrateShopProductDiscount.js` (from `server/`).
+
 ## Server cart (authenticated)
 
 MongoDB model `ShopCart` — one cart per user (`userId` unique). Guest browsing uses browser `localStorage` on the storefront; on login, `POST /shop/cart/merge` combines guest lines into the server cart.

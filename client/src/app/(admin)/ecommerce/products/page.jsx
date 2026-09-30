@@ -9,6 +9,7 @@ import ProjectsListTableSkeleton from '@/components/skeletons/ProjectsListTableS
 import { useGlobalContext } from '@/context/useGlobalContext'
 import useFetchList from '@/hooks/useFetchList'
 import { useLmsAsyncBusy } from '@/context/LmsAsyncBusyContext'
+import LmsListEmptyState from '../courses/components/LmsListEmptyState'
 import ProductsListTable from './components/ProductsListTable'
 
 const Products = () => {
@@ -51,7 +52,7 @@ const Products = () => {
               ) : productsList.length > 0 ? (
                 <ProductsListTable products={productsList} onRefresh={refresh} actionsLocked={listBusy} />
               ) : (
-                <div className="text-center p-4">No products found</div>
+                <LmsListEmptyState preset="shopProducts" />
               )}
             </div>
           </Card>

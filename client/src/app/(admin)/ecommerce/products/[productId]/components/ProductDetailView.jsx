@@ -1,121 +1,193 @@
-import IconifyIcon from '@/components/wrappers/IconifyIcon';
-import { currency } from '@/context/constants';
-import { getCalculatedPrice } from '@/helpers/product';
-import { getStockStatus } from '@/utils/other';
-import { Button } from 'react-bootstrap';
-const ProductDetailView = ({
-  product
-}) => {
-  const {
-    seller,
-    review,
-    sale,
-    quantity,
-    price,
-    name
-  } = product;
-  const stockStatus = getStockStatus(quantity);
-  return <div className="ps-xl-3 mt-3 mt-xl-0">
-      <span className="text-primary mb-2 d-inline-block">{seller?.storeName}</span>
-      <h4 className="mb-3">{name}</h4>
-      <p className="text-muted gap-1 d-flex float-start me-3">
-        {Array.from(new Array(Math.floor(review.stars))).map((_val, idx) => <IconifyIcon icon="fa6-solid:star" width={14} height={14} key={idx} className="text-base text-warning" />)}
-        {!Number.isInteger(review.stars) && <IconifyIcon icon="fa6-solid:star-half-stroke" width={14} height={14} className="text-warning" />}
-        {review.stars < 5 && Array.from(new Array(5 - Math.ceil(review.stars))).map((_val, idx) => <IconifyIcon icon="fa6-solid:star" key={idx} width={14} height={14} className="text-warning" />)}
-      </p>
-      <p className="mb-3">
-        {' '}
-        <span className="text-muted">( {review.count} Customer Reviews )</span>
-      </p>
-      {sale && <h6 className="text-danger text-uppercase">{sale.type === 'percent' ? sale.discount + '% off' : 'Flat ' + currency + sale.discount}</h6>}
-      <h4 className="mb-3">
-        Price :{' '}
-        <span className="text-muted me-2">
-          <del>{currency + price}</del>
-        </span>{' '}
-        <b>{currency + getCalculatedPrice(product)}</b>
-      </h4>
-      <h4>
-        <span className={`badge badge-soft-${stockStatus.variant} mb-3`}>{stockStatus.text}</span>
-      </h4>
-      <form className="d-flex flex-wrap align-items-center mb-3">
-        <label className="my-1 me-2" htmlFor="color">
-          Color:
-        </label>
-        <div className="me-3">
-          <select className="form-select form-select-sm my-1" id="color">
-            <option value={1}>Black </option>
-            <option value={2}>Blue </option>
-            <option value={3}>Midnight </option>
-          </select>
-        </div>
-        <label className="my-1 me-2" htmlFor="sizeinput">
-          Size:
-        </label>
-        <div className="me-sm-3">
-          <select className="form-select form-select-sm my-1" id="sizeinput">
-            <option defaultChecked>256 GB</option>
-            <option value={1}>512 GB</option>
-          </select>
-        </div>
-      </form>
-      <div className="mb-3 pb-3 border-bottom">
-        <h5>
-          Processor Brand : <span className="text-muted me-2" /> <b>Apple</b>
-        </h5>
-        <h5>
-          Processor Name : <span className="text-muted me-2" /> <b>M1</b>
-        </h5>
-        <h5>
-          SSD : <span className="text-muted me-2" /> <b>Yes</b>
-        </h5>
-        <h5>
-          SSD Capacity : <span className="text-muted me-2" /> <b>256 GB</b>
-        </h5>
-        <h5>
-          RAM : <span className="text-muted me-2" /> <b>8 GB</b>
-        </h5>
+import clsx from 'clsx'
+import { Badge, Card, CardBody, Col, Row } from 'react-bootstrap'
+import { Link } from 'react-router-dom'
+import ComponentContainerCard from '@/components/ComponentContainerCard'
+import IconifyIcon from '@/components/wrappers/IconifyIcon'
+import { resolveProductPricing } from '@/utils/shopPricing'
+import ProductDetailGallery from './ProductDetailGallery'
+
+const formatMoney = (value) => `$${Number(value || 0).toFixed(2)}`
+
+const formatDateTime = (value) => {
+  if (!value) return '—'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '—'
+  return date.toLocaleString(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  })
+}
+
+const statusBadgeVariant = (status) => {
+  if (status === 'Published') return 'success'
+  if (status === 'Archived') return 'secondary'
+  return 'warning'
+}
+
+const Fact = ({ label, children, className }) => (
+  <div className={clsx('shop-product-detail__fact', className)}>
+    <dt className="shop-product-detail__fact-label">{label}</dt>
+    <dd className="shop-product-detail__fact-value">{children}</dd>
+  </div>
+)
+
+const SummaryStat = ({ icon, label, children, tone }) => (
+  <Card className={clsx('shop-product-detail__stat h-100', tone && `shop-product-detail__stat--${tone}`)}>
+    <CardBody>
+      <div className="shop-product-detail__stat-label">
+        <IconifyIcon icon={icon} aria-hidden />
+        {label}
       </div>
-      <div className="mb-3 flex-column d-flex">
-        <h5>About this item:</h5>
-        <p className="text-muted mb-1 icons-center">
-          <span>
-            <IconifyIcon icon="bx:check-circle" className="text-primary me-2" />
-          </span>{' '}
-          Quad LED Backlit IPS Display (227 PPI, 400 nits Brightness, Wide Colour (P3), True Tone Technology)
-        </p>
-        <p className="text-muted mb-1 icons-center">
-          <IconifyIcon icon="bx:check-circle" className="text-primary me-2" />
-          Built-in Speakers
-        </p>
-        <p className="text-muted mb-1 icons-center">
-          <IconifyIcon icon="bx:check-circle" className="text-primary me-2" />
-          Three-mic Array with Directional Beamforming
-        </p>
-        <p className="text-muted mb-1 icons-center">
-          <span>
-            <IconifyIcon icon="bx:check-circle" className="text-primary me-2" />
-          </span>{' '}
-          Stereo Speakers, Wide Stereo Sound, Support for Dolby Atmos Playback
-        </p>
-        <p className="text-muted mb-1 icons-center">
-          <IconifyIcon icon="bx:check-circle" className="text-primary me-2" />
-          49.9 WHr Li-polymer Battery
-        </p>
-        <p className="text-muted mb-1 icons-center">
-          <IconifyIcon icon="bx:check-circle" className="text-primary me-2" />
-          Backlit Magic Keyboard
-        </p>
-      </div>
-      <div className="d-flex gap-1">
-        <Button variant="danger" type="button" className="me-2">
-          <IconifyIcon icon="bx:heart" className="fs-18" />
-        </Button>
-        <Button variant="primary" type="button">
-          <IconifyIcon icon="bx:cart" className="fs-18 me-2" />
-          Add to cart
-        </Button>
-      </div>
-    </div>;
-};
-export default ProductDetailView;
+      <div className="shop-product-detail__stat-value">{children}</div>
+    </CardBody>
+  </Card>
+)
+
+const ProductDetailView = ({ product }) => {
+  const pricing = resolveProductPricing(product)
+  const listPrice = Number(product.listPrice ?? pricing.listPrice) || 0
+  const unitPrice = Number(product.unitPrice ?? pricing.unitPrice) || 0
+  const onSale = listPrice > 0 && unitPrice < listPrice
+  const manualSale = Number(product.salePrice) || 0
+  const categories = (product.categoryIds || []).map((c) => (typeof c === 'object' && c?.name ? c : null)).filter(Boolean)
+  const trackInventory = product.trackInventory !== false
+  const stock = Number(product.stockQuantity) || 0
+  const lowStock = trackInventory && stock <= Number(product.lowStockThreshold ?? 5)
+  const descriptionHtml = product.description?.trim()
+
+  return (
+    <div className="shop-product-detail">
+      <Row className="g-3">
+        <Col lg={5}>
+          <ComponentContainerCard title="Media" description="Thumbnail and gallery images shown on the storefront.">
+            <ProductDetailGallery product={product} />
+          </ComponentContainerCard>
+        </Col>
+
+        <Col lg={7}>
+          <Card className="shop-product-detail__overview mb-3">
+            <CardBody>
+              <div className="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+                <div className="shop-product-detail__status-row">
+                  <Badge bg={statusBadgeVariant(product.status)}>{product.status}</Badge>
+                  {product.featured && (
+                    <Badge bg="warning" text="dark" className="icons-center gap-1">
+                      <IconifyIcon icon="bxs:star" aria-hidden />
+                      Featured
+                    </Badge>
+                  )}
+                  {onSale && (
+                    <Badge bg="danger" className="icons-center gap-1">
+                      <IconifyIcon icon="bx:purchase-tag" aria-hidden />
+                      On sale
+                    </Badge>
+                  )}
+                </div>
+                <div className="d-flex flex-wrap gap-2">
+                  <Link to="/ecommerce/products" className="btn btn-soft-secondary btn-sm icons-center">
+                    <IconifyIcon icon="bx:arrow-back" className="me-1" aria-hidden />
+                    All products
+                  </Link>
+                  <Link to={`/ecommerce/products/edit/${product._id}`} className="btn btn-primary btn-sm icons-center">
+                    <IconifyIcon icon="bx:edit" className="me-1" aria-hidden />
+                    Edit product
+                  </Link>
+                </div>
+              </div>
+
+              <h4 className="shop-product-detail__title mb-1">{product.title}</h4>
+              <p className="shop-product-detail__sku text-muted mb-2">{product.sku || 'No SKU'}</p>
+              {product.excerpt ? <p className="shop-product-detail__excerpt mb-0">{product.excerpt}</p> : null}
+            </CardBody>
+          </Card>
+
+          <Row className="g-3 mb-3">
+            <Col sm={4}>
+              <SummaryStat icon="bx:dollar" label="Storefront price">
+                <span className="shop-product-detail__price-current">{formatMoney(unitPrice)}</span>
+                {onSale && (
+                  <span className="shop-product-detail__price-compare text-muted text-decoration-line-through ms-2">{formatMoney(listPrice)}</span>
+                )}
+                {onSale && manualSale > 0 && (
+                  <div className="shop-product-detail__price-note text-muted fs-13 mt-1">Sale price {formatMoney(manualSale)}</div>
+                )}
+              </SummaryStat>
+            </Col>
+            <Col sm={4}>
+              <SummaryStat icon="bx:box" label="Inventory" tone={lowStock ? 'warning' : undefined}>
+                {trackInventory ? (
+                  <>
+                    <span className={clsx(lowStock && 'text-warning fw-semibold')}>{stock} in stock</span>
+                    <div className="shop-product-detail__stat-hint text-muted fs-13 mt-1">Low stock alert at {product.lowStockThreshold ?? 5}</div>
+                  </>
+                ) : (
+                  <span className="text-muted">Not tracked</span>
+                )}
+              </SummaryStat>
+            </Col>
+            <Col sm={4}>
+              <SummaryStat icon="bx:sort" label="Catalog">
+                <span>Display order {product.sortOrder ?? 999}</span>
+                <div className="shop-product-detail__stat-hint text-muted fs-13 mt-1">
+                  Slug <code className="shop-product-detail__code">{product.slug || '—'}</code>
+                </div>
+              </SummaryStat>
+            </Col>
+          </Row>
+
+          <div className="d-flex flex-column gap-3">
+            <ComponentContainerCard title="Details" description="Identifiers and record timestamps." bodyClassName="pt-0">
+              <dl className="shop-product-detail__facts">
+                <Fact label="SKU">{product.sku || '—'}</Fact>
+                <Fact label="Slug">{product.slug || '—'}</Fact>
+                <Fact label="List price">{formatMoney(listPrice)}</Fact>
+                <Fact label="Unit price">{formatMoney(unitPrice)}</Fact>
+                <Fact label="Currency">{product.currency || 'USD'}</Fact>
+                <Fact label="Track inventory">{trackInventory ? 'Yes' : 'No'}</Fact>
+                {trackInventory && (
+                  <>
+                    <Fact label="Stock quantity">{stock}</Fact>
+                    <Fact label="Low stock threshold">{product.lowStockThreshold ?? 5}</Fact>
+                  </>
+                )}
+                <Fact label="Featured">{product.featured ? 'Yes' : 'No'}</Fact>
+                <Fact label="Created">{formatDateTime(product.createdAt)}</Fact>
+                <Fact label="Last updated">{formatDateTime(product.updatedAt)}</Fact>
+              </dl>
+            </ComponentContainerCard>
+
+            <ComponentContainerCard
+              title="Categories"
+              description="Assigned storefront categories."
+              bodyClassName="pt-0"
+              headerAction={
+                <Link to="/ecommerce/shop/categories" className="btn btn-sm btn-soft-secondary">
+                  Manage
+                </Link>
+              }>
+              {categories.length > 0 ? (
+                <div className="d-flex flex-wrap gap-2">
+                  {categories.map((cat) => (
+                    <Badge key={cat._id || cat.slug} bg="soft-primary" className="text-primary fs-13">
+                      {cat.name}
+                    </Badge>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted mb-0">No categories assigned.</p>
+              )}
+            </ComponentContainerCard>
+
+            {descriptionHtml && (
+              <ComponentContainerCard title="Description" description="Full product copy from the editor." bodyClassName="pt-0">
+                <div className="shop-product-detail__description ql-editor" dangerouslySetInnerHTML={{ __html: product.description }} />
+              </ComponentContainerCard>
+            )}
+          </div>
+        </Col>
+      </Row>
+    </div>
+  )
+}
+
+export default ProductDetailView

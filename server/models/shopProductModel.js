@@ -3,8 +3,6 @@ const {
   SHOP_PRODUCT_STATUS,
   SHOP_PRODUCT_STATUS_VALUES,
   SHOP_CURRENCY,
-  SHOP_DISCOUNT_TYPE,
-  SHOP_DISCOUNT_TYPE_VALUES,
 } = require("../constants/shopStatus");
 const softDeletePlugin = require("../utils/softDeletePlugin");
 
@@ -69,16 +67,6 @@ const shopProductSchema = new mongoose.Schema(
       type: String,
       enum: [SHOP_CURRENCY],
       default: SHOP_CURRENCY,
-    },
-    discount: {
-      enabled: { type: Boolean, default: false },
-      type: {
-        type: String,
-        enum: SHOP_DISCOUNT_TYPE_VALUES,
-        default: SHOP_DISCOUNT_TYPE.PERCENT,
-      },
-      value: { type: Number, default: 0, min: 0 },
-      endsAt: { type: Date, default: null },
     },
     thumbnailUrl: {
       type: String,

@@ -1,55 +1,12 @@
 const {
   SHOP_CURRENCY,
-  SHOP_DISCOUNT_TYPE,
   MIN_PAID_SHOP_PRICE,
 } = require("../constants/shopStatus");
 
 const roundCurrency = (amount) => Math.round(amount * 100) / 100;
 
-const isDiscountExpired = (discount, now = new Date()) => {
-  if (!discount?.enabled || !discount.endsAt) return false;
-  const endsAt = new Date(discount.endsAt);
-  return !Number.isNaN(endsAt.getTime()) && endsAt.getTime() <= now.getTime();
-};
-
-const getEffectiveDiscount = (discount, now = new Date()) => {
-  if (!discount?.enabled) {
-    return {
-      enabled: false,
-      type: discount?.type || SHOP_DISCOUNT_TYPE.PERCENT,
-      value: 0,
-      endsAt: discount?.endsAt || null,
-    };
-  }
-
-  if (isDiscountExpired(discount, now)) {
-    return {
-      enabled: false,
-      type: discount.type,
-      value: discount.value,
-      endsAt: discount.endsAt,
-    };
-  }
-
-  return discount;
-};
-
-const computeSalePrice = (listPrice, discount) => {
-  const price = Math.max(0, Number(listPrice) || 0);
-  if (!discount?.enabled || price <= 0) return price;
-
-  const value = Math.max(0, Number(discount.value) || 0);
-  if (value <= 0) return price;
-
-  if (discount.type === SHOP_DISCOUNT_TYPE.FIXED) {
-    return roundCurrency(Math.max(0, price - value));
-  }
-
-  const percent = Math.min(100, Math.max(0, value));
-  return roundCurrency(price * (1 - percent / 100));
-};
-
-const resolveProductPricing = (product, now = new Date()) => {
+/** Shop products use list price + optional sale price only (no promo discount object). */
+const resolveProductPricing = (product) => {
   const plain =
     typeof product?.toObject === "function"
       ? product.toObject()
@@ -57,12 +14,9 @@ const resolveProductPricing = (product, now = new Date()) => {
 
   const listPrice = Number(plain.price) || 0;
   const manualSale = Number(plain.salePrice) || 0;
-  const effectiveDiscount = getEffectiveDiscount(plain.discount, now);
   let unitPrice = listPrice;
 
-  if (effectiveDiscount.enabled) {
-    unitPrice = computeSalePrice(listPrice, effectiveDiscount);
-  } else if (manualSale > 0 && manualSale < listPrice) {
+  if (manualSale > 0 && manualSale < listPrice) {
     unitPrice = roundCurrency(manualSale);
   }
 
@@ -73,8 +27,8 @@ const resolveProductPricing = (product, now = new Date()) => {
   };
 };
 
-const getProductUnitPrice = (product, now = new Date()) =>
-  resolveProductPricing(product, now).unitPrice;
+const getProductUnitPrice = (product) =>
+  resolveProductPricing(product).unitPrice;
 
 const getShippingFee = () => {
   const raw = process.env.SHOP_SHIPPING_FEE_USD;

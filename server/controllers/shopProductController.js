@@ -9,10 +9,7 @@ const {
   SHOP_PRODUCT_STATUS_VALUES,
 } = require("../constants/shopStatus");
 const { uniqueProductSlug } = require("../utils/shopSlug");
-const {
-  getProductUnitPrice,
-  resolveProductPricing,
-} = require("../utils/shopPricing");
+const { resolveProductPricing } = require("../utils/shopPricing");
 const { hasPermission } = require("../constants/permissions");
 const { isProductPurchasable } = require("../utils/shopInventory");
 
@@ -43,8 +40,7 @@ const parseCategoryIds = async (raw) => {
   return valid;
 };
 
-const canManageShop = (user) =>
-  user && hasPermission(user.role, "shop:manage");
+const canManageShop = (user) => user && hasPermission(user.role, "shop:manage");
 
 const serializeProduct = (product) => {
   const plain =
@@ -52,6 +48,7 @@ const serializeProduct = (product) => {
       ? product.toObject({ virtuals: true })
       : { ...product };
   const pricing = resolveProductPricing(plain);
+  delete plain.discount;
   return {
     ...plain,
     unitPrice: pricing.unitPrice,
@@ -65,6 +62,21 @@ const buildPublicProductQuery = (req) => {
     q.status = SHOP_PRODUCT_STATUS.PUBLISHED;
   }
   return q;
+};
+
+const escapeRegex = (value) =>
+  String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const applyProductSearchFilter = (filter, rawQuery) => {
+  const term = String(rawQuery || "").trim();
+  if (!term) return;
+  const pattern = new RegExp(escapeRegex(term), "i");
+  filter.$or = [
+    { title: pattern },
+    { excerpt: pattern },
+    { description: pattern },
+    { sku: pattern },
+  ];
 };
 
 exports.createShopProduct = async (req, res) => {
@@ -107,8 +119,7 @@ exports.createShopProduct = async (req, res) => {
     }
 
     const productSlug =
-      slug?.trim() ||
-      (await uniqueProductSlug(String(title).trim()));
+      slug?.trim() || (await uniqueProductSlug(String(title).trim()));
 
     const categoryIds = await parseCategoryIds(req.body.categoryIds);
 
@@ -159,12 +170,6 @@ exports.createShopProduct = async (req, res) => {
         salePrice !== undefined && salePrice !== ""
           ? Math.max(0, Number(salePrice) || 0)
           : 0,
-      discount: {
-        enabled: parseBooleanField(req.body.discountEnabled, false),
-        type: req.body.discountType || "percent",
-        value: Number(req.body.discountValue) || 0,
-        endsAt: req.body.discountEndsAt || null,
-      },
       thumbnailUrl,
       gallery: galleryUrls,
       trackInventory: parseBooleanField(trackInventory, true),
@@ -197,8 +202,7 @@ exports.createShopProduct = async (req, res) => {
 
 exports.getShopProducts = async (req, res) => {
   try {
-    const isAdminList =
-      req.query.admin === "true" && canManageShop(req.user);
+    const isAdminList = req.query.admin === "true" && canManageShop(req.user);
 
     const page = Math.max(1, Number(req.query.page) || 1);
     const limit = Math.min(48, Math.max(1, Number(req.query.limit) || 12));
@@ -223,9 +227,7 @@ exports.getShopProducts = async (req, res) => {
       }
     }
 
-    if (req.query.q) {
-      filter.$text = { $search: String(req.query.q).trim() };
-    }
+    applyProductSearchFilter(filter, req.query.q);
 
     let sort = { sortOrder: 1, createdAt: -1 };
     const sortParam = String(req.query.sort || "").toLowerCase();
@@ -268,9 +270,8 @@ exports.getShopProductBySlug = async (req, res) => {
     const filter = buildPublicProductQuery(req);
     filter.slug = String(req.params.slug).toLowerCase();
 
-    const product = await ShopProduct.findOne(filter).populate(
-      POPULATE_CATEGORIES,
-    );
+    const product =
+      await ShopProduct.findOne(filter).populate(POPULATE_CATEGORIES);
 
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
@@ -294,9 +295,8 @@ exports.getShopProductById = async (req, res) => {
       filter.status = SHOP_PRODUCT_STATUS.PUBLISHED;
     }
 
-    const product = await ShopProduct.findOne(filter).populate(
-      POPULATE_CATEGORIES,
-    );
+    const product =
+      await ShopProduct.findOne(filter).populate(POPULATE_CATEGORIES);
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
     }
@@ -328,10 +328,7 @@ exports.updateShopProduct = async (req, res) => {
     if (req.body.slug !== undefined && String(req.body.slug).trim()) {
       updateData.slug = String(req.body.slug).trim().toLowerCase();
     } else if (updateData.title) {
-      updateData.slug = await uniqueProductSlug(
-        updateData.title,
-        existing._id,
-      );
+      updateData.slug = await uniqueProductSlug(updateData.title, existing._id);
     }
     if (req.body.sku !== undefined) {
       updateData.sku = String(req.body.sku || "").trim();
@@ -385,29 +382,6 @@ exports.updateShopProduct = async (req, res) => {
       );
     }
 
-    if (
-      req.body.discountEnabled !== undefined ||
-      req.body.discountType !== undefined ||
-      req.body.discountValue !== undefined ||
-      req.body.discountEndsAt !== undefined
-    ) {
-      updateData.discount = {
-        enabled: parseBooleanField(
-          req.body.discountEnabled,
-          existing.discount?.enabled,
-        ),
-        type: req.body.discountType || existing.discount?.type || "percent",
-        value:
-          req.body.discountValue !== undefined
-            ? Number(req.body.discountValue) || 0
-            : existing.discount?.value || 0,
-        endsAt:
-          req.body.discountEndsAt !== undefined
-            ? req.body.discountEndsAt || null
-            : existing.discount?.endsAt,
-      };
-    }
-
     if (thumbnailFile) {
       const thumbnailTypeError = getImageValidationError(thumbnailFile);
       if (thumbnailTypeError) {
@@ -444,7 +418,10 @@ exports.updateShopProduct = async (req, res) => {
       updateData.gallery = [...(existing.gallery || []), ...newGalleryUrls];
     }
 
-    await ShopProduct.findByIdAndUpdate(existing._id, { $set: updateData });
+    await ShopProduct.findByIdAndUpdate(existing._id, {
+      $set: updateData,
+      $unset: { discount: "" },
+    });
     const product = await ShopProduct.findById(existing._id).populate(
       POPULATE_CATEGORIES,
     );

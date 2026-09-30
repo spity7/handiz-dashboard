@@ -33,6 +33,35 @@ const PRESETS = {
       description: 'Course purchases will show up here with payment status and revenue details.',
     },
   },
+  shopProducts: {
+    empty: {
+      icon: 'bx:store',
+      title: 'No products yet',
+      description: 'Add your first product to start selling on the Handiz shop. Published products appear on the storefront right away.',
+      actionLabel: 'Add product',
+      actionTo: '/ecommerce/products/create',
+    },
+  },
+  shopCategories: {
+    empty: {
+      icon: 'bx:category',
+      title: 'No categories yet',
+      description: 'Categories help shoppers filter the storefront. Create one, then assign it to your products.',
+      actionLabel: 'Add category',
+    },
+  },
+  shopOrders: {
+    empty: {
+      icon: 'bx:receipt',
+      title: 'No shop orders yet',
+      description: 'Orders placed on the storefront will appear here with payment and fulfillment status.',
+    },
+    filtered: {
+      icon: 'bx:search-alt',
+      title: 'No matching orders',
+      description: 'No orders match your search. Clear it to see all orders again.',
+    },
+  },
 }
 
 const LmsListEmptyState = ({ preset = 'courses', variant = 'empty', inTable = false, onClearFilters, onPrimaryAction }) => {

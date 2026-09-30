@@ -6,6 +6,7 @@ import PageMetaData from '@/components/PageTitle'
 import ReactTable from '@/components/Table'
 import ProjectsListTableSkeleton from '@/components/skeletons/ProjectsListTableSkeleton'
 import { useGlobalContext } from '@/context/useGlobalContext'
+import LmsListEmptyState from '../../courses/components/LmsListEmptyState'
 
 const paymentVariant = (status) => {
   if (status === 'paid') return 'success'
@@ -102,7 +103,17 @@ const ShopOrders = () => {
         <Col>
           <Card>
             <CardBody>
-              {loading ? <ProjectsListTableSkeleton /> : <ReactTable columns={columns} data={data.orders || []} pageSize={20} showPagination />}
+              {loading ? (
+                <ProjectsListTableSkeleton />
+              ) : (
+                <ReactTable
+                  columns={columns}
+                  data={data.orders || []}
+                  pageSize={20}
+                  showPagination={(data.orders || []).length > 0}
+                  emptyState={<LmsListEmptyState preset="shopOrders" variant={query.trim() ? 'filtered' : 'empty'} inTable onClearFilters={() => setQuery('')} />}
+                />
+              )}
             </CardBody>
           </Card>
         </Col>

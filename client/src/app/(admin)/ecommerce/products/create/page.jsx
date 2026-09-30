@@ -1,21 +1,13 @@
-import { Card, CardBody, Col, Row } from 'react-bootstrap';
-import PageBreadcrumb from '@/components/layout/PageBreadcrumb';
-import CreateProductForms from './components/CreateProductForms';
-import PageMetaData from '@/components/PageTitle';
-const CreateProduct = () => {
-  return <>
-      <PageBreadcrumb title="Create Product" subName="Ecommerce" />
-      <PageMetaData title="Create Product" />
+import PageBreadcrumb from '@/components/layout/PageBreadcrumb'
+import PageMetaData from '@/components/PageTitle'
+import CreateProductForms from './components/CreateProductForms'
 
-      <Row>
-        <Col>
-          <Card>
-            <CardBody>
-              <CreateProductForms />
-            </CardBody>
-          </Card>
-        </Col>
-      </Row>
-    </>;
-};
-export default CreateProduct;
+const CreateProduct = () => (
+  <>
+    <PageMetaData title="Create Product" />
+    <PageBreadcrumb title="Create Product" subName="Shop" />
+    <CreateProductForms />
+  </>
+)
+
+export default CreateProduct

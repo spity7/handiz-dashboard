@@ -3,6 +3,8 @@ import { Button, Card, CardBody, Col, Form, Modal, Row } from 'react-bootstrap'
 import PageBreadcrumb from '@/components/layout/PageBreadcrumb'
 import PageMetaData from '@/components/PageTitle'
 import ReactTable from '@/components/Table'
+import ProjectsListTableSkeleton from '@/components/skeletons/ProjectsListTableSkeleton'
+import LmsListEmptyState from '../../courses/components/LmsListEmptyState'
 import { useGlobalContext } from '@/context/useGlobalContext'
 import useFetchList from '@/hooks/useFetchList'
 
@@ -87,7 +89,17 @@ const ShopCategories = () => {
               <Button onClick={openCreate} className="mb-3">
                 Add category
               </Button>
-              {loading ? <p>Loading…</p> : <ReactTable columns={columns} data={categories} pageSize={20} showPagination />}
+              {loading ? (
+                <ProjectsListTableSkeleton />
+              ) : (
+                <ReactTable
+                  columns={columns}
+                  data={categories}
+                  pageSize={20}
+                  showPagination={categories.length > 0}
+                  emptyState={<LmsListEmptyState preset="shopCategories" inTable onPrimaryAction={openCreate} />}
+                />
+              )}
             </CardBody>
           </Card>
         </Col>
