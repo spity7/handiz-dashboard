@@ -4,6 +4,7 @@ import { Button, Card, CardBody, Col, Row } from 'react-bootstrap'
 import PageBreadcrumb from '@/components/layout/PageBreadcrumb'
 import PageMetaData from '@/components/PageTitle'
 import { useGlobalContext } from '@/context/useGlobalContext'
+import { useLmsAsyncBusy } from '@/context/LmsAsyncBusyContext'
 import useConfirmFormSubmit from '@/hooks/useConfirmFormSubmit'
 import { buildFormConfirmOptions } from '@/utils/formConfirm'
 import { HomepageAdFormFields, appendHomepageAdFormData, emptyHomepageAdFormValues } from '../components/HomepageAdFormFields'
@@ -24,6 +25,7 @@ const HomepageAdsCreatePage = () => {
   const [thumbnailFile, setThumbnailFile] = useState(null)
   const [thumbnailPreview, setThumbnailPreview] = useState(null)
   const [loading, setLoading] = useState(false)
+  useLmsAsyncBusy(loading)
 
   const onThumbnailChange = (file) => {
     setThumbnailFile(file)
@@ -72,20 +74,22 @@ const HomepageAdsCreatePage = () => {
           <Card>
             <CardBody>
               <form onSubmit={onSubmit}>
-                <HomepageAdFormFields
-                  values={values}
-                  onChange={setValues}
-                  thumbnailFile={thumbnailFile}
-                  onThumbnailChange={onThumbnailChange}
-                  thumbnailPreviewUrl={thumbnailPreview}
-                  resetDropzones={false}
-                  isEdit={false}
-                />
+                <fieldset disabled={loading} style={{ border: 'none', margin: 0, padding: 0 }}>
+                  <HomepageAdFormFields
+                    values={values}
+                    onChange={setValues}
+                    thumbnailFile={thumbnailFile}
+                    onThumbnailChange={onThumbnailChange}
+                    thumbnailPreviewUrl={thumbnailPreview}
+                    resetDropzones={false}
+                    isEdit={false}
+                  />
+                </fieldset>
                 <div className="d-flex gap-2 mt-3">
                   <Button type="submit" variant="primary" disabled={loading}>
                     {loading ? 'Saving…' : 'Create ad'}
                   </Button>
-                  <Button type="button" variant="light" onClick={() => navigate('/pages/homepage-ads')}>
+                  <Button type="button" variant="light" disabled={loading} onClick={() => navigate('/pages/homepage-ads')}>
                     Cancel
                   </Button>
                 </div>

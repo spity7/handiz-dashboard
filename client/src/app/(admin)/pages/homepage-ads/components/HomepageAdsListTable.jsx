@@ -1,8 +1,11 @@
+import clsx from 'clsx'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Badge } from 'react-bootstrap'
 import ReactTable from '@/components/Table'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
 import { useGlobalContext } from '@/context/useGlobalContext'
+import { useLmsAsyncBusy } from '@/context/LmsAsyncBusyContext'
 import Swal from 'sweetalert2'
 import { HOMEPAGE_AD_STATUS_LABELS, homepageAdStatusBadgeVariant } from '@/constants/homepageAdStatus'
 
@@ -14,10 +17,16 @@ function formatSchedule(startsAt, endsAt) {
   return `Until ${fmt(endsAt)}`
 }
 
-const HomepageAdsListTable = ({ homepageAds, onRefresh }) => {
+const HomepageAdsListTable = ({ homepageAds, onRefresh, actionsLocked = false }) => {
   const { deleteHomepageAd } = useGlobalContext()
+  const [deletingId, setDeletingId] = useState(null)
+
+  const tableLocked = actionsLocked || deletingId !== null
+  useLmsAsyncBusy(deletingId !== null)
 
   const handleDelete = async (id) => {
+    if (tableLocked) return
+
     const result = await Swal.fire({
       title: 'Are you sure?',
       text: 'This will permanently delete this homepage ad.',
@@ -26,14 +35,17 @@ const HomepageAdsListTable = ({ homepageAds, onRefresh }) => {
       confirmButtonText: 'Yes, delete it!',
     })
 
-    if (result.isConfirmed) {
-      try {
-        await deleteHomepageAd(id)
-        Swal.fire('Deleted!', 'Homepage ad has been deleted.', 'success')
-        onRefresh?.()
-      } catch (error) {
-        Swal.fire('Error', error?.response?.data?.message || 'Delete failed', 'error')
-      }
+    if (!result.isConfirmed) return
+
+    setDeletingId(id)
+    try {
+      await deleteHomepageAd(id)
+      Swal.fire('Deleted!', 'Homepage ad has been deleted.', 'success')
+      await onRefresh?.()
+    } catch (error) {
+      Swal.fire('Error', error?.response?.data?.message || 'Delete failed', 'error')
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -98,7 +110,7 @@ const HomepageAdsListTable = ({ homepageAds, onRefresh }) => {
       }) => order,
     },
     {
-      header: 'Status',
+      header: 'Published',
       cell: ({
         row: {
           original: { isPublished },
@@ -119,16 +131,34 @@ const HomepageAdsListTable = ({ homepageAds, onRefresh }) => {
         row: {
           original: { _id },
         },
-      }) => (
-        <div className="d-flex gap-2">
-          <Link to={`/pages/homepage-ads/edit/${_id}`} className="btn btn-sm btn-soft-secondary" title="Edit">
-            <IconifyIcon icon="bx:edit" className="fs-18" />
-          </Link>
-          <button type="button" className="btn btn-sm btn-soft-danger" title="Delete" onClick={() => handleDelete(_id)}>
-            <IconifyIcon icon="bx:trash" className="fs-18" />
-          </button>
-        </div>
-      ),
+      }) => {
+        const rowDeleting = deletingId === _id
+        return (
+          <div className="d-flex gap-2">
+            <Link
+              to={`/pages/homepage-ads/edit/${_id}`}
+              className={clsx('btn btn-sm btn-soft-secondary', tableLocked && 'disabled pe-none')}
+              title="Edit"
+              aria-disabled={tableLocked}
+              tabIndex={tableLocked ? -1 : undefined}>
+              <IconifyIcon icon="bx:edit" className="fs-18" />
+            </Link>
+            <button
+              type="button"
+              className="btn btn-sm btn-soft-danger"
+              title="Delete"
+              disabled={tableLocked}
+              aria-busy={rowDeleting}
+              onClick={() => handleDelete(_id)}>
+              {rowDeleting ? (
+                <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" />
+              ) : (
+                <IconifyIcon icon="bx:trash" className="fs-18" />
+              )}
+            </button>
+          </div>
+        )
+      },
     },
   ]
 

@@ -1,3 +1,4 @@
+import clsx from 'clsx'
 import { Link } from 'react-router-dom'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
 
@@ -7,7 +8,7 @@ const TIPS = [
   'Use order numbers to control left-to-right placement; toggle Published when ready.',
 ]
 
-const HomepageAdsEmptyState = () => {
+const HomepageAdsEmptyState = ({ actionsDisabled = false }) => {
   return (
     <div className="projects-list-empty projects-list-empty--in-table homepage-ads-empty">
       <div className="projects-list-empty__icon projects-list-empty__icon--empty">
@@ -26,7 +27,11 @@ const HomepageAdsEmptyState = () => {
       </ul>
 
       <div className="projects-list-empty__actions">
-        <Link to="/pages/homepage-ads/create" className="btn btn-primary">
+        <Link
+          to="/pages/homepage-ads/create"
+          className={clsx('btn btn-primary', actionsDisabled && 'disabled pe-none')}
+          aria-disabled={actionsDisabled}
+          tabIndex={actionsDisabled ? -1 : undefined}>
           <IconifyIcon icon="bx:plus" className="me-1" />
           Create your first ad
         </Link>

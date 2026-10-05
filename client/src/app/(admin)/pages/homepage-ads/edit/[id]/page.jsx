@@ -5,6 +5,7 @@ import PageBreadcrumb from '@/components/layout/PageBreadcrumb'
 import PageMetaData from '@/components/PageTitle'
 import ProjectFormSkeleton from '@/components/skeletons/ProjectFormSkeleton'
 import { useGlobalContext } from '@/context/useGlobalContext'
+import { useLmsAsyncBusy } from '@/context/LmsAsyncBusyContext'
 import useConfirmFormSubmit from '@/hooks/useConfirmFormSubmit'
 import { buildFormConfirmOptions } from '@/utils/formConfirm'
 import useRegisterUnsavedFormDirty from '@/hooks/useRegisterUnsavedFormDirty'
@@ -31,6 +32,7 @@ const HomepageAdsEditPage = () => {
   const [resetDropzones, setResetDropzones] = useState(false)
   const [loading, setLoading] = useState(false)
   const [fetching, setFetching] = useState(true)
+  useLmsAsyncBusy(loading)
 
   useEffect(() => {
     const load = async () => {
@@ -104,20 +106,22 @@ const HomepageAdsEditPage = () => {
           <Card>
             <CardBody>
               <form onSubmit={onSubmit}>
-                <HomepageAdFormFields
-                  values={values}
-                  onChange={setValues}
-                  thumbnailFile={thumbnailFile}
-                  onThumbnailChange={onThumbnailChange}
-                  thumbnailPreviewUrl={thumbnailPreview}
-                  resetDropzones={resetDropzones}
-                  isEdit
-                />
+                <fieldset disabled={loading} style={{ border: 'none', margin: 0, padding: 0 }}>
+                  <HomepageAdFormFields
+                    values={values}
+                    onChange={setValues}
+                    thumbnailFile={thumbnailFile}
+                    onThumbnailChange={onThumbnailChange}
+                    thumbnailPreviewUrl={thumbnailPreview}
+                    resetDropzones={resetDropzones}
+                    isEdit
+                  />
+                </fieldset>
                 <div className="d-flex gap-2 mt-3">
                   <Button type="submit" variant="primary" disabled={loading}>
                     {loading ? 'Saving…' : 'Save changes'}
                   </Button>
-                  <Button type="button" variant="light" onClick={() => navigate('/pages/homepage-ads')}>
+                  <Button type="button" variant="light" disabled={loading} onClick={() => navigate('/pages/homepage-ads')}>
                     Back to list
                   </Button>
                 </div>

@@ -33,7 +33,7 @@ const AppRouter = (props) => {
           path={route.path}
           element={
             isAuthenticated ? (
-              canAccessRoute(user?.role, route.path) ? (
+              canAccessRoute(user?.role, location.pathname) ? (
                 <AdminLayout {...props}>{route.element}</AdminLayout>
               ) : (
                 <Navigate to="/pages/unauthorized" replace state={{ from: location }} />
