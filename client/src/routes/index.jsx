@@ -78,6 +78,9 @@ const ContactUs = lazy(() => import('@/app/(admin)/pages/contact-us/page'))
 const AboutUs = lazy(() => import('@/app/(admin)/pages/about-us/page'))
 const AboutUsCreate = lazy(() => import('@/app/(admin)/pages/about-us/create/page'))
 const AboutUsEdit = lazy(() => import('@/app/(admin)/pages/about-us/edit/[id]/page'))
+const HomepageAds = lazy(() => import('@/app/(admin)/pages/homepage-ads/page'))
+const HomepageAdsCreate = lazy(() => import('@/app/(admin)/pages/homepage-ads/create/page'))
+const HomepageAdsEdit = lazy(() => import('@/app/(admin)/pages/homepage-ads/edit/[id]/page'))
 const UsersPage = lazy(() => import('@/app/(admin)/pages/users/page'))
 const NotificationsPage = lazy(() => import('@/app/(admin)/pages/notifications/page'))
 const UnauthorizedPage = lazy(() => import('@/app/(admin)/pages/unauthorized/page'))
@@ -536,6 +539,21 @@ const customRoutes = [
     name: 'Edit About Us',
     path: '/pages/about-us/edit/:id',
     element: <AboutUsEdit />,
+  },
+  {
+    name: 'Homepage Ads',
+    path: '/pages/homepage-ads',
+    element: <HomepageAds />,
+  },
+  {
+    name: 'Create Homepage Ad',
+    path: '/pages/homepage-ads/create',
+    element: <HomepageAdsCreate />,
+  },
+  {
+    name: 'Edit Homepage Ad',
+    path: '/pages/homepage-ads/edit/:id',
+    element: <HomepageAdsEdit />,
   },
   {
     name: 'Our Team',

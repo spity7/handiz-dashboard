@@ -217,6 +217,33 @@ export const GlobalProvider = ({ children }) => {
     return response.data
   }
 
+  const createHomepageAd = async (data) => {
+    const response = await axiosInstance.post('/homepage-ads', data)
+    return response.data
+  }
+
+  const getHomepageAds = async (admin = false) => {
+    const response = await axiosInstance.get('/homepage-ads', {
+      params: admin ? { admin: 'true' } : undefined,
+    })
+    return response.data.homepageAds
+  }
+
+  const getHomepageAdById = async (id) => {
+    const response = await axiosInstance.get(`/homepage-ads/${id}`)
+    return response.data.homepageAd
+  }
+
+  const updateHomepageAd = async (id, data) => {
+    const response = await axiosInstance.put(`/homepage-ads/${id}`, data)
+    return response.data.homepageAd
+  }
+
+  const deleteHomepageAd = async (id) => {
+    const response = await axiosInstance.delete(`/homepage-ads/${id}`)
+    return response.data
+  }
+
   const deleteAiToolGalleryImage = async (id, imageUrl) => {
     const response = await axiosInstance.delete(`/aiTools/${id}/gallery`, {
       data: { imageUrl },
@@ -706,6 +733,11 @@ export const GlobalProvider = ({ children }) => {
         updateAiTool,
         deleteAiTool,
         deleteAiToolGalleryImage,
+        createHomepageAd,
+        getHomepageAds,
+        getHomepageAdById,
+        updateHomepageAd,
+        deleteHomepageAd,
         getAiPromptCategories,
         createAiPromptCategory,
         updateAiPromptCategory,

@@ -166,6 +166,13 @@ export const MENU_ITEMS = [
         parentKey: 'ecommerce',
         roles: ['Admin'],
       },
+      {
+        key: 'ecommerce-homepage-ads',
+        label: 'Homepage Ads',
+        url: '/pages/homepage-ads',
+        parentKey: 'ecommerce',
+        roles: ['Admin'],
+      },
 
       // {
       //   key: 'ecommerce-products',

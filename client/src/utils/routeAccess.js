@@ -6,6 +6,7 @@ const ADMIN_ONLY_PREFIXES = [
   '/ecommerce/offices',
   '/ecommerce/courses',
   '/pages/about-us',
+  '/pages/homepage-ads',
   '/pages/users',
   '/ecommerce/services',
   '/dashboard/',
