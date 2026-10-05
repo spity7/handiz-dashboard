@@ -3,14 +3,10 @@
  *
  * Usage (from server/): node scripts/seedHomepageAds.js
  *
- * Manual test matrix (storefront):
- * - 0 published ads → strip hidden
- * - 1–4 ads → grid columns per breakpoint
- * - 5+ ads → swiper scroll + mobile dots
- * - Unpublished / outside schedule → hidden on public GET
- * - Dark mode → meta contrast on homepage-2
+ * Requires MONGO_URL in server/.env and a reachable MongoDB instance.
  */
 require("../config/env");
+const mongoose = require("mongoose");
 const { db } = require("../db/db");
 const HomepageAd = require("../models/homepageAdModel");
 
@@ -58,18 +54,27 @@ const samples = [
 ];
 
 async function run() {
-  await db;
+  await db();
+
   const existing = await HomepageAd.countDocuments();
   if (existing > 0) {
     console.log(`Skipping seed: ${existing} homepage ad(s) already exist.`);
+    await mongoose.disconnect();
     process.exit(0);
   }
+
   await HomepageAd.insertMany(samples);
   console.log(`Inserted ${samples.length} homepage ads.`);
+  await mongoose.disconnect();
   process.exit(0);
 }
 
-run().catch((err) => {
+run().catch(async (err) => {
   console.error(err);
+  try {
+    await mongoose.disconnect();
+  } catch {
+    /* ignore */
+  }
   process.exit(1);
 });

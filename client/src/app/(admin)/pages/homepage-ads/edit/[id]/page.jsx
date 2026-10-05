@@ -52,7 +52,9 @@ const HomepageAdsEditPage = () => {
     load()
   }, [getHomepageAdById, id, navigate])
 
-  useRegisterUnsavedFormDirty(initialSnapshot, values, { extraDirty: Boolean(thumbnailFile) })
+  const { isDirty: hasChanges } = useRegisterUnsavedFormDirty(initialSnapshot, values, {
+    extraDirty: Boolean(thumbnailFile),
+  })
 
   const onThumbnailChange = (file) => {
     setThumbnailFile(file)
@@ -118,7 +120,7 @@ const HomepageAdsEditPage = () => {
                   />
                 </fieldset>
                 <div className="d-flex gap-2 mt-3">
-                  <Button type="submit" variant="primary" disabled={loading}>
+                  <Button type="submit" variant="primary" disabled={loading || !hasChanges}>
                     {loading ? 'Saving…' : 'Save changes'}
                   </Button>
                   <Button type="button" variant="light" disabled={loading} onClick={() => navigate('/pages/homepage-ads')}>
