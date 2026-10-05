@@ -1,5 +1,6 @@
 import { Col, Form, Row } from 'react-bootstrap'
 import ThumbnailDropzoneInput from '@/components/form/ThumbnailDropzoneInput'
+import { HOMEPAGE_AD_STATUS_OPTIONS, homepageAdStatusPreviewClass } from '@/constants/homepageAdStatus'
 
 function toDatetimeLocalValue(iso) {
   if (!iso) return ''
@@ -38,8 +39,15 @@ export function HomepageAdFormFields({ values, onChange, thumbnailFile, onThumbn
 
       <Col lg={4}>
         <Form.Group className="mb-3">
-          <Form.Label>Meta primary</Form.Label>
-          <Form.Control value={values.metaPrimary} onChange={set('metaPrimary')} placeholder="e.g. SPONSORED" required />
+          <Form.Label>Status</Form.Label>
+          <Form.Select value={values.status} onChange={set('status')} required>
+            {HOMEPAGE_AD_STATUS_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </Form.Select>
+          <Form.Text className="text-muted">&quot;Coming Soon&quot; shows on the homepage but the card is not clickable.</Form.Text>
         </Form.Group>
       </Col>
       <Col lg={8}>
@@ -97,9 +105,11 @@ export function HomepageAdFormFields({ values, onChange, thumbnailFile, onThumbn
               <img src={thumbnailPreviewUrl} alt="" width={62} height={46} className="rounded" style={{ objectFit: 'cover' }} />
             ) : null}
             <div>
-              <div className="text-muted text-uppercase small">
-                {values.metaPrimary}
-                {values.metaSecondary ? ` / ${values.metaSecondary}` : ''}
+              <div className="text-uppercase small">
+                <span className={homepageAdStatusPreviewClass(values.status)}>
+                  {HOMEPAGE_AD_STATUS_OPTIONS.find((o) => o.value === values.status)?.label ?? values.status}
+                </span>
+                {values.metaSecondary ? <span className="text-muted"> / {values.metaSecondary}</span> : null}
               </div>
               <div className="fw-semibold">{values.title || 'Title'}</div>
             </div>
@@ -113,7 +123,7 @@ export function HomepageAdFormFields({ values, onChange, thumbnailFile, onThumbn
 export function emptyHomepageAdFormValues() {
   return {
     title: '',
-    metaPrimary: 'SPONSORED',
+    status: 'available',
     metaSecondary: '',
     externalUrl: '',
     order: 999,
@@ -126,7 +136,7 @@ export function emptyHomepageAdFormValues() {
 export function homepageAdToFormValues(ad) {
   return {
     title: ad.title ?? '',
-    metaPrimary: ad.metaPrimary ?? 'SPONSORED',
+    status: ad.status ?? 'available',
     metaSecondary: ad.metaSecondary ?? '',
     externalUrl: ad.externalUrl ?? '',
     order: ad.order ?? 999,
@@ -138,7 +148,7 @@ export function homepageAdToFormValues(ad) {
 
 export function appendHomepageAdFormData(formData, values) {
   formData.append('title', values.title)
-  formData.append('metaPrimary', values.metaPrimary)
+  formData.append('status', values.status)
   formData.append('metaSecondary', values.metaSecondary || '')
   formData.append('externalUrl', values.externalUrl)
   formData.append('order', String(values.order))

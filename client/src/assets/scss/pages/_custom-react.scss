@@ -1375,6 +1375,62 @@ html[data-bs-theme='dark'] {
   }
 }
 
+.homepage-ad-status {
+  font-weight: 700;
+
+  &--available {
+    color: #22c55e;
+  }
+
+  &--coming_soon {
+    color: #f59e0b;
+  }
+
+  &--sold_out {
+    color: #ef4444;
+  }
+
+  &--limited {
+    color: #38bdf8;
+  }
+}
+
+.homepage-ads-empty {
+  max-width: 36rem;
+
+  .projects-list-empty__description {
+    margin-bottom: 1.25rem;
+  }
+
+  &__tips {
+    list-style: none;
+    padding-left: 0;
+    max-width: 28rem;
+
+    li {
+      position: relative;
+      padding-left: 1.35rem;
+      margin-bottom: 0.5rem;
+      line-height: 1.5;
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+
+      &::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0.45em;
+        width: 0.4rem;
+        height: 0.4rem;
+        border-radius: 50%;
+        background: rgba(var(--#{$prefix}primary-rgb), 0.65);
+      }
+    }
+  }
+}
+
 .projects-list-skeleton {
   &__thumb {
     width: 50px;

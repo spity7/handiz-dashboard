@@ -2,6 +2,15 @@ const HomepageAd = require("../models/homepageAdModel");
 const { uploadOptimizedImage, deleteImage } = require("../utils/gcs");
 const { getImageValidationError } = require("../utils/imageValidation");
 const { hasPermission } = require("../constants/permissions");
+const { normalizeHomepageAdStatus } = require("../constants/homepageAdStatus");
+
+function serializeHomepageAd(doc) {
+  const ad = doc?.toObject ? doc.toObject() : { ...doc };
+  if (!ad.status) {
+    ad.status = "available";
+  }
+  return ad;
+}
 
 function parseOptionalDate(value) {
   if (value === undefined || value === null || value === "") return null;
@@ -44,14 +53,8 @@ function canManageCms(user) {
 
 exports.createHomepageAd = async (req, res) => {
   try {
-    const {
-      title,
-      metaPrimary,
-      metaSecondary,
-      externalUrl,
-      order,
-      isPublished,
-    } = req.body;
+    const { title, status, metaSecondary, externalUrl, order, isPublished } =
+      req.body;
     const thumbnailFile = req.files?.thumbnail?.[0];
 
     const urlCheck = validateHttpsUrl(externalUrl);
@@ -59,10 +62,13 @@ exports.createHomepageAd = async (req, res) => {
       return res.status(400).json({ message: urlCheck.message });
     }
 
-    if (!title?.trim() || !metaPrimary?.trim()) {
-      return res.status(400).json({
-        message: "Title and primary meta label are required",
-      });
+    if (!title?.trim()) {
+      return res.status(400).json({ message: "Title is required" });
+    }
+
+    const normalizedStatus = normalizeHomepageAdStatus(status);
+    if (!normalizedStatus) {
+      return res.status(400).json({ message: "Invalid status" });
     }
 
     if (!thumbnailFile) {
@@ -94,7 +100,7 @@ exports.createHomepageAd = async (req, res) => {
 
     const homepageAd = await HomepageAd.create({
       title: String(title).trim(),
-      metaPrimary: String(metaPrimary).trim(),
+      status: normalizedStatus,
       metaSecondary: metaSecondary ? String(metaSecondary).trim() : "",
       externalUrl: urlCheck.value,
       thumbnailUrl,
@@ -106,7 +112,7 @@ exports.createHomepageAd = async (req, res) => {
 
     res.status(201).json({
       message: "Homepage ad created successfully",
-      homepageAd,
+      homepageAd: serializeHomepageAd(homepageAd),
     });
   } catch (error) {
     console.error("Homepage ad creation error:", error);
@@ -127,7 +133,9 @@ exports.getAllHomepageAds = async (req, res) => {
       createdAt: -1,
     });
 
-    res.status(200).json({ homepageAds });
+    res.status(200).json({
+      homepageAds: homepageAds.map(serializeHomepageAd),
+    });
   } catch (error) {
     console.error("Error fetching homepage ads:", error);
     res.status(500).json({ message: "Server error fetching homepage ads" });
@@ -140,7 +148,7 @@ exports.getHomepageAdById = async (req, res) => {
     if (!homepageAd) {
       return res.status(404).json({ message: "Homepage ad not found" });
     }
-    res.status(200).json({ homepageAd });
+    res.status(200).json({ homepageAd: serializeHomepageAd(homepageAd) });
   } catch (error) {
     console.error("Error fetching homepage ad:", error);
     res.status(500).json({ message: "Server error fetching homepage ad" });
@@ -154,21 +162,19 @@ exports.updateHomepageAd = async (req, res) => {
       return res.status(404).json({ message: "Homepage ad not found" });
     }
 
-    const {
-      title,
-      metaPrimary,
-      metaSecondary,
-      externalUrl,
-      order,
-      isPublished,
-    } = req.body;
+    const { title, status, metaSecondary, externalUrl, order, isPublished } =
+      req.body;
     const thumbnailFile = req.files?.thumbnail?.[0];
 
     const updateData = {};
 
     if (title !== undefined) updateData.title = String(title).trim();
-    if (metaPrimary !== undefined) {
-      updateData.metaPrimary = String(metaPrimary).trim();
+    if (status !== undefined) {
+      const normalizedStatus = normalizeHomepageAdStatus(status);
+      if (!normalizedStatus) {
+        return res.status(400).json({ message: "Invalid status" });
+      }
+      updateData.status = normalizedStatus;
     }
     if (metaSecondary !== undefined) {
       updateData.metaSecondary = String(metaSecondary).trim();
@@ -247,7 +253,7 @@ exports.updateHomepageAd = async (req, res) => {
 
     res.status(200).json({
       message: "Homepage ad updated successfully",
-      homepageAd,
+      homepageAd: serializeHomepageAd(homepageAd),
     });
   } catch (error) {
     console.error("Error updating homepage ad:", error);

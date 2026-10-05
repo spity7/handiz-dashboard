@@ -17,7 +17,7 @@ const HomepageAd = require("../models/homepageAdModel");
 const samples = [
   {
     title: "10 Simple Habits for a More Fulfilling Life",
-    metaPrimary: "SPONSORED",
+    status: "available",
     metaSecondary: "PARTNER ONE",
     externalUrl: "https://handiz.org",
     thumbnailUrl:
@@ -27,7 +27,7 @@ const samples = [
   },
   {
     title: "Top Makeup Trends to Try This Spring",
-    metaPrimary: "SPONSORED",
+    status: "available",
     metaSecondary: "PARTNER TWO",
     externalUrl: "https://handiz.org",
     thumbnailUrl:
@@ -37,7 +37,7 @@ const samples = [
   },
   {
     title: "Morning vs. Night Routine: What's the Difference?",
-    metaPrimary: "SPONSORED",
+    status: "available",
     metaSecondary: "PARTNER THREE",
     externalUrl: "https://handiz.org",
     thumbnailUrl:
@@ -47,7 +47,7 @@ const samples = [
   },
   {
     title: "5 Superfoods You Should Be Eating Right Now",
-    metaPrimary: "SPONSORED",
+    status: "available",
     metaSecondary: "PARTNER FOUR",
     externalUrl: "https://handiz.org",
     thumbnailUrl:

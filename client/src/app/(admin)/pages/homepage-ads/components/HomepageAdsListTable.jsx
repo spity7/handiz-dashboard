@@ -4,6 +4,7 @@ import ReactTable from '@/components/Table'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
 import { useGlobalContext } from '@/context/useGlobalContext'
 import Swal from 'sweetalert2'
+import { HOMEPAGE_AD_STATUS_LABELS, homepageAdStatusBadgeVariant } from '@/constants/homepageAdStatus'
 
 function formatSchedule(startsAt, endsAt) {
   if (!startsAt && !endsAt) return 'Always'
@@ -41,7 +42,7 @@ const HomepageAdsListTable = ({ homepageAds, onRefresh }) => {
       header: 'Ad',
       cell: ({
         row: {
-          original: { thumbnailUrl, title, metaPrimary, metaSecondary },
+          original: { thumbnailUrl, title, metaSecondary },
         },
       }) => (
         <div className="d-flex align-items-center">
@@ -56,13 +57,25 @@ const HomepageAdsListTable = ({ homepageAds, onRefresh }) => {
           </div>
           <div className="flex-grow-1">
             <h6 className="mt-0 mb-1">{title}</h6>
-            <p className="text-muted small mb-0 text-uppercase">
-              {metaPrimary}
-              {metaSecondary ? ` / ${metaSecondary}` : ''}
-            </p>
+            {metaSecondary ? <p className="text-muted small mb-0">{metaSecondary}</p> : null}
           </div>
         </div>
       ),
+    },
+    {
+      header: 'Status',
+      cell: ({
+        row: {
+          original: { status },
+        },
+      }) => {
+        const key = status || 'available'
+        return (
+          <Badge bg={homepageAdStatusBadgeVariant(key)} className="text-uppercase">
+            {HOMEPAGE_AD_STATUS_LABELS[key] || key}
+          </Badge>
+        )
+      },
     },
     {
       header: 'URL',

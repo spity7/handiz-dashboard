@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { HOMEPAGE_AD_STATUSES } = require("../constants/homepageAdStatus");
 
 const homepageAdSchema = new mongoose.Schema(
   {
@@ -8,11 +9,11 @@ const homepageAdSchema = new mongoose.Schema(
       trim: true,
       maxlength: 120,
     },
-    metaPrimary: {
+    status: {
       type: String,
-      required: [true, "Primary meta label is required"],
-      trim: true,
-      maxlength: 80,
+      enum: HOMEPAGE_AD_STATUSES,
+      default: "available",
+      required: [true, "Status is required"],
     },
     metaSecondary: {
       type: String,
