@@ -38,14 +38,19 @@ const HomepageAdsListTable = ({ homepageAds, onRefresh, actionsLocked = false })
     if (!result.isConfirmed) return
 
     setDeletingId(id)
+    let deleted = false
     try {
       await deleteHomepageAd(id)
-      Swal.fire('Deleted!', 'Homepage ad has been deleted.', 'success')
+      deleted = true
       await onRefresh?.()
     } catch (error) {
-      Swal.fire('Error', error?.response?.data?.message || 'Delete failed', 'error')
+      await Swal.fire('Error', error?.response?.data?.message || 'Delete failed', 'error')
     } finally {
       setDeletingId(null)
+    }
+
+    if (deleted) {
+      await Swal.fire('Deleted', 'Homepage ad has been deleted.', 'success')
     }
   }
 

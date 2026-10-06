@@ -7,6 +7,7 @@ import { useGlobalContext } from '@/context/useGlobalContext'
 import { useLmsAsyncBusy } from '@/context/LmsAsyncBusyContext'
 import useConfirmFormSubmit from '@/hooks/useConfirmFormSubmit'
 import { buildFormConfirmOptions } from '@/utils/formConfirm'
+import Swal from 'sweetalert2'
 import { HomepageAdFormFields, appendHomepageAdFormData, emptyHomepageAdFormValues } from '../components/HomepageAdFormFields'
 
 const apiErrorMessage = (error, fallback) => {
@@ -40,28 +41,28 @@ const HomepageAdsCreatePage = () => {
   const onSubmit = async (e) => {
     e.preventDefault()
     if (!thumbnailFile) {
-      alert('Thumbnail image is required')
+      Swal.fire('Validation', 'Thumbnail image is required.', 'warning')
       return
     }
 
     await confirmFormSubmit(buildFormConfirmOptions('create', { subject: 'this homepage ad' }), async () => {
+      let createdId = null
       try {
         setLoading(true)
         const formData = new FormData()
         appendHomepageAdFormData(formData, values)
         formData.append('thumbnail', thumbnailFile)
         const result = await createHomepageAd(formData)
-        const id = result?.homepageAd?._id
-        if (id) {
-          navigate(`/pages/homepage-ads/edit/${id}`)
-        } else {
-          navigate('/pages/homepage-ads')
-        }
+        createdId = result?.homepageAd?._id ?? null
       } catch (error) {
-        alert(apiErrorMessage(error, 'Failed to create homepage ad'))
+        await Swal.fire('Error', apiErrorMessage(error, 'Failed to create homepage ad'), 'error')
+        return
       } finally {
         setLoading(false)
       }
+
+      await Swal.fire('Created', 'Homepage ad created successfully.', 'success')
+      navigate(createdId ? `/pages/homepage-ads/edit/${createdId}` : '/pages/homepage-ads')
     })
   }
 

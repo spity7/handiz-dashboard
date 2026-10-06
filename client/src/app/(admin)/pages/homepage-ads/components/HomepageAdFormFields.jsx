@@ -47,7 +47,9 @@ export function HomepageAdFormFields({ values, onChange, thumbnailFile, onThumbn
               </option>
             ))}
           </Form.Select>
-          <Form.Text className="text-muted">&quot;Coming Soon&quot; shows on the homepage but the card is not clickable.</Form.Text>
+          <Form.Text className="text-muted">
+            &quot;Coming Soon&quot; and &quot;Sold Out&quot; still appear on the homepage but the card is not clickable.
+          </Form.Text>
         </Form.Group>
       </Col>
       <Col lg={8}>

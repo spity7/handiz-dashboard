@@ -9,6 +9,8 @@ import { useLmsAsyncBusy } from '@/context/LmsAsyncBusyContext'
 import useConfirmFormSubmit from '@/hooks/useConfirmFormSubmit'
 import { buildFormConfirmOptions } from '@/utils/formConfirm'
 import useRegisterUnsavedFormDirty from '@/hooks/useRegisterUnsavedFormDirty'
+import { useUnsavedFormChanges } from '@/context/UnsavedFormChangesContext'
+import Swal from 'sweetalert2'
 import { HomepageAdFormFields, appendHomepageAdFormData, homepageAdToFormValues } from '../../components/HomepageAdFormFields'
 
 const apiErrorMessage = (error, fallback) => {
@@ -23,6 +25,7 @@ const HomepageAdsEditPage = () => {
   const { id } = useParams()
   const navigate = useNavigate()
   const confirmFormSubmit = useConfirmFormSubmit()
+  const { acknowledgeSuccessfulFormSave } = useUnsavedFormChanges()
   const { getHomepageAdById, updateHomepageAd } = useGlobalContext()
 
   const [initialSnapshot, setInitialSnapshot] = useState(null)
@@ -43,7 +46,7 @@ const HomepageAdsEditPage = () => {
         setInitialSnapshot(formValues)
         setThumbnailPreview(ad.thumbnailUrl)
       } catch (error) {
-        alert(apiErrorMessage(error, 'Could not load this ad'))
+        await Swal.fire('Error', apiErrorMessage(error, 'Could not load this ad'), 'error')
         navigate('/pages/homepage-ads')
       } finally {
         setFetching(false)
@@ -76,16 +79,20 @@ const HomepageAdsEditPage = () => {
           formData.append('thumbnail', thumbnailFile)
         }
         await updateHomepageAd(id, formData)
-        alert('Homepage ad updated successfully')
         setInitialSnapshot(values)
         setThumbnailFile(null)
         setResetDropzones(true)
         setTimeout(() => setResetDropzones(false), 0)
+        acknowledgeSuccessfulFormSave()
       } catch (error) {
-        alert(apiErrorMessage(error, 'Failed to update homepage ad'))
+        await Swal.fire('Error', apiErrorMessage(error, 'Failed to update homepage ad'), 'error')
+        return
       } finally {
         setLoading(false)
       }
+
+      await Swal.fire('Saved', 'Homepage ad updated successfully.', 'success')
+      navigate('/pages/homepage-ads')
     })
   }
 
